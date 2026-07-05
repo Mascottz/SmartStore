@@ -1,0 +1,12 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // TEMP: allow all reads/writes to verify app logic.
+    // DO NOT keep this in production.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
