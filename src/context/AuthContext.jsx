@@ -1,30 +1,62 @@
 // src/context/AuthContext.jsx
-import { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+} from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);        // Firebase Auth user
-  const [role, setRole] = useState(null);        // 'owner' | 'admin' | 'manager' | 'cashier' | null
-  const [storeId, setStoreId] = useState(null);  // current store / tenant
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
+  const [storeId, setStoreId] = useState(null);
 
-  // Store / plan info
-  const [plan, setPlan] = useState('free');      // 'free' | 'owner'
+  const [plan, setPlan] = useState('free');
   const [planExpiresAt, setPlanExpiresAt] = useState(null);
   const [storeName, setStoreName] = useState('');
   const [storeType, setStoreType] = useState('');
   const [storeIsDemo, setStoreIsDemo] = useState(false);
 
-  // Full store doc (includes onboarding, plan, etc.)
   const [store, setStore] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [loading, setLoading] = useState(true);  // true while we check
+  // THEME: light | dark
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return localStorage.getItem('theme') || 'dark';
+  });
+
+  // Sync theme with <html> class and localStorage
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   useEffect(() => {
+    let storeUnsub = null;
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log(
+        'onAuthStateChanged fired',
+        firebaseUser ? `uid=${firebaseUser.uid}` : 'user=null'
+      );
+
       setUser(firebaseUser);
 
       if (!firebaseUser) {
@@ -36,6 +68,12 @@ export function AuthProvider({ children }) {
         setStoreType('');
         setStoreIsDemo(false);
         setStore(null);
+
+        if (storeUnsub) {
+          storeUnsub();
+          storeUnsub = null;
+        }
+
         setLoading(false);
         return;
       }
@@ -56,38 +94,56 @@ export function AuthProvider({ children }) {
         setRole(resolvedRole);
         setStoreId(resolvedStoreId);
 
+        if (storeUnsub) {
+          storeUnsub();
+          storeUnsub = null;
+        }
+
         if (resolvedStoreId) {
           const storeRef = doc(db, 'stores', resolvedStoreId);
-          const storeSnap = await getDoc(storeRef);
 
-          if (storeSnap.exists()) {
-            const storeData = storeSnap.data();
+          storeUnsub = onSnapshot(
+            storeRef,
+            (storeSnap) => {
+              if (storeSnap.exists()) {
+                const storeData = storeSnap.data();
 
-            setStore(storeData); // keep the full store doc in state
+                setStore(storeData);
+                setStoreName(storeData.name || '');
+                setStoreType(storeData.type || '');
+                setStoreIsDemo(!!storeData.isDemo);
 
-            setStoreName(storeData.name || '');
-            setStoreType(storeData.type || '');
-            setStoreIsDemo(!!storeData.isDemo);
+                const storePlan = storeData.plan || 'free';
+                setPlan(storePlan);
 
-            const storePlan = storeData.plan || 'free';
-            setPlan(storePlan);
+                const expiresTs = storeData.planExpiresAt;
+                if (expiresTs?.toDate) {
+                  setPlanExpiresAt(expiresTs.toDate());
+                } else {
+                  setPlanExpiresAt(null);
+                }
+              } else {
+                setStore(null);
+                setStoreName('');
+                setStoreType('');
+                setStoreIsDemo(false);
+                setPlan('free');
+                setPlanExpiresAt(null);
+              }
 
-            const expiresTs = storeData.planExpiresAt;
-            if (expiresTs?.toDate) {
-              // Firestore Timestamp -> JS Date
-              setPlanExpiresAt(expiresTs.toDate());
-            } else {
+              setLoading(false);
+            },
+            (err) => {
+              console.error('Store onSnapshot error', err);
+              setStore(null);
+              setStoreName('');
+              setStoreType('');
+              setStoreIsDemo(false);
+              setPlan('free');
               setPlanExpiresAt(null);
+              setLoading(false);
             }
-          } else {
-            // No store doc yet
-            setStore(null);
-            setStoreName('');
-            setStoreType('');
-            setStoreIsDemo(false);
-            setPlan('free');
-            setPlanExpiresAt(null);
-          }
+          );
         } else {
           setStore(null);
           setStoreName('');
@@ -95,6 +151,7 @@ export function AuthProvider({ children }) {
           setStoreIsDemo(false);
           setPlan('free');
           setPlanExpiresAt(null);
+          setLoading(false);
         }
       } catch (err) {
         console.error('Error loading user/store', err);
@@ -105,20 +162,23 @@ export function AuthProvider({ children }) {
         setStoreType('');
         setStoreIsDemo(false);
         setStore(null);
-      } finally {
         setLoading(false);
       }
     });
 
-    return () => unsub();
+    return () => {
+      unsub();
+      if (storeUnsub) {
+        storeUnsub();
+      }
+    };
   }, []);
 
-  // Derived flags from plan + expiry
   const isOwnerActive = useMemo(() => {
     if (plan !== 'owner') return false;
-    if (!planExpiresAt) return true; // owner with no expiry set
+    if (!planExpiresAt) return true;
     return planExpiresAt.getTime() > Date.now();
-  }, [plan, planExpiresAt]); // [web:862][web:863]
+  }, [plan, planExpiresAt]);
 
   const formattedPlanExpiry = useMemo(() => {
     if (!planExpiresAt) return null;
@@ -127,20 +187,33 @@ export function AuthProvider({ children }) {
       month: 'short',
       day: 'numeric',
     });
-  }, [planExpiresAt]); // [web:852][web:856][web:858]
+  }, [planExpiresAt]);
 
-  // Call your Render server to create a Monnify checkout
+  // Onboarding derived flags
+  const onboarding = store?.onboarding || {};
+  const storeProfileDone = onboarding.storeProfileDone === true;
+  const categoriesDone = onboarding.categoriesDone === true;
+  const firstProductAdded = onboarding.firstProductAdded === true;
+  const firstSaleCompleted = onboarding.firstSaleCompleted === true;
+
+  const onboardingCompleted =
+    storeProfileDone &&
+    categoriesDone &&
+    firstProductAdded;
+
   const upgradeToOwner = async () => {
     if (!storeId) return;
-
     try {
-      const res = await fetch('https://smartstore-bill.onrender.com/create-checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ storeId }),
-      });
+      const res = await fetch(
+        'https://smartstore-bill.onrender.com/create-checkout',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ storeId }),
+        }
+      );
 
       const data = await res.json();
 
@@ -166,7 +239,7 @@ export function AuthProvider({ children }) {
     user,
     role,
     storeId,
-    store,          // full store doc
+    store,
     plan,
     planExpiresAt,
     isOwnerActive,
@@ -176,12 +249,19 @@ export function AuthProvider({ children }) {
     storeIsDemo,
     loading,
     upgradeToOwner,
+    // onboarding flags
+    storeProfileDone,
+    categoriesDone,
+    firstProductAdded,
+    firstSaleCompleted,
+    onboardingCompleted,
+    // theme
+    theme,
+    toggleTheme,
   };
 
   return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }
 

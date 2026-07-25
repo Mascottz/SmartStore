@@ -15,6 +15,8 @@ import {
   query,
   where,
   onSnapshot,
+  doc,
+  updateDoc,
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -28,7 +30,7 @@ import {
   Legend,
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import OwnerFeatureGate from '../components/OwnerFeatureGate'; // ✅ NEW
+import OwnerFeatureGate from '../components/OwnerFeatureGate';
 
 // helper: start of today (midnight)
 const getStartOfToday = () => {
@@ -50,7 +52,12 @@ const monthLabelFromKey = (key) => {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { storeId, store } = useAuth(); // current store
+  const {
+    storeId,
+    store,
+    storeName,
+    onboardingCompleted, // 👈 from AuthContext
+  } = useAuth();
 
   const [stats, setStats] = useState({
     todaySales: 0,
@@ -282,21 +289,41 @@ export default function Dashboard() {
   );
   const ytdNet = ytdSales - ytdExpenses;
 
-  const businessType = store?.onboarding?.businessType;
   const onboarding = store?.onboarding;
+  const businessType = onboarding?.businessType;
+  const title = storeName || 'SmartStore';
+
+  // (Optional) manual complete handler, still available if the card uses it
+  const handleOnboardingComplete = async () => {
+    if (!storeId) return;
+    try {
+      const ref = doc(db, 'stores', storeId);
+      await updateDoc(ref, {
+        'onboarding.completed': true,
+      });
+    } catch (err) {
+      console.error('Error marking onboarding complete', err);
+    }
+  };
 
   return (
     <div className="p-8 bg-zinc-950 min-h-screen">
-      {/* Supermarket onboarding card */}
-      {businessType === 'supermarket' && onboarding && (
-        <SupermarketOnboardingCard onboarding={onboarding} />
-      )}
+      {/* Supermarket onboarding card:
+          now hidden automatically when global onboardingCompleted is true */}
+      {businessType === 'supermarket' &&
+        onboarding &&
+        !onboardingCompleted && (
+          <SupermarketOnboardingCard
+            onboarding={onboarding}
+            onComplete={handleOnboardingComplete}
+          />
+        )}
 
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-4xl font-bold text-white">
-            Dashboard
+            {title}
           </h1>
           <p className="text-zinc-400">
             Clear view of how your shop is doing today.

@@ -1,35 +1,38 @@
 // src/components/ProtectedRoute.jsx
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export default function ProtectedRoute({ requiredRole }) {
+export default function ProtectedRoute({ children, requiredRole }) {
   const { user, role, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <p className="text-sm text-zinc-400">
-          Checking your access…
-        </p>
-      </div>
-    );
+    // Let AppInner show the main splash; we just block render here
+    return null;
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // Not signed in → go to login, remember intent
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location.pathname + location.search }}
+      />
+    );
   }
 
   if (requiredRole) {
     // simple role hierarchy: admin > manager > cashier
-   const rank = { owner: 3, admin: 3, manager: 2, cashier: 1 };
+    const rank = { owner: 3, admin: 3, manager: 2, cashier: 1 };
     const userRank = rank[role] || 1;
     const requiredRank = rank[requiredRole] || 1;
 
     if (userRank < requiredRank) {
-      // Not enough permission
       return <Navigate to="/" replace />;
     }
   }
 
-  return <Outlet />;
+  // We are authenticated (and role is OK), render the wrapped content
+  return children;
 }

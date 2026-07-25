@@ -2,9 +2,7 @@
 import { useState } from 'react';
 import { ArrowRight, UserPlus } from 'lucide-react';
 import { auth } from '../firebase';
-import {
-  signInWithEmailAndPassword,
-} from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import logo from '/logo-smartstore.png';
@@ -12,7 +10,7 @@ import logo from '/logo-smartstore.png';
 const DEMO_EMAIL = 'demo@smartstoreng.com';
 const DEMO_PASSWORD = 'Demo1234!';
 
-// Backend base URL 
+// Backend base URL
 const API_BASE = 'https://smartstore-bill.onrender.com';
 
 export default function Login() {
@@ -22,10 +20,6 @@ export default function Login() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [loading, setLoading] = useState(false);
 
-  // Store details for signup
-  const [storeName, setStoreName] = useState('');
-  const [storeType, setStoreType] = useState('supermarket');
-
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -34,35 +28,23 @@ export default function Login() {
 
     try {
       if (mode === 'login') {
-        // Normal login with Firebase Auth
         await signInWithEmailAndPassword(auth, email, password);
         toast.success('Welcome back to SmartStore NG 👋');
+        navigate('/', { replace: true });
       } else {
-        // SIGNUP FLOW (Create owner + store via backend)
         if (!accessKey.trim()) {
           toast.error('Please enter your creator access key.');
           setLoading(false);
           return;
         }
 
-        if (!storeName.trim()) {
-          toast.error('Please enter your store name.');
-          setLoading(false);
-          return;
-        }
-
-        // 1) Ask backend to create owner + store
         const res = await fetch(`${API_BASE}/create-owner`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email,
             password,
-            storeName,
-            storeType,
-            accessKey, 
+            accessKey,
           }),
         });
 
@@ -71,24 +53,26 @@ export default function Login() {
         if (!res.ok) {
           console.error('create-owner failed', data);
           toast.error(
-            data.error || 'Could not create owner account. Contact support.'
+            data.error ||
+              'Could not create owner account. Contact support.'
           );
           setLoading(false);
           return;
         }
 
-        // 2) Backend created the user; now sign in with Firebase Auth
         await signInWithEmailAndPassword(auth, email, password);
         toast.success('Owner account and store created 🎉');
-      }
 
-      navigate('/', { replace: true });
+        // New owners go into onboarding flow
+        navigate('/onboarding', { replace: true });
+      }
     } catch (error) {
       console.error(error);
       let message = 'Something went wrong. Please try again.';
       if (
         error.code === 'auth/user-not-found' ||
-        error.code === 'auth/wrong-password'
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/invalid-credential'
       ) {
         message = 'Email or password is not correct.';
       } else if (error.code === 'auth/email-already-in-use') {
@@ -109,7 +93,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+      <div className="w-full max-w-md">
         {/* Logo & Brand */}
         <div className="text-center mb-10">
           <div className="flex justify-center mb-4">
@@ -121,16 +105,16 @@ export default function Login() {
               />
             </div>
           </div>
-          <h1 className="text-5xl font-bold text-white tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
             SmartStore NG
           </h1>
-          <p className="text-emerald-400 mt-1 font-medium">
+          <p className="text-emerald-400 mt-1 font-medium text-sm md:text-base">
             Smarter Management, Stronger Business
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-zinc-900 rounded-3xl p-8 shadow-2xl border border-zinc-800">
+        <div className="bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-zinc-800">
           {/* Mode toggle */}
           <div className="flex mb-6 bg-zinc-800 rounded-2xl p-1">
             <button
@@ -166,7 +150,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition"
+                className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition text-sm"
                 placeholder="owner@yourstore.com"
                 required
               />
@@ -180,7 +164,7 @@ export default function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition"
+                className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition text-sm"
                 placeholder="••••••••"
                 required
               />
@@ -192,62 +176,29 @@ export default function Login() {
             </div>
 
             {mode === 'signup' && (
-              <>
-                <div>
-                  <label className="block text-sm text-zinc-400 mb-2 font-medium">
-                    Creator access key
-                  </label>
-                  <input
-                    type="password"
-                    value={accessKey}
-                    onChange={(e) => setAccessKey(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition"
-                    placeholder="Enter the key from SmartStore NG"
-                    required
-                  />
-                  <p className="text-[11px] text-zinc-500 mt-1">
-                    Only approved store owners with a creator key can create a SmartStore NG account.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-zinc-400 mb-2 font-medium">
-                    Store / Business name
-                  </label>
-                  <input
-                    type="text"
-                    value={storeName}
-                    onChange={(e) => setStoreName(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition"
-                    placeholder="Ade Supermarket, Chika Pharmacy..."
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-zinc-400 mb-2 font-medium">
-                    Business type
-                  </label>
-                  <select
-                    value={storeType}
-                    onChange={(e) => setStoreType(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white text-sm focus:outline-none transition"
-                  >
-                    <option value="supermarket">Supermarket / Grocery</option>
-                    <option value="pharmacy">Pharmacy</option>
-                    <option value="cosmetics">Cosmetics / Beauty</option>
-                    <option value="bar">Bar / Lounge</option>
-                    <option value="restaurant">Restaurant / Food</option>
-                    <option value="other">Other retail</option>
-                  </select>
-                </div>
-              </>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-2 font-medium">
+                  Creator access key
+                </label>
+                <input
+                  type="password"
+                  value={accessKey}
+                  onChange={(e) => setAccessKey(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition text-sm"
+                  placeholder="Enter the key from SmartStore NG"
+                  required
+                />
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  Only approved store owners with a creator key can create
+                  a SmartStore NG account.
+                </p>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-70 transition-all py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-3"
+              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-70 transition-all py-4 rounded-2xl font-semibold text-base md:text-lg flex items-center justify-center gap-3"
             >
               {loading ? (
                 mode === 'login'
@@ -282,7 +233,11 @@ export default function Login() {
               type="button"
               onClick={async () => {
                 try {
-                  await signInWithEmailAndPassword(auth, DEMO_EMAIL, DEMO_PASSWORD);
+                  await signInWithEmailAndPassword(
+                    auth,
+                    DEMO_EMAIL,
+                    DEMO_PASSWORD
+                  );
                   toast.success('You are now in SmartStore NG demo mode.');
                   navigate('/', { replace: true });
                 } catch (e) {

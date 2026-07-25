@@ -1,4 +1,3 @@
-// src/components/Sidebar.jsx
 import {
   Home,
   Package,
@@ -9,6 +8,7 @@ import {
   Receipt,
   DollarSign,
   AlertTriangle,
+  Settings,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth } from '../firebase';
@@ -19,31 +19,35 @@ import logo from '/logo-smartstore.png';
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role, storeName, plan, storeIsDemo, upgradeToOwner } = useAuth();
+  const {
+    role,
+    storeName,
+    plan,
+    storeIsDemo,
+    upgradeToOwner,
+  } = useAuth();
 
   const rank = { owner: 3, admin: 3, manager: 2, cashier: 1 };
   const userRank = rank[role] || 1;
 
   const isOwnerMode = plan === 'owner';
-  const menuItems = [
-  {
-    name: 'Dashboard',
-    icon: Home,
-    path: '/',
-    minRole: 'manager',   
-  },
+  const isOwner = role === 'owner';
 
-    // Manager+ only
+  const menuItems = [
+    {
+      name: 'Dashboard',
+      icon: Home,
+      path: '/',
+      minRole: 'manager',
+    },
     {
       name: 'Inventory',
       icon: Package,
       path: '/inventory',
       minRole: 'manager',
     },
-
     { name: 'POS Register', icon: ShoppingCart, path: '/pos' },
     { name: 'Sales History', icon: Receipt, path: '/sales' },
-
     {
       name: 'Reports',
       icon: BarChart3,
@@ -77,32 +81,33 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col">
-      {/* Header: logo + store + plan */}
-      <div className="p-6 border-b border-zinc-800">
+    <div className="w-72 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col">
+      {/* Header: logo + store + plan (no price here) */}
+      <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-zinc-900 flex items-center justify-center overflow-hidden">
+          <div className="w-10 h-10 rounded-2xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center overflow-hidden">
             <img
               src={logo}
               alt="SmartStore NG"
               className="w-full h-full object-contain"
             />
           </div>
-          <div className="min-w-0">
-            <h1 className="text-sm font-semibold text-white truncate">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm font-semibold text-zinc-900 dark:text-white truncate">
               {storeName || 'SmartStore NG'}
             </h1>
-            <p className="text-[11px] text-emerald-400">
+            <p className="text-[11px] text-emerald-500 dark:text-emerald-400">
               {storeIsDemo
                 ? 'Demo Store · Owner Mode'
                 : isOwnerMode
-                ? 'Owner Mode · ₦10,000/mo'
-                : 'Shop Mode · Free'}
+                ? 'Owner Mode'
+                : 'Shop Mode'}
             </p>
           </div>
         </div>
       </div>
 
+      {/* Menu */}
       <div className="flex-1 p-4">
         {menuItems
           .filter((item) => {
@@ -126,7 +131,7 @@ export default function Sidebar() {
                 className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl mb-1 transition-all ${
                   isActive
                     ? 'bg-emerald-600 text-white'
-                    : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -134,13 +139,28 @@ export default function Sidebar() {
               </button>
             );
           })}
+
+        {/* Owner-only settings link */}
+        {isOwner && (
+          <button
+            onClick={() => navigate('/owner-settings')}
+            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl mt-2 transition-all ${
+              location.pathname.startsWith('/owner-settings')
+                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            <Settings className="w-5 h-5" />
+            <span className="font-medium">Owner Settings</span>
+          </button>
+        )}
       </div>
 
       {/* Upgrade CTA only if on free plan AND not demo */}
       {!isOwnerMode && !storeIsDemo && (
         <div className="px-4 pb-3">
-          <div className="bg-zinc-800 rounded-2xl p-3">
-            <p className="text-xs text-zinc-300 mb-2">
+          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-2xl p-3">
+            <p className="text-xs text-zinc-700 dark:text-zinc-300 mb-2">
               Unlock Owner Mode to see your shop from anywhere and get full reports.
             </p>
             <button
@@ -153,10 +173,11 @@ export default function Sidebar() {
         </div>
       )}
 
-      <div className="p-4 border-t border-zinc-800">
+      {/* Sign out */}
+      <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-5 py-4 text-red-400 hover:bg-zinc-800 rounded-2xl"
+          className="w-full flex items-center gap-3 px-5 py-4 text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl"
         >
           <LogOut className="w-5 h-5" />
           Sign Out
