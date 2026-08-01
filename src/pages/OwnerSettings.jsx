@@ -264,8 +264,7 @@ export default function OwnerSettings() {
           <p className="text-xs text-zinc-400 mb-4">
             This will permanently remove this store and all its data from SmartStore NG
             (products, sales, expenses, staff, everything). Once deleted, nothing can
-            be recovered. You will then need to delete the Auth user manually in the
-            Firebase console if required.
+            be recovered. 
           </p>
 
           {!isOwner && (
