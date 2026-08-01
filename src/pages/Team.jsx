@@ -226,8 +226,7 @@ export default function Team() {
 
           <p className="text-[11px] text-zinc-500 mt-3">
             Roles help control what each person can do in SmartStore
-            (e.g. cashiers vs managers vs admins). You can wire this
-            into permissions later using Firebase Auth rules.
+            (e.g. cashiers vs managers vs admins). 
           </p>
         </div>
 
