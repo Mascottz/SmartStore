@@ -125,7 +125,6 @@ export default function OwnerSettings() {
             </h1>
             <p className="text-sm text-zinc-400 max-w-xl">
               Manage your store’s subscription, account details, and dangerous actions.
-              Only the store owner should have access to this page.
             </p>
           </div>
           {isOwner && (
