@@ -7,20 +7,56 @@ const PAGES = {
     updated: '24 August 2026',
     body: [
       [
-        'What we collect',
-        'SmartStore NG stores the account email you sign up with, the shop profile you create, and the sales, inventory, team, and expense records you enter while using the product.',
+        'Who we are',
+        'SmartStore NG ("we", "us") provides point-of-sale, inventory, team, and reporting tools for businesses in Nigeria and beyond. This policy explains how we handle personal and business data when you use smartstoreng.shop.',
       ],
       [
-        'How we use it',
-        'We use this information only to run your store workspace, keep your team signed in, and improve reliability. We do not sell customer lists or sale data.',
+        'Information we collect',
+        'We collect the account email and password you sign up with, the shop profile you create (name, business type, categories), and the records you enter while using the product (products, sales, voided sales, expenses, team members, and receipts). When you start a Paystack payment, Paystack may collect your payment details on its own platform.',
       ],
       [
-        'Where it lives',
-        'When the live backend is enabled, data is stored in a Supabase (Postgres) project with row-level security. In demo mode, data stays in your browser only.',
+        'How we use your information',
+        'We use this information to run your store workspace, keep your team signed in, generate your reports and receipts, resolve support requests, and improve product reliability. We do not sell your customer lists, sale data, or personal information.',
       ],
       [
-        'Your choices',
-        'You can ask us to export or delete a store by emailing hello@smartstoreng.shop. Store owners can remove team members from the Team page at any time.',
+        'Legal bases & legitimate use',
+        'We process data to provide the service you requested (contract), to keep the platform secure and operational (legitimate interest), and to meet Nigerian and other legal obligations. We do not use your store data for advertising.',
+      ],
+      [
+        'Sharing & disclosure',
+        'We share data only with the service providers required to run the product — primarily Supabase (database and authentication) and Paystack (payment processing when you choose to pay). We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
+      ],
+      [
+        'Where your data lives',
+        'With the live backend enabled, data is stored in a Supabase (Postgres) project with row-level security. In demo mode, data stays in your browser (localStorage) and is not transmitted to any server.',
+      ],
+      [
+        'Data retention',
+        'We keep your account and store data while your account is active so the workspace keeps working. You may request deletion of your account and store data at any time and we will remove it, subject to records we must keep for legal, tax, or fraud-prevention purposes.',
+      ],
+      [
+        'Security',
+        'We use industry-standard protections, including encrypted connections (HTTPS), hashed passwords through our authentication provider, and row-level security so each store is only visible to its members and the platform operators.',
+      ],
+      [
+        'Cookies & local storage',
+        'We use browser local storage to remember your session, theme preference, and (for the audit trail) admin actions. We do not use third-party advertising cookies.',
+      ],
+      [
+        'Your rights',
+        'You may request access to, a copy of, correction of, or deletion of your personal and store data at any time. Store owners may remove team members from the Team page and control who may access the store.',
+      ],
+      [
+        'Children\'s privacy',
+        'SmartStore NG is a business tool intended for business owners and their staff. It is not directed at children under 13, and we do not knowingly collect their personal data.',
+      ],
+      [
+        'Changes to this policy',
+        'If we change this policy, we will post the updated version here and update the date above. Material changes will be highlighted in-app or by email where required.',
+      ],
+      [
+        'Contact us',
+        'For privacy requests or to exercise any of your rights, email hello@smartstoreng.shop or write to SmartStore NG, Lagos, Nigeria.',
       ],
     ],
   },
@@ -29,20 +65,48 @@ const PAGES = {
     updated: '24 August 2026',
     body: [
       [
+        'Acceptance of these terms',
+        'By creating an account or using SmartStore NG, you agree to these Terms of Service. If you use the service on behalf of a business, you confirm you are authorised to accept these terms for that business.',
+      ],
+      [
         'Using SmartStore NG',
-        'SmartStore NG is a store-management tool. You are responsible for the accuracy of the products, prices, and sales you record, and for the staff you invite.',
+        'SmartStore NG is a store-management tool. You are responsible for the accuracy of the products, prices, and sales you record, and for the staff you invite. You agree to use the service only for lawful business purposes.',
       ],
       [
-        'Accounts',
-        'Keep your password private. Store owners decide who may join, and they approve or reject staff requests. Super-admin access is reserved for the platform operator.',
+        'Accounts & responsibility',
+        'Keep your password private. Store owners decide who may join, and they approve or reject staff requests. You are responsible for activity that happens under your account. Super-admin access is reserved for the platform operator.',
       ],
       [
-        'Plans',
-        'Shop Mode is free. Owner Mode unlocks full reports and expense analytics. Demo billing may be shown in the app until a live payment provider is connected.',
+        'Plans & payments',
+        'Shop Mode is free. Owner Mode unlocks full reports and expense analytics and may carry a subscription fee. When you subscribe, payment is processed through Paystack (an independent third party); we do not store your card details. Fees are non-refundable except where law requires. We may offer demo billing in the app until a live payment provider is connected.',
       ],
       [
         'Acceptable use',
-        'Do not use the service to store unlawful goods, attack the platform, or access another shop’s data. We may suspend accounts that break these terms.',
+        'Do not use the service to store or sell unlawful goods, to attack or disrupt the platform, to access another shop’s data, or to impersonate others. We may suspend or terminate accounts that break these terms.',
+      ],
+      [
+        'Intellectual property',
+        'SmartStore NG and its software, branding, and content are owned by us or our licensors. You retain ownership of the data you enter into your store and grant us a limited licence to host and process it solely to provide the service.',
+      ],
+      [
+        'Termination',
+        'You may stop using the service and delete your account at any time. We may suspend or terminate access if you breach these terms, and we will give you notice where practicable.',
+      ],
+      [
+        'Disclaimer & limitation of liability',
+        'The service is provided "as is" without warranties of any kind. To the fullest extent permitted by law, our total liability for any claim relating to the service is limited to the amount you paid for the service in the 12 months before the claim.',
+      ],
+      [
+        'Governing law & jurisdiction',
+        'These Terms are governed by the laws of the Federal Republic of Nigeria, including the Nigeria Data Protection Act 2023 (NDPA) and the Nigeria Data Protection Regulation (NDPR) where applicable. You agree that any dispute arising out of or relating to these Terms shall be subject to the exclusive jurisdiction of the courts of Nigeria sitting in Lagos State.',
+      ],
+      [
+        'Changes to these terms',
+        'We may update these Terms from time to time. The latest version will always be available at this page, with the updated date shown above. Continued use of the service after changes takes effect constitutes acceptance of the new Terms.',
+      ],
+      [
+        'Contact us',
+        'Questions about these Terms? Email hello@smartstoreng.shop or write to SmartStore NG, Lagos, Nigeria.',
       ],
     ],
   },

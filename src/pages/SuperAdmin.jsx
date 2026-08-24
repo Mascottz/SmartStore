@@ -6,21 +6,23 @@ import {
   Building2,
   CheckCircle2,
   Clock3,
+  History,
   RefreshCw,
   Search,
   ShieldCheck,
   Store,
+  Trash2,
   UserCheck,
   Users,
   UserX,
-  Trash2,
   XCircle,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../lib/backend';
 import { supabase, isSupabaseConfigured } from '../lib/backend/supabase';
-import { fmtDate } from '../lib/format';
+import { getAuditLog, logAudit, clearAuditLog } from '../lib/auditLog';
+import { fmtDate, fmtDateTime } from '../lib/format';
 import logo from '/logo-smartstore.png';
 
 function mapStoreRow(store, members = []) {
@@ -145,6 +147,8 @@ export default function SuperAdmin() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [busyId, setBusyId] = useState(null);
+  const [actor, setActor] = useState('');
+  const [auditLog, setAuditLog] = useState([]);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -177,6 +181,15 @@ export default function SuperAdmin() {
       navigate('/login', { replace: true });
       return;
     }
+    (async () => {
+      try {
+        const current = await api.auth.getUser();
+        setActor(current?.email || '');
+      } catch {
+        setActor('');
+      }
+      setAuditLog(getAuditLog());
+    })();
     loadDashboard();
   }, [loadDashboard, navigate]);
 
@@ -205,6 +218,25 @@ export default function SuperAdmin() {
     );
   }, [dashboard.stores, query]);
 
+  const visibleAuditLog = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return auditLog;
+    return auditLog.filter(
+      (entry) =>
+        entry.action?.toLowerCase().includes(term) ||
+        entry.actor?.toLowerCase().includes(term) ||
+        entry.target?.toLowerCase().includes(term) ||
+        entry.details?.toLowerCase().includes(term)
+    );
+  }, [auditLog, query]);
+
+  // Record a super-admin action in the localStorage audit trail and refresh
+  // the in-memory copy so the Audit Log tab reflects it immediately.
+  const recordAudit = (action, target, details) => {
+    logAudit({ action, actor, target, details });
+    setAuditLog(getAuditLog());
+  };
+
   const updateApproval = async (user, status) => {
     if (!user.membershipId) return;
     setBusyId(user.membershipId);
@@ -222,6 +254,11 @@ export default function SuperAdmin() {
         status === 'approved'
           ? `${user.email} approved`
           : `${user.email} rejected`
+      );
+      recordAudit(
+        status === 'approved' ? 'approve_user' : 'reject_user',
+        user.email,
+        `Membership ${user.membershipId} (${user.storeName || 'no store'})`
       );
       await loadDashboard();
     } catch (updateError) {
@@ -244,6 +281,7 @@ export default function SuperAdmin() {
         await api.admin.deleteUser(user.userId);
       }
       toast.success('User deleted');
+      recordAudit('delete_user', user.email, `User id ${user.userId}`);
       await loadDashboard();
     } catch (e) {
       toast.error(e.message || 'Could not delete user.');
@@ -260,6 +298,7 @@ export default function SuperAdmin() {
         await api.admin.deleteStore(store.id);
       }
       toast.success('Store deleted');
+      recordAudit('delete_store', store.name, `Store id ${store.id}`);
       await loadDashboard();
     } catch (e) {
       toast.error(e.message || 'Could not delete store.');
@@ -373,6 +412,7 @@ export default function SuperAdmin() {
               ['sales', 'Sales'],
               ['products', 'Products'],
               ['expenses', 'Expenses'],
+              ['audit', 'Audit Log'],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -398,7 +438,13 @@ export default function SuperAdmin() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={tab === 'users' ? 'Search users or stores...' : 'Search stores...'}
+                placeholder={
+                  tab === 'users'
+                    ? 'Search users or stores...'
+                    : tab === 'audit'
+                      ? 'Search audit log...'
+                      : 'Search stores...'
+                }
                 className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-violet-500"
               />
             </label>
@@ -422,6 +468,16 @@ export default function SuperAdmin() {
         {tab === 'stores' && <StoresPanel stores={visibleStores} loading={loading} deleteStore={deleteStore} />}
         {['sales', 'products', 'expenses'].includes(tab) && (
           <SystemRecordsPanel tab={tab} records={dashboard[tab]} loading={loading} />
+        )}
+        {tab === 'audit' && (
+          <AuditLogPanel
+            entries={visibleAuditLog}
+            loading={loading}
+            onClear={() => {
+              clearAuditLog();
+              setAuditLog([]);
+            }}
+          />
         )}
       </main>
     </div>
@@ -675,6 +731,80 @@ function StoresPanel({ stores, loading, deleteStore }) {
 function SystemRecordsPanel({ tab, records = [], loading }) {
   const fields = tab === 'sales' ? ['receiptNo', 'total', 'status', 'createdAt'] : tab === 'products' ? ['name', 'stock', 'salePrice', 'storeId'] : ['title', 'amount', 'category', 'date'];
   return <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-zinc-800 text-left text-xs uppercase text-zinc-500">{fields.map((field) => <th key={field} className="px-5 py-3">{field.replace(/([A-Z])/g, ' $1')}</th>)}</tr></thead><tbody>{loading ? <tr><td colSpan={fields.length}><LoadingRows count={4} /></td></tr> : records.length === 0 ? <tr><td colSpan={fields.length} className="px-5 py-12 text-center text-zinc-500">No {tab} recorded yet.</td></tr> : records.map((record) => <tr key={record.id} className="border-b border-zinc-800/70 last:border-0">{fields.map((field) => <td key={field} className="px-5 py-4 text-zinc-300">{String(record[field] ?? '—')}</td>)}</tr>)}</tbody></table></div></section>;
+}
+
+const AUDIT_ACTION_STYLES = {
+  approve_user: ['User approved', 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'],
+  reject_user: ['User rejected', 'bg-red-500/10 text-red-300 border-red-500/20'],
+  delete_user: ['User deleted', 'bg-red-500/10 text-red-300 border-red-500/20'],
+  delete_store: ['Store deleted', 'bg-amber-500/10 text-amber-300 border-amber-500/20'],
+};
+
+function AuditLogPanel({ entries, loading, onClear }) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800 p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
+          <History className="h-4 w-4 text-violet-400" aria-hidden="true" />
+          Audit Log
+        </div>
+        <p className="text-xs text-zinc-500">
+          {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm('Clear the entire audit log? This cannot be undone.')) {
+              onClear();
+              toast.success('Audit log cleared');
+            }
+          }}
+          className="ml-auto rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:border-red-500/40 hover:text-red-400"
+        >
+          Clear log
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-zinc-800 text-left text-xs uppercase text-zinc-500">
+              <th className="px-5 py-3">Time</th>
+              <th className="px-5 py-3">Action</th>
+              <th className="px-5 py-3">Actor</th>
+              <th className="px-5 py-3">Target</th>
+              <th className="px-5 py-3">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={5}><LoadingRows count={4} /></td></tr>
+            ) : entries.length === 0 ? (
+              <tr><td colSpan={5} className="px-5 py-12 text-center text-zinc-500">No admin actions recorded yet.</td></tr>
+            ) : (
+              entries.map((entry) => {
+                const [label, style] =
+                  AUDIT_ACTION_STYLES[entry.action] ||
+                  [entry.action, 'bg-zinc-500/10 text-zinc-300 border-zinc-700'];
+                return (
+                  <tr key={entry.id} className="border-b border-zinc-800/70 last:border-0">
+                    <td className="whitespace-nowrap px-5 py-4 text-zinc-500">{fmtDateTime(entry.timestamp)}</td>
+                    <td className="px-5 py-4">
+                      <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${style}`}>
+                        {label}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-zinc-300">{entry.actor || '—'}</td>
+                    <td className="px-5 py-4 text-zinc-300">{entry.target || '—'}</td>
+                    <td className="px-5 py-4 text-zinc-500">{entry.details || '—'}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 function LoadingRows({ count }) {
