@@ -7,8 +7,10 @@ import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { useDebounce } from '../hooks/useDebounce';
 import { useKeyboard } from '../hooks/useKeyboard';
+import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 import { api } from '../lib/backend';
 import { fmtMoney } from '../lib/format';
+import { printReceipt } from '../lib/printReceipt';
 import { sanitize } from '../lib/validate';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -100,6 +102,20 @@ export default function POS() {
       scannerRef.current = null;
     };
   }, [isScanning, addToCart]);
+
+  // USB barcode scanner: scanners type the code rapidly and finish with Enter.
+  const handleBarcodeScan = useCallback(
+    (code) => {
+      const text = code.toLowerCase();
+      const product =
+        productsRef.current.find((p) => (p.sku || '').toLowerCase() === text) ||
+        productsRef.current.find((p) => p.name.toLowerCase().includes(text));
+      if (product) addToCart(product);
+      else toast.error(`No product found for barcode: ${code}`);
+    },
+    [addToCart]
+  );
+  useBarcodeScanner(handleBarcodeScan, { enabled: niche.hasBarcode });
 
   // Keyboard shortcuts
   const shortcuts = useMemo(
@@ -202,44 +218,21 @@ export default function POS() {
     }
   };
 
+  // Thermal 80mm receipt for the last completed sale
   const printLastReceipt = () => {
     if (!lastSale) return toast.error('No completed sale to print yet.');
 
     const { receiptNo, createdAt, items, total, paymentMethod: method } = lastSale;
-    const rows = items
-      .map(
-        (i) =>
-          `<tr><td>${i.name}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${fmtMoney(
-            i.price * i.qty
-          )}</td></tr>`
-      )
-      .join('');
-
-    const win = window.open('', '_blank');
-    if (!win) return toast.error('Pop-up blocked. Please allow pop-ups for receipts.');
-    win.document.write(`
-      <html>
-        <head><title>${storeName} Receipt</title></head>
-        <body style="font-family: 'Courier New', monospace; padding: 30px; max-width: 400px; margin: 0 auto;">
-          <h2 style="text-align:center">${storeName}</h2>
-          <p style="text-align:center">Powered by SmartStore NG</p>
-          <hr/>
-          <p><strong>Receipt #:</strong> ${receiptNo}</p>
-          <p><strong>Date:</strong> ${new Date(createdAt).toLocaleString('en-NG')}</p>
-          <p><strong>Payment:</strong> ${method}</p>
-          <hr/>
-          <table style="width:100%; font-size: 13px;">
-            <thead><tr><th style="text-align:left">Item</th><th>Qty</th><th style="text-align:right">Amount</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <hr/>
-          <h3 style="text-align:right">TOTAL: ${fmtMoney(total)}</h3>
-          <p style="text-align:center; margin-top: 20px;">Thank you for your patronage!</p>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    win.document.close();
+    const printed = printReceipt({
+      storeName: storeName || 'SmartStore NG',
+      receiptNo,
+      createdAt,
+      items,
+      total,
+      paymentMethod: method,
+      cashier: user?.email || '',
+    });
+    if (!printed) toast.error('Pop-up blocked. Please allow pop-ups for receipts.');
   };
 
   // Refs for keyboard shortcut callbacks (avoids stale closures)
@@ -310,6 +303,11 @@ export default function POS() {
             aria-label={`Search ${niche.itemNounPlural.toLowerCase()}`}
             className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:border-emerald-500 text-sm"
           />
+          {niche.hasBarcode && (
+            <p className="mt-1.5 pl-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+              USB barcode scanners are detected automatically, anywhere on this page.
+            </p>
+          )}
         </div>
 
         {loading ? (

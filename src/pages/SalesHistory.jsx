@@ -7,6 +7,7 @@ import { useStoreData } from '../hooks/useStoreData';
 import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../lib/backend';
 import { fmtMoney, fmtDateTime } from '../lib/format';
+import { printReceipt } from '../lib/printReceipt';
 import { sanitize } from '../lib/validate';
 import { downloadCsv } from '../lib/exportCsv';
 
@@ -57,39 +58,19 @@ export default function SalesHistory() {
     }
   };
 
-  const printReceipt = (sale) => {
-    const rows = sale.items
-      .map(
-        (i) =>
-          `<tr><td>${i.name}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${fmtMoney(
-            i.price * i.qty
-          )}</td></tr>`
-      )
-      .join('');
-    const win = window.open('', '_blank');
-    if (!win) return toast.error('Pop-up blocked. Please allow pop-ups for receipts.');
-    win.document.write(`
-      <html>
-        <head><title>${storeName} Receipt</title></head>
-        <body style="font-family: 'Courier New', monospace; padding: 30px; max-width: 400px; margin: 0 auto;">
-          <h2 style="text-align:center">${storeName}</h2>
-          <hr/>
-          <p><strong>Receipt #:</strong> ${sale.receiptNo}</p>
-          <p><strong>Date:</strong> ${fmtDateTime(sale.createdAt)}</p>
-          <p><strong>Payment:</strong> ${sale.paymentMethod}</p>
-          ${sale.status === 'voided' ? '<p style="color:red"><strong>*** VOIDED ***</strong></p>' : ''}
-          <hr/>
-          <table style="width:100%; font-size: 13px;">
-            <thead><tr><th style="text-align:left">Item</th><th>Qty</th><th style="text-align:right">Amount</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <hr/>
-          <h3 style="text-align:right">TOTAL: ${fmtMoney(sale.total)}</h3>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    win.document.close();
+  // Thermal 80mm receipt reprint
+  const printThermalReceipt = (sale) => {
+    const printed = printReceipt({
+      storeName: storeName || 'SmartStore NG',
+      receiptNo: sale.receiptNo,
+      createdAt: sale.createdAt,
+      items: sale.items,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod,
+      cashier: sale.cashierEmail || '',
+      status: sale.status,
+    });
+    if (!printed) toast.error('Pop-up blocked. Please allow pop-ups for receipts.');
   };
 
   const handleExport = () => {
@@ -227,7 +208,7 @@ export default function SalesHistory() {
                     </table>
                     <div className="flex gap-2 mt-3">
                       <button
-                        onClick={() => printReceipt(sale)}
+                        onClick={() => printThermalReceipt(sale)}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-zinc-200 dark:border-zinc-700 text-xs font-medium hover:border-emerald-500"
                       >
                         <Printer className="w-3.5 h-3.5" /> Print receipt
