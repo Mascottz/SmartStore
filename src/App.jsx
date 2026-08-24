@@ -13,21 +13,20 @@ import Expenses from './pages/Expenses';
 import ExpensesReport from './pages/ExpensesReport';
 import Team from './pages/Team';
 import VoidReports from './pages/VoidReports';
-
-import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider, useAuth } from './context/AuthContext';
 import Pricing from './pages/Pricing';
-import SplashScreen from './components/SplashScreen';
-import StoreOnboardingGuard from './components/StoreOnboardingGuard';
-import OnboardingDashboard from './pages/OnboardingDashboard';
 import Onboarding from './pages/Onboarding';
 import OwnerSettings from './pages/OwnerSettings';
 
-// Mobile‑friendly shell layout
+import ProtectedRoute from './components/ProtectedRoute';
+import StoreOnboardingGuard from './components/StoreOnboardingGuard';
+import SplashScreen from './components/SplashScreen';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+// Mobile-friendly shell layout
 function ShellLayout() {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-white flex flex-col md:flex-row">
-      <div className="w-full md:w-64 flex-shrink-0">
+      <div className="w-full md:w-72 flex-shrink-0">
         <Sidebar />
       </div>
       <main className="flex-1 min-h-screen overflow-x-hidden">
@@ -37,13 +36,10 @@ function ShellLayout() {
   );
 }
 
-// Inner app that can use useAuth()
 function AppInner() {
   const { loading } = useAuth();
 
-  if (loading) {
-    return <SplashScreen />;
-  }
+  if (loading) return <SplashScreen />;
 
   return (
     <>
@@ -56,47 +52,18 @@ function AppInner() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        {/* Onboarding flow, NO StoreOnboardingGuard here */}
+        {/* Onboarding flow (no store required yet) */}
         <Route
           path="/onboarding"
           element={
             <ProtectedRoute>
-              <OnboardingDashboard />
+              <Onboarding />
             </ProtectedRoute>
           }
         />
 
-        {/* Optional: route for the business setup step if you want /onboarding/business */}
+        {/* Main app: requires auth AND a store */}
         <Route
-          path="/onboarding/business"
-          element={
-            <ProtectedRoute>
-              <Onboarding />
-            </ProtectedRoute>
-
-            }
-        />
-
-            <Route
-  path="/onboarding/inventory"
-  element={
-    <ProtectedRoute>
-      <Inventory />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/onboarding/pos"
-  element={
-    <ProtectedRoute>
-      <POS />
-    </ProtectedRoute>
-  }
-/>
-
-        {/* Real app shell, guarded by StoreOnboardingGuard */}
-        <Route
-          path="/*"
           element={
             <ProtectedRoute>
               <StoreOnboardingGuard>
@@ -105,17 +72,17 @@ function AppInner() {
             </ProtectedRoute>
           }
         >
-          <Route path="" element={<Dashboard />} />
-          <Route path="pos" element={<POS />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="sales" element={<SalesHistory />} />
-          <Route path="pricing" element={<Pricing />} />
-          <Route path="expenses" element={<Expenses />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="reports/expenses" element={<ExpensesReport />} />
-          <Route path="reports/voids" element={<VoidReports />} />
-          <Route path="team" element={<Team />} />
-          <Route path="owner-settings" element={<OwnerSettings />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/pos" element={<POS />} />
+          <Route path="/sales" element={<SalesHistory />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/reports/voids" element={<VoidReports />} />
+          <Route path="/reports/expenses" element={<ExpensesReport />} />
+          <Route path="/expenses" element={<Expenses />} />
+          <Route path="/team" element={<Team />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/owner-settings" element={<OwnerSettings />} />
         </Route>
       </Routes>
     </>

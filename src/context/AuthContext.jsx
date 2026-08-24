@@ -1,28 +1,20 @@
 // src/context/AuthContext.jsx
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
-  useState,
   useMemo,
+  useState,
 } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from '../firebase';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { api, subscribe } from '../lib/backend';
+import { getNiche } from '../config/niches';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
-  const [storeId, setStoreId] = useState(null);
-
-  const [plan, setPlan] = useState('free');
-  const [planExpiresAt, setPlanExpiresAt] = useState(null);
-  const [storeName, setStoreName] = useState('');
-  const [storeType, setStoreType] = useState('');
-  const [storeIsDemo, setStoreIsDemo] = useState(false);
-
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,239 +24,101 @@ export function AuthProvider({ children }) {
     return localStorage.getItem('theme') || 'dark';
   });
 
-  // Sync theme with <html> class and localStorage
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    if (theme === 'dark') root.classList.add('dark');
+    else root.classList.remove('dark');
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
+  const toggleTheme = () =>
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
+
+  const refreshMembership = useCallback(async (u) => {
+    if (!u) {
+      setRole(null);
+      setStore(null);
+      return;
+    }
+    try {
+      const membership = await api.stores.getMyMembership(u.id);
+      if (membership) {
+        setStore(membership.store);
+        setRole(membership.role);
+      } else {
+        setStore(null);
+        setRole(null);
+      }
+    } catch (e) {
+      console.error('membership load failed', e);
+    }
+  }, []);
 
   useEffect(() => {
-    let storeUnsub = null;
+    let mounted = true;
 
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log(
-        'onAuthStateChanged fired',
-        firebaseUser ? `uid=${firebaseUser.uid}` : 'user=null'
-      );
+    (async () => {
+      const u = await api.auth.getUser();
+      if (!mounted) return;
+      setUser(u);
+      await refreshMembership(u);
+      if (mounted) setLoading(false);
+    })();
 
-      setUser(firebaseUser);
+    const unsubAuth = api.auth.onChange(async (u) => {
+      setUser(u);
+      await refreshMembership(u);
+      setLoading(false);
+    });
 
-      if (!firebaseUser) {
-        setRole(null);
-        setStoreId(null);
-        setPlan('free');
-        setPlanExpiresAt(null);
-        setStoreName('');
-        setStoreType('');
-        setStoreIsDemo(false);
-        setStore(null);
-
-        if (storeUnsub) {
-          storeUnsub();
-          storeUnsub = null;
-        }
-
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        const snap = await getDoc(userRef);
-
-        let resolvedRole = 'owner';
-        let resolvedStoreId = null;
-
-        if (snap.exists()) {
-          const data = snap.data();
-          resolvedRole = data.role || 'owner';
-          resolvedStoreId = data.storeId || null;
-        }
-
-        setRole(resolvedRole);
-        setStoreId(resolvedStoreId);
-
-        if (storeUnsub) {
-          storeUnsub();
-          storeUnsub = null;
-        }
-
-        if (resolvedStoreId) {
-          const storeRef = doc(db, 'stores', resolvedStoreId);
-
-          storeUnsub = onSnapshot(
-            storeRef,
-            (storeSnap) => {
-              if (storeSnap.exists()) {
-                const storeData = storeSnap.data();
-
-                setStore(storeData);
-                setStoreName(storeData.name || '');
-                setStoreType(storeData.type || '');
-                setStoreIsDemo(!!storeData.isDemo);
-
-                const storePlan = storeData.plan || 'free';
-                setPlan(storePlan);
-
-                const expiresTs = storeData.planExpiresAt;
-                if (expiresTs?.toDate) {
-                  setPlanExpiresAt(expiresTs.toDate());
-                } else {
-                  setPlanExpiresAt(null);
-                }
-              } else {
-                setStore(null);
-                setStoreName('');
-                setStoreType('');
-                setStoreIsDemo(false);
-                setPlan('free');
-                setPlanExpiresAt(null);
-              }
-
-              setLoading(false);
-            },
-            (err) => {
-              console.error('Store onSnapshot error', err);
-              setStore(null);
-              setStoreName('');
-              setStoreType('');
-              setStoreIsDemo(false);
-              setPlan('free');
-              setPlanExpiresAt(null);
-              setLoading(false);
-            }
-          );
-        } else {
-          setStore(null);
-          setStoreName('');
-          setStoreType('');
-          setStoreIsDemo(false);
-          setPlan('free');
-          setPlanExpiresAt(null);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Error loading user/store', err);
-        setRole('owner');
-        setPlan('free');
-        setPlanExpiresAt(null);
-        setStoreName('');
-        setStoreType('');
-        setStoreIsDemo(false);
-        setStore(null);
-        setLoading(false);
+    // refetch store doc when stores change (plan upgrades, onboarding flags)
+    const unsubData = subscribe(async (topic) => {
+      if (topic === 'stores') {
+        const u = await api.auth.getUser();
+        await refreshMembership(u);
       }
     });
 
     return () => {
-      unsub();
-      if (storeUnsub) {
-        storeUnsub();
-      }
+      mounted = false;
+      unsubAuth();
+      unsubData();
     };
-  }, []);
+  }, [refreshMembership]);
 
-  const isOwnerActive = useMemo(() => {
-    if (plan !== 'owner') return false;
-    if (!planExpiresAt) return true;
-    return planExpiresAt.getTime() > Date.now();
-  }, [plan, planExpiresAt]);
+  const upgradeToOwner = useCallback(async () => {
+    if (!store) return;
+    await api.stores.update(store.id, { plan: 'owner' });
+  }, [store]);
 
-  const formattedPlanExpiry = useMemo(() => {
-    if (!planExpiresAt) return null;
-    return planExpiresAt.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  }, [planExpiresAt]);
+  const value = useMemo(() => {
+    const niche = store ? getNiche(store.type) : getNiche('other');
+    return {
+      user,
+      role,
+      store,
+      storeId: store?.id || null,
+      storeName: store?.name || '',
+      storeType: store?.type || '',
+      storeIsDemo: Boolean(store?.isDemo),
+      plan: store?.plan || 'free',
+      niche,
+      onboardingCompleted: Boolean(store?.onboarding?.completed),
+      firstSaleCompleted: Boolean(store?.onboarding?.firstSaleCompleted),
+      loading,
+      theme,
+      toggleTheme,
+      upgradeToOwner,
+      refreshMembership: () => refreshMembership(user),
+    };
+  }, [user, role, store, loading, theme, upgradeToOwner, refreshMembership]);
 
-  // Onboarding derived flags
-  const onboarding = store?.onboarding || {};
-  const storeProfileDone = onboarding.storeProfileDone === true;
-  const categoriesDone = onboarding.categoriesDone === true;
-  const firstProductAdded = onboarding.firstProductAdded === true;
-  const firstSaleCompleted = onboarding.firstSaleCompleted === true;
-
-  const onboardingCompleted =
-    storeProfileDone &&
-    categoriesDone &&
-    firstProductAdded;
-
-  const upgradeToOwner = async () => {
-    if (!storeId) return;
-    try {
-      const res = await fetch(
-        'https://smartstore-bill.onrender.com/create-checkout',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ storeId }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        console.error('Create checkout failed:', data);
-        alert('Could not start payment. Please try again.');
-        return;
-      }
-
-      if (!data.checkoutUrl) {
-        alert('Payment link not available. Please contact support.');
-        return;
-      }
-
-      window.location.href = data.checkoutUrl;
-    } catch (err) {
-      console.error('upgradeToOwner error:', err);
-      alert('Could not start payment. Please try again.');
-    }
-  };
-
-  const value = {
-    user,
-    role,
-    storeId,
-    store,
-    plan,
-    planExpiresAt,
-    isOwnerActive,
-    formattedPlanExpiry,
-    storeName,
-    storeType,
-    storeIsDemo,
-    loading,
-    upgradeToOwner,
-    // onboarding flags
-    storeProfileDone,
-    categoriesDone,
-    firstProductAdded,
-    firstSaleCompleted,
-    onboardingCompleted,
-    // theme
-    theme,
-    toggleTheme,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
 }

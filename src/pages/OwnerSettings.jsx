@@ -1,289 +1,183 @@
 // src/pages/OwnerSettings.jsx
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Trash2, ShieldCheck, Store, Crown, Info } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Save, Plus, X, Moon, Sun, Store } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { auth, db } from '../firebase';
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  writeBatch,
-  doc,
-} from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useStoreData } from '../hooks/useStoreData';
+import { api } from '../lib/backend';
+import { NICHES } from '../config/niches';
 
 export default function OwnerSettings() {
-  const {
-    user,
-    storeId,
-    role,
-    storeName,
-    plan,
-    storeIsDemo,
-    upgradeToOwner,
-    ownerEmail,   // optional: if you track owner email in context
-    createdAt,    // optional: store createdAt date from Firestore
-  } = useAuth();
+  const { storeId, store, theme, toggleTheme } = useAuth();
 
-  const [isDeleting, setIsDeleting] = useState(false);
-  const navigate = useNavigate();
+  const [name, setName] = useState(store?.name || '');
+  const [type, setType] = useState(store?.type || 'other');
+  const [saving, setSaving] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
 
-  const isOwner = role === 'owner';
-  const isOwnerMode = plan === 'owner';
+  useEffect(() => {
+    setName(store?.name || '');
+    setType(store?.type || 'other');
+  }, [store]);
 
-  const deleteStoreAndData = async () => {
-    if (!isOwner) {
-      toast.error('Only the store owner can delete this data.');
-      return;
-    }
+  const { data: categories } = useStoreData(
+    () => (storeId ? api.categories.list(storeId) : []),
+    [storeId]
+  );
 
-    if (!storeId || !user) {
-      toast.error('Store or user not ready. Please try again.');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      'This will permanently delete ALL data for this store (products, sales, expenses, staff, etc.). You will then need to delete the Auth user manually in Firebase console.\n\nAre you sure?'
-    );
-    if (!confirmed) return;
-
+  const handleSave = async () => {
+    if (!name.trim()) return toast.error('Store name cannot be empty.');
+    setSaving(true);
     try {
-      setIsDeleting(true);
-      toast.loading('Deleting store data…', { id: 'delete-store' });
-
-      const collectionsToClean = [
-        'categories',
-        'expenses',
-        'products',
-        'sales',
-        'voidLogs',
-        'users', // owner + team docs with this storeId
-      ];
-
-      for (const colName of collectionsToClean) {
-        const q = query(
-          collection(db, colName),
-          where('storeId', '==', storeId)
-        );
-        const snap = await getDocs(q);
-
-        let batch = writeBatch(db);
-        let count = 0;
-
-        snap.forEach((docSnap) => {
-          batch.delete(docSnap.ref);
-          count++;
-          if (count === 450) {
-            batch.commit();
-            batch = writeBatch(db);
-            count = 0;
-          }
-        });
-
-        if (count > 0) {
-          await batch.commit();
-        }
-      }
-
-      // Delete the store document itself
-      const storeBatch = writeBatch(db);
-      storeBatch.delete(doc(db, 'stores', storeId));
-      await storeBatch.commit();
-
-      toast.success('Store data deleted.', { id: 'delete-store' });
-
-      await auth.signOut();
-      navigate('/login', { replace: true });
+      await api.stores.update(storeId, { name: name.trim(), type });
+      toast.success('Store settings saved');
     } catch (e) {
-      console.error('Error deleting store data', e);
-      toast.error('Could not delete all data. Check console.', {
-        id: 'delete-store',
-      });
+      toast.error(e.message || 'Could not save settings.');
     } finally {
-      setIsDeleting(false);
+      setSaving(false);
     }
   };
 
-  // Small helper to format createdAt if provided
-  const createdAtLabel =
-    createdAt instanceof Date
-      ? createdAt.toLocaleDateString()
-      : createdAt?.toDate
-      ? createdAt.toDate().toLocaleDateString()
-      : '—';
+  const addCategory = async () => {
+    const cat = newCategory.trim();
+    if (!cat) return;
+    if (categories.some((c) => c.name.toLowerCase() === cat.toLowerCase())) {
+      return toast.error('That category already exists.');
+    }
+    try {
+      await api.categories.add(storeId, cat);
+      setNewCategory('');
+      toast.success('Category added');
+    } catch (e) {
+      toast.error(e.message || 'Could not add category.');
+    }
+  };
+
+  const removeCategory = async (c) => {
+    if (!window.confirm(`Remove category "${c.name}"?`)) return;
+    try {
+      await api.categories.remove(c.id);
+      toast.success('Category removed');
+    } catch (e) {
+      toast.error(e.message || 'Could not remove category.');
+    }
+  };
 
   return (
-    <div className="p-4 md:p-6 bg-zinc-950 min-h-screen text-white">
-      <div className="max-w-4xl mx-auto">
-        {/* Page header */}
-        <div className="flex items-start justify-between gap-4 mb-6">
+    <div className="p-4 md:p-8 max-w-3xl">
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold">Owner Settings</h1>
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
+          Manage your store details, categories and appearance
+        </p>
+      </div>
+
+      {/* Store details */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 mb-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Store className="w-4 h-4 text-emerald-500" /> Store details
+        </h3>
+        <div className="space-y-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">
-              Owner Settings
-            </h1>
-            <p className="text-sm text-zinc-400 max-w-xl">
-              Manage your store’s subscription, account details, and dangerous actions.
+            <label className="block text-xs font-medium text-zinc-500 mb-1.5">
+              Store name
+            </label>
+            <input
+              className={inputCls}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1.5">
+              Business type
+            </label>
+            <select
+              className={inputCls}
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+            >
+              {NICHES.map((n) => (
+                <option key={n.value} value={n.value}>
+                  {n.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-zinc-500 mt-1">
+              Changing type updates terminology and niche features (e.g. expiry
+              tracking for pharmacies).
             </p>
           </div>
-          {isOwner && (
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-xs font-medium">
-              <ShieldCheck className="w-3 h-3" />
-              <span>Owner access</span>
-            </div>
-          )}
-        </div>
-
-        {/* Top cards: store overview + subscription */}
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
-          {/* Store / owner overview */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 md:p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-zinc-800 flex items-center justify-center">
-                <Store className="w-5 h-5 text-zinc-200" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">Store overview</h2>
-                <p className="text-xs text-zinc-400">
-                  Basic details about this SmartStore account.
-                </p>
-              </div>
-            </div>
-
-            <dl className="space-y-2 text-sm">
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-zinc-400">Store name</dt>
-                <dd className="text-zinc-100 font-medium text-right">
-                  {storeName || 'SmartStore NG'}
-                </dd>
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-zinc-400">Owner email</dt>
-                <dd className="text-zinc-100 text-right">
-                  {ownerEmail || user?.email || '—'}
-                </dd>
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-zinc-400">Your role</dt>
-                <dd className="text-zinc-100 text-right capitalize">
-                  {role || '—'}
-                </dd>
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-zinc-400">Store created</dt>
-                <dd className="text-zinc-100 text-right">
-                  {createdAtLabel}
-                </dd>
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-zinc-400">Environment</dt>
-                <dd className="text-zinc-100 text-right">
-                  {storeIsDemo ? 'Demo store' : 'Live store'}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          {/* Subscription / plan card */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 md:p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                <Crown className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">Subscription status</h2>
-                <p className="text-xs text-zinc-400">
-                  See your current plan and upgrade options.
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-3">
-              <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">
-                Current plan
-              </p>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-zinc-100">
-                  {storeIsDemo
-                    ? 'Demo · Owner Mode'
-                    : isOwnerMode
-                    ? 'Owner Mode'
-                    : 'Shop Mode (Free)'}
-                </span>
-                {!storeIsDemo && (
-                  <span className="text-xs text-zinc-400">
-                    Billing via SmartStore NG
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">
-                Owner Mode pricing
-              </p>
-              <p className="text-sm text-zinc-100">
-                ₦10,000 per month
-              </p>
-              <p className="text-xs text-zinc-400 mt-1">
-                Includes remote access from any device, full sales and expenses reports,
-                staff management, and priority support.
-              </p>
-            </div>
-
-            {!storeIsDemo && !isOwnerMode && isOwner && (
-              <button
-                onClick={upgradeToOwner}
-                className="inline-flex items-center justify-center gap-2 w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
-              >
-                <Crown className="w-4 h-4" />
-                <span>Upgrade to Owner Mode</span>
-              </button>
-            )}
-
-            {!isOwner && (
-              <p className="mt-3 text-xs text-zinc-500 flex items-center gap-1">
-                <Info className="w-3 h-3" />
-                Only the store owner can manage the subscription.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Danger zone */}
-        <div className="bg-zinc-900 border border-red-700/60 rounded-3xl p-5 md:p-6">
-          <h2 className="text-lg font-semibold text-red-400 mb-2">
-            Delete store and all data
-          </h2>
-          <p className="text-xs text-zinc-400 mb-4">
-            This will permanently remove this store and all its data from SmartStore NG
-            (products, sales, expenses, staff, everything). Once deleted, nothing can
-            be recovered. 
-          </p>
-
-          {!isOwner && (
-            <div className="mb-3 text-xs text-amber-400">
-              You are not the store owner. Data deletion is disabled for your account.
-            </div>
-          )}
-
           <button
-            onClick={deleteStoreAndData}
-            disabled={!isOwner || isDeleting}
-            className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 disabled:bg-red-900 disabled:text-zinc-500 px-5 py-3 rounded-2xl text-sm font-semibold"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50"
           >
-            <Trash2 className="w-4 h-4" />
-            {isDeleting
-              ? 'Deleting store data…'
-              : 'Delete store and all data'}
+            <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
+      </div>
+
+      {/* Categories */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 mb-6">
+        <h3 className="font-semibold mb-4">Categories</h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {categories.map((c) => (
+            <span
+              key={c.id}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-sm"
+            >
+              {c.name}
+              <button
+                onClick={() => removeCategory(c)}
+                className="text-zinc-400 hover:text-red-500"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </span>
+          ))}
+          {categories.length === 0 && (
+            <p className="text-xs text-zinc-500">No categories yet.</p>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <input
+            className={inputCls + ' flex-1'}
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCategory()}
+            placeholder="New category name…"
+          />
+          <button
+            onClick={addCategory}
+            className="px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:text-emerald-500"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Appearance */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6">
+        <h3 className="font-semibold mb-4">Appearance</h3>
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-sm font-medium hover:border-emerald-500"
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun className="w-4 h-4" /> Switch to light mode
+            </>
+          ) : (
+            <>
+              <Moon className="w-4 h-4" /> Switch to dark mode
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
 }
+
+const inputCls =
+  'w-full px-4 py-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-emerald-500 text-sm';

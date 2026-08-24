@@ -1,434 +1,275 @@
 // src/pages/Reports.jsx
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  Calendar,
-  DollarSign,
-  Receipt,
-  AlertTriangle,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   PieChart,
-  ShoppingBag,
-} from 'lucide-react';
-import { db } from '../firebase';
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-} from 'firebase/firestore';
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import OwnerFeatureGate from '../components/OwnerFeatureGate'; // ✅ NEW
+import { useStoreData } from '../hooks/useStoreData';
+import { api } from '../lib/backend';
+import { fmtMoney } from '../lib/format';
+import OwnerFeatureGate from '../components/OwnerFeatureGate';
 
-const getRangeForFilter = (filter) => {
-  const now = new Date();
-  const start = new Date();
+const RANGES = [
+  { value: 7, label: 'Last 7 days' },
+  { value: 30, label: 'Last 30 days' },
+  { value: 90, label: 'Last 90 days' },
+];
 
-  if (filter === 'today') {
-    start.setHours(0, 0, 0, 0);
-  } else if (filter === 'week') {
-    // Start from Monday of this week
-    const day = start.getDay(); // 0 = Sun
-    const diff = (day === 0 ? -6 : 1) - day;
-    start.setDate(start.getDate() + diff);
-    start.setHours(0, 0, 0, 0);
-  } else if (filter === 'month') {
-    start.setDate(1);
-    start.setHours(0, 0, 0, 0);
-  }
-
-  return { start, end: now };
-};
+const PIE_COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function Reports() {
   const { storeId } = useAuth();
+  const [rangeDays, setRangeDays] = useState(7);
 
-  const [filter, setFilter] = useState('today'); // today | week | month
-  const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!storeId) return;
-
-    const { start } = getRangeForFilter(filter);
-
-    // Sales for this store in period
-    const qSales = query(
-      collection(db, 'sales'),
-      where('storeId', '==', storeId),
-      where('createdAt', '>=', start)
-    );
-
-    // Expenses for this store in period
-    const qExpenses = query(
-      collection(db, 'expenses'),
-      where('storeId', '==', storeId),
-      where('date', '>=', start)
-    );
-
-    const unsubSales = onSnapshot(qSales, (snapshot) => {
-      const docs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setSales(docs);
-      setLoading(false);
-    });
-
-    const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
-      const docs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setExpenses(docs);
-    });
-
-    return () => {
-      unsubSales();
-      unsubExpenses();
-    };
-  }, [filter, storeId]);
-
-  const {
-    completedSales,
-    voidedSales,
-    totalSalesAmount,
-    totalVoidedAmount,
-    totalReceipts,
-    avgTicket,
-    paymentBreakdown,
-    topProducts,
-    totalExpenseAmount,
-    profitAfterExpenses,
-  } = useMemo(() => {
-    const completed = sales.filter(
-      (s) => (s.status || 'completed') === 'completed'
-    );
-    const voided = sales.filter((s) => s.status === 'voided');
-
-    const totalSales = completed.reduce(
-      (sum, s) => sum + (s.total || 0),
-      0
-    );
-    const totalVoided = voided.reduce(
-      (sum, s) => sum + (s.total || 0),
-      0
-    );
-
-    const receipts = completed.length;
-    const avg =
-      receipts > 0 ? Math.round(totalSales / receipts) : 0;
-
-    const paymentMap = {};
-    completed.forEach((s) => {
-      const method = s.paymentMethod || 'Unknown';
-      paymentMap[method] =
-        (paymentMap[method] || 0) + (s.total || 0);
-    });
-
-    const paymentArr = Object.entries(paymentMap).map(
-      ([method, amount]) => ({
-        method,
-        amount,
-      })
-    );
-
-    const productMap = {};
-    completed.forEach((s) => {
-      (s.items || []).forEach((item) => {
-        if (!item.productId) return;
-        const key = item.productId;
-        if (!productMap[key]) {
-          productMap[key] = {
-            productId: key,
-            name: item.name || 'Unknown item',
-            qty: 0,
-            revenue: 0,
-          };
-        }
-        productMap[key].qty += item.qty || 0;
-        productMap[key].revenue +=
-          (item.price || 0) * (item.qty || 0);
-      });
-    });
-
-    const topProd = Object.values(productMap)
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 5);
-
-    const totalExp = expenses.reduce(
-      (sum, e) => sum + (e.amount || 0),
-      0
-    );
-
-    const profit = totalSales - totalExp;
-
-    return {
-      completedSales: completed,
-      voidedSales: voided,
-      totalSalesAmount: totalSales,
-      totalVoidedAmount: totalVoided,
-      totalReceipts: receipts,
-      avgTicket: avg,
-      paymentBreakdown: paymentArr,
-      topProducts: topProd,
-      totalExpenseAmount: totalExp,
-      profitAfterExpenses: profit,
-    };
-  }, [sales, expenses]);
-
-  const totalPayment = paymentBreakdown.reduce(
-    (sum, p) => sum + p.amount,
-    0
+  const { data: sales } = useStoreData(
+    () => (storeId ? api.sales.list(storeId) : []),
+    [storeId]
+  );
+  const { data: products } = useStoreData(
+    () => (storeId ? api.products.list(storeId) : []),
+    [storeId]
+  );
+  const { data: expenses } = useStoreData(
+    () => (storeId ? api.expenses.list(storeId) : []),
+    [storeId]
   );
 
+  const rangeStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - (rangeDays - 1));
+    return d;
+  }, [rangeDays]);
+
+  const completedInRange = useMemo(
+    () =>
+      sales.filter(
+        (s) => s.status === 'completed' && new Date(s.createdAt) >= rangeStart
+      ),
+    [sales, rangeStart]
+  );
+
+  const revenue = completedInRange.reduce((sum, s) => sum + s.total, 0);
+
+  const costOfGoods = useMemo(() => {
+    const costBySku = {};
+    products.forEach((p) => (costBySku[p.id] = Number(p.costPrice || 0)));
+    return completedInRange.reduce(
+      (sum, s) =>
+        sum + s.items.reduce((is, i) => is + (costBySku[i.productId] || 0) * i.qty, 0),
+      0
+    );
+  }, [completedInRange, products]);
+
+  const expensesInRange = useMemo(
+    () =>
+      expenses
+        .filter((e) => new Date(e.date || e.createdAt) >= rangeStart)
+        .reduce((sum, e) => sum + Number(e.amount || 0), 0),
+    [expenses, rangeStart]
+  );
+
+  const grossProfit = revenue - costOfGoods;
+  const netProfit = grossProfit - expensesInRange;
+
+  // Daily revenue series
+  const dailyData = useMemo(() => {
+    const days = [];
+    for (let i = 0; i < rangeDays; i++) {
+      const d = new Date(rangeStart);
+      d.setDate(d.getDate() + i);
+      days.push({
+        key: d.toDateString(),
+        label: d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }),
+        revenue: 0,
+      });
+    }
+    const byKey = Object.fromEntries(days.map((d) => [d.key, d]));
+    completedInRange.forEach((s) => {
+      const key = new Date(s.createdAt).toDateString();
+      if (byKey[key]) byKey[key].revenue += s.total;
+    });
+    return rangeDays > 30 ? days.filter((_, i) => i % 3 === 0) : days;
+  }, [completedInRange, rangeStart, rangeDays]);
+
+  // Top products
+  const topProducts = useMemo(() => {
+    const byName = {};
+    completedInRange.forEach((s) =>
+      s.items.forEach((i) => {
+        byName[i.name] = byName[i.name] || { name: i.name, qty: 0, revenue: 0 };
+        byName[i.name].qty += i.qty;
+        byName[i.name].revenue += i.lineTotal;
+      })
+    );
+    return Object.values(byName)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 8);
+  }, [completedInRange]);
+
+  // Payment method breakdown
+  const paymentData = useMemo(() => {
+    const byMethod = {};
+    completedInRange.forEach((s) => {
+      byMethod[s.paymentMethod] = (byMethod[s.paymentMethod] || 0) + s.total;
+    });
+    return Object.entries(byMethod).map(([name, value]) => ({ name, value }));
+  }, [completedInRange]);
+
   return (
-    <OwnerFeatureGate>
-      <div className="p-8 bg-zinc-950 min-h-screen">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white">Reports</h1>
-            <p className="text-zinc-400">
-              See how your shop is performing over time.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-2xl px-3 py-2">
-              <Calendar className="w-4 h-4 text-zinc-500" />
-              <span className="text-xs text-zinc-400">Period</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilter('today')}
-                className={`px-3 py-2 rounded-2xl text-xs font-medium ${
-                  filter === 'today'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-zinc-900 text-zinc-400'
-                }`}
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setFilter('week')}
-                className={`px-3 py-2 rounded-2xl text-xs font-medium ${
-                  filter === 'week'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-zinc-900 text-zinc-400'
-                }`}
-              >
-                This Week
-              </button>
-              <button
-                onClick={() => setFilter('month')}
-                className={`px-3 py-2 rounded-2xl text-xs font-medium ${
-                  filter === 'month'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-zinc-900 text-zinc-400'
-                }`}
-              >
-                This Month
-              </button>
-            </div>
-          </div>
+    <div className="p-4 md:p-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Reports</h1>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
+            Sales performance and profitability
+          </p>
         </div>
+        <select
+          value={rangeDays}
+          onChange={(e) => setRangeDays(Number(e.target.value))}
+          className="px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm focus:outline-none"
+        >
+          {RANGES.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          {/* Total Sales */}
-          <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-zinc-400 tracking-wide">
-                  TOTAL SALES
-                </p>
-                <p className="text-3xl font-bold mt-2">
-                  ₦{totalSalesAmount.toLocaleString()}
-                </p>
-                <p className="text-xs text-emerald-400 mt-1">
-                  Completed receipts only
-                </p>
-              </div>
-              <div className="bg-emerald-500/10 rounded-2xl p-3">
-                <DollarSign className="w-7 h-7 text-emerald-400" />
-              </div>
-            </div>
+      <OwnerFeatureGate label="Full reports are an Owner Mode feature">
+        <div>
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Kpi label="Revenue" value={fmtMoney(revenue)} accent="text-emerald-500" />
+            <Kpi label="Cost of Goods" value={fmtMoney(costOfGoods)} accent="text-zinc-500" />
+            <Kpi label="Gross Profit" value={fmtMoney(grossProfit)} accent="text-sky-500" />
+            <Kpi
+              label="Net Profit (after expenses)"
+              value={fmtMoney(netProfit)}
+              accent={netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}
+            />
           </div>
 
-          {/* Total Receipts */}
-          <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-zinc-400 tracking-wide">
-                  TOTAL RECEIPTS
-                </p>
-                <p className="text-3xl font-bold mt-2 text-emerald-400">
-                  {totalReceipts}
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Sales in this period
-                </p>
-              </div>
-              <div className="bg-emerald-500/10 rounded-2xl p-3">
-                <Receipt className="w-7 h-7 text-emerald-400" />
-              </div>
-            </div>
-          </div>
-
-          {/* Total Expenses */}
-          <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-zinc-400 tracking-wide">
-                  TOTAL EXPENSES
-                </p>
-                <p className="text-3xl font-bold mt-2 text-amber-400">
-                  ₦{totalExpenseAmount.toLocaleString()}
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Costs recorded in this period
-                </p>
-              </div>
-              <div className="bg-amber-500/10 rounded-2xl p-3">
-                <DollarSign className="w-7 h-7 text-amber-400" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Daily revenue */}
+            <div className="lg:col-span-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
+              <h3 className="font-semibold mb-4">Daily revenue</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" opacity={0.3} />
+                    <XAxis dataKey="label" stroke="#71717a" fontSize={11} />
+                    <YAxis
+                      stroke="#71717a"
+                      fontSize={11}
+                      tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : v)}
+                    />
+                    <Tooltip
+                      formatter={(v) => [fmtMoney(v), 'Revenue']}
+                      contentStyle={{
+                        background: '#18181b',
+                        border: '1px solid #3f3f46',
+                        borderRadius: 12,
+                        color: '#fff',
+                      }}
+                    />
+                    <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
-          </div>
 
-          {/* Profit After Expenses */}
-          <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs text-zinc-400 tracking-wide">
-                  PROFIT AFTER EXPENSES
-                </p>
-                <p
-                  className={`text-3xl font-bold mt-2 ${
-                    profitAfterExpenses < 0
-                      ? 'text-red-400'
-                      : 'text-emerald-400'
-                  }`}
-                >
-                  ₦{profitAfterExpenses.toLocaleString()}
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Sales minus expenses (voids excluded)
-                </p>
-              </div>
-              <div className="bg-emerald-500/10 rounded-2xl p-3">
-                <DollarSign className="w-7 h-7 text-emerald-400" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom: payment + top products */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Payment breakdown */}
-          <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="bg-zinc-800 rounded-xl p-2">
-                  <PieChart className="w-4 h-4 text-emerald-400" />
+            {/* Payment methods */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
+              <h3 className="font-semibold mb-4">Payment methods</h3>
+              {paymentData.length === 0 ? (
+                <p className="text-xs text-zinc-500">No sales in this period.</p>
+              ) : (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={paymentData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={4}
+                      >
+                        {paymentData.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v) => fmtMoney(v)}
+                        contentStyle={{
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: 12,
+                          color: '#fff',
+                        }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-                <h3 className="font-semibold text-white">
-                  Payment Breakdown
-                </h3>
-              </div>
+              )}
             </div>
-
-            {paymentBreakdown.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                No completed sales in this period.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {paymentBreakdown.map((p) => {
-                  const share =
-                    totalPayment > 0
-                      ? Math.round((p.amount / totalPayment) * 100)
-                      : 0;
-                  return (
-                    <div
-                      key={p.method}
-                      className="flex items-center justify-between gap-3"
-                    >
-                      <div className="flex-1">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-zinc-300">{p.method}</span>
-                          <span className="text-zinc-500">
-                            {share}%
-                          </span>
-                        </div>
-                        <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-2 bg-emerald-500"
-                            style={{ width: `${share}%` }}
-                          />
-                        </div>
-                      </div>
-                      <div className="text-right w-28">
-                        <p className="text-sm font-semibold text-emerald-400">
-                          ₦{p.amount.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* Top products */}
-          <div className="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="bg-zinc-800 rounded-xl p-2">
-                  <ShoppingBag className="w-4 h-4 text-emerald-400" />
-                </div>
-                <h3 className="font-semibold text-white">
-                  Top Products
-                </h3>
-              </div>
-            </div>
-
+          <div className="mt-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
+            <h3 className="font-semibold mb-4">Top sellers</h3>
             {topProducts.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                No completed sales in this period.
-              </p>
+              <p className="text-xs text-zinc-500">No sales in this period.</p>
             ) : (
-              <div className="space-y-2">
-                {topProducts.map((p) => (
-                  <div
-                    key={p.productId}
-                    className="flex items-center justify-between bg-zinc-800/60 rounded-2xl px-4 py-3"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {p.name}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {p.qty} units sold
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-emerald-400">
-                        ₦{p.revenue.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-zinc-500 uppercase border-b border-zinc-200 dark:border-zinc-800">
+                      <th className="py-2 pr-4">#</th>
+                      <th className="py-2 pr-4">Item</th>
+                      <th className="py-2 pr-4 text-right">Qty sold</th>
+                      <th className="py-2 text-right">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topProducts.map((p, i) => (
+                      <tr key={p.name} className="border-b border-zinc-100 dark:border-zinc-800/60">
+                        <td className="py-2.5 pr-4 text-zinc-500">{i + 1}</td>
+                        <td className="py-2.5 pr-4 font-medium">{p.name}</td>
+                        <td className="py-2.5 pr-4 text-right">{p.qty}</td>
+                        <td className="py-2.5 text-right font-semibold">{fmtMoney(p.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
         </div>
+      </OwnerFeatureGate>
+    </div>
+  );
+}
 
-        {loading && (
-          <p className="mt-6 text-xs text-zinc-500">
-            Loading report…
-          </p>
-        )}
-      </div>
-    </OwnerFeatureGate>
+function Kpi({ label, value, accent }) {
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
+      <p className={`text-xl font-bold truncate ${accent}`}>{value}</p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{label}</p>
+    </div>
   );
 }

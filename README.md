@@ -1,16 +1,56 @@
-# React + Vite
+# SmartStore NG
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A multi-tenant **POS & store management app for every kind of business** —
+supermarkets, boutiques, pharmacies, restaurants, salons and more. You pick
+your niche during onboarding and the app adapts (terminology, default
+categories, expiry tracking, barcode scanning…).
 
-Currently, two official plugins are available:
+Built with **React 19 + Vite + Tailwind CSS 4**, backed by **Supabase**
+(Postgres + Auth + RLS) with an automatic **local demo mode** when no
+backend is configured.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- 🏪 **Multi-niche onboarding** — Supermarket, Boutique, Pharmacy, Restaurant, Salon/Services, Other
+- 🛒 **POS Register** — product grid, cart, camera barcode scanning, payment methods, receipt printing
+- 📦 **Inventory** — SKU, categories, cost/sale price, stock levels, low-stock alerts, expiry dates (pharmacy)
+- 📊 **Dashboard & Reports** — daily/monthly revenue, gross & net profit, top sellers, payment breakdown
+- 🧾 **Sales History** — searchable receipts, reprint, void with reason (restocks automatically)
+- 🚨 **Void audit trail** — who voided what, when and why
+- 💸 **Expenses + expense analytics** — category & monthly breakdowns
+- 👥 **Team** — staff join with a store code; roles: owner / admin / manager / cashier
+- 👑 **Owner Mode plan gating**, 🌙 light/dark theme
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Running locally (demo mode)
 
-## Expanding the Oxlint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+With no env vars set, the app runs entirely on localStorage — click
+**“Try the demo store”** on the login screen for a pre-seeded store.
+
+## Going live with Supabase
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run `supabase/migrations/001_init.sql` in the SQL editor
+3. Create a `.env` file:
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+4. `npm run dev` — the app automatically switches to the Supabase backend
+   (multi-tenant with row-level security; checkout and voiding run as
+   transactional Postgres functions).
+
+## Roles
+
+| Role | Access |
+|---|---|
+| Owner | Everything + settings, team, billing |
+| Admin | Everything except owner settings |
+| Manager | Inventory, reports, expenses, voids |
+| Cashier | POS + sales history |

@@ -1,22 +1,17 @@
 // src/components/Login.jsx
 import { useState } from 'react';
-import { ArrowRight, UserPlus } from 'lucide-react';
-import { auth } from '../firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { ArrowRight, UserPlus, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { api, isDemoBackend } from '../lib/backend';
+import { loginOrCreateDemo } from '../lib/demo';
 import logo from '/logo-smartstore.png';
-
-const DEMO_EMAIL = 'demo@smartstoreng.com';
-const DEMO_PASSWORD = 'Demo1234!';
-
-// Backend base URL
-const API_BASE = 'https://smartstore-bill.onrender.com';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [accessKey, setAccessKey] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [signupType, setSignupType] = useState('owner'); // 'owner' | 'staff'
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [loading, setLoading] = useState(false);
 
@@ -28,67 +23,47 @@ export default function Login() {
 
     try {
       if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
+        await api.auth.signIn({ email, password });
         toast.success('Welcome back to SmartStore NG 👋');
         navigate('/', { replace: true });
       } else {
-        if (!accessKey.trim()) {
-          toast.error('Please enter your creator access key.');
+        if (signupType === 'staff' && !joinCode.trim()) {
+          toast.error('Enter the store join code from your manager.');
           setLoading(false);
           return;
         }
 
-        const res = await fetch(`${API_BASE}/create-owner`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            password,
-            accessKey,
-          }),
-        });
+        const user = await api.auth.signUp({ email, password });
 
-        const data = await res.json();
-
-        if (!res.ok) {
-          console.error('create-owner failed', data);
-          toast.error(
-            data.error ||
-              'Could not create owner account. Contact support.'
-          );
-          setLoading(false);
-          return;
+        if (signupType === 'staff') {
+          await api.stores.joinWithCode(user.id, user.email, joinCode);
+          toast.success('You have joined the store 🎉');
+          navigate('/pos', { replace: true });
+        } else {
+          toast.success('Account created — let’s set up your business 🎉');
+          navigate('/onboarding', { replace: true });
         }
-
-        await signInWithEmailAndPassword(auth, email, password);
-        toast.success('Owner account and store created 🎉');
-
-        // New owners go into onboarding flow
-        navigate('/onboarding', { replace: true });
       }
     } catch (error) {
       console.error(error);
-      let message = 'Something went wrong. Please try again.';
-      if (
-        error.code === 'auth/user-not-found' ||
-        error.code === 'auth/wrong-password' ||
-        error.code === 'auth/invalid-credential'
-      ) {
-        message = 'Email or password is not correct.';
-      } else if (error.code === 'auth/email-already-in-use') {
-        message =
-          'That email already has an account. Try logging in instead.';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password is too weak. Try something stronger.';
-      }
-      toast.error(message);
+      toast.error(error.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleMode = () => {
-    setMode(mode === 'login' ? 'signup' : 'login');
+  const handleDemo = async () => {
+    setLoading(true);
+    try {
+      await loginOrCreateDemo();
+      toast.success('Welcome to the demo store 👋');
+      navigate('/', { replace: true });
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || 'Could not start demo.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -120,77 +95,97 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setMode('login')}
-              className={`flex-1 py-2 rounded-2xl text-sm font-medium ${
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 mode === 'login'
-                  ? 'bg-zinc-950 text-white'
+                  ? 'bg-emerald-500 text-black'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Sign In
+              Log In
             </button>
             <button
               type="button"
               onClick={() => setMode('signup')}
-              className={`flex-1 py-2 rounded-2xl text-sm font-medium ${
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 mode === 'signup'
-                  ? 'bg-zinc-950 text-white'
+                  ? 'bg-emerald-500 text-black'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Create Owner Account
+              Sign Up
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'signup' && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSignupType('owner')}
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                    signupType === 'owner'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                      : 'border-zinc-700 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  I own a business
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSignupType('staff')}
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                    signupType === 'staff'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                      : 'border-zinc-700 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  I&apos;m joining a store
+                </button>
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">
-                Email
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                Email address
               </label>
               <input
                 type="email"
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition text-sm"
-                placeholder="owner@yourstore.com"
-                required
+                placeholder="you@business.com"
+                className="w-full px-4 py-3 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-zinc-400 mb-2 font-medium">
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
                 Password
               </label>
               <input
                 type="password"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition text-sm"
                 placeholder="••••••••"
-                required
+                className="w-full px-4 py-3 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
-              {mode === 'signup' && (
-                <p className="text-xs text-zinc-500 mt-2">
-                  Tip: Use a password you can remember easily at the shop.
-                </p>
-              )}
             </div>
 
-            {mode === 'signup' && (
+            {mode === 'signup' && signupType === 'staff' && (
               <div>
-                <label className="block text-sm text-zinc-400 mb-2 font-medium">
-                  Creator access key
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                  Store join code
                 </label>
                 <input
-                  type="password"
-                  value={accessKey}
-                  onChange={(e) => setAccessKey(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-5 py-4 text-white placeholder-zinc-500 focus:outline-none transition text-sm"
-                  placeholder="Enter the key from SmartStore NG"
-                  required
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. 8G2KQP"
+                  className="w-full px-4 py-3 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 tracking-widest uppercase"
                 />
                 <p className="text-[11px] text-zinc-500 mt-1">
-                  Only approved store owners with a creator key can create
-                  a SmartStore NG account.
+                  Ask the store owner for the join code (Team page).
                 </p>
               </div>
             )}
@@ -198,62 +193,34 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-70 transition-all py-4 rounded-2xl font-semibold text-base md:text-lg flex items-center justify-center gap-3"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50 transition-all"
             >
-              {loading ? (
-                mode === 'login'
-                  ? 'Signing you in...'
-                  : 'Creating your owner account...'
-              ) : mode === 'login' ? (
+              {mode === 'login' ? (
                 <>
-                  Enter SmartStore NG <ArrowRight className="w-5 h-5" />
+                  Log In <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>
-                  Create Owner Account <UserPlus className="w-5 h-5" />
+                  Create Account <UserPlus className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          {isDemoBackend && (
             <button
-              type="button"
-              onClick={toggleMode}
-              className="text-emerald-400 hover:text-emerald-300 text-xs font-medium"
+              onClick={handleDemo}
+              disabled={loading}
+              className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-zinc-700 text-zinc-300 text-sm font-medium hover:border-emerald-500 hover:text-emerald-400 disabled:opacity-50 transition-all"
             >
-              {mode === 'login'
-                ? 'No owner account yet? Create one.'
-                : 'Already have an owner account? Sign in.'}
+              <PlayCircle className="w-4 h-4" />
+              Try the demo store
             </button>
-          </div>
-
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await signInWithEmailAndPassword(
-                    auth,
-                    DEMO_EMAIL,
-                    DEMO_PASSWORD
-                  );
-                  toast.success('You are now in SmartStore NG demo mode.');
-                  navigate('/', { replace: true });
-                } catch (e) {
-                  console.error(e);
-                  toast.error('Demo mode is not available right now.');
-                }
-              }}
-              className="text-zinc-400 hover:text-zinc-200 text-xs font-medium"
-            >
-              Try Demo Mode →
-            </button>
-          </div>
+          )}
         </div>
 
-        <p className="text-center text-zinc-500 text-xs mt-8">
-          Built for Nigerian Retailers • 2026
+        <p className="text-center text-zinc-600 text-xs mt-6">
+          Point of Sale · Inventory · Reports — for every kind of business
         </p>
       </div>
     </div>
