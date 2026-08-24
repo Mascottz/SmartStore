@@ -407,6 +407,12 @@ export const supabaseAdapter = {
       const dashboard = await this.getDashboard();
       return dashboard.users;
     },
+    async listAllUsers() {
+      return this.listUsers();
+    },
+    async listPendingUsers() {
+      return (await this.listUsers()).filter((user) => user.approvalStatus === 'pending');
+    },
     async listStores() {
       const dashboard = await this.getDashboard();
       return dashboard.stores;
@@ -418,6 +424,12 @@ export const supabaseAdapter = {
       });
       ensure(error);
       return mapMember(data);
+    },
+    async approveUser(memberId) {
+      return this.updateApproval(memberId, 'approved');
+    },
+    async rejectUser(memberId) {
+      return this.updateApproval(memberId, 'rejected');
     },
   },
 };

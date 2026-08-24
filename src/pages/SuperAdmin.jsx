@@ -13,6 +13,7 @@ import {
   UserCheck,
   Users,
   UserX,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -21,7 +22,7 @@ import { api } from '../lib/backend';
 import { fmtDate } from '../lib/format';
 import logo from '/logo-smartstore.png';
 
-const EMPTY_DASHBOARD = { stats: {}, users: [], stores: [] };
+const EMPTY_DASHBOARD = { stats: {}, users: [], stores: [], sales: [], products: [], expenses: [] };
 const STATUS_STYLES = {
   pending: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
   approved: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
@@ -48,6 +49,9 @@ export default function SuperAdmin() {
         stats: result?.stats || {},
         users: result?.users || [],
         stores: result?.stores || [],
+        sales: result?.sales || [],
+        products: result?.products || [],
+        expenses: result?.expenses || [],
       });
     } catch (loadError) {
       console.error(loadError);
@@ -108,6 +112,16 @@ export default function SuperAdmin() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const deleteUser = async (user) => {
+    if (!window.confirm(`Delete ${user.email}? This cannot be undone.`)) return;
+    try { await api.admin.deleteUser(user.userId); toast.success('User deleted'); await loadDashboard(); } catch (e) { toast.error(e.message || 'Could not delete user.'); }
+  };
+
+  const deleteStore = async (store) => {
+    if (!window.confirm(`Delete ${store.name}? This cannot be undone.`)) return;
+    try { await api.admin.deleteStore(store.id); toast.success('Store deleted'); await loadDashboard(); } catch (e) { toast.error(e.message || 'Could not delete store.'); }
   };
 
   const exitAdmin = () => {
@@ -214,6 +228,9 @@ export default function SuperAdmin() {
               ['overview', 'Overview'],
               ['users', 'Users'],
               ['stores', 'Stores'],
+              ['sales', 'Sales'],
+              ['products', 'Products'],
+              ['expenses', 'Expenses'],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -257,9 +274,13 @@ export default function SuperAdmin() {
             setStatusFilter={setStatusFilter}
             busyId={busyId}
             updateApproval={updateApproval}
+            deleteUser={deleteUser}
           />
         )}
-        {tab === 'stores' && <StoresPanel stores={visibleStores} loading={loading} />}
+        {tab === 'stores' && <StoresPanel stores={visibleStores} loading={loading} deleteStore={deleteStore} />}
+        {['sales', 'products', 'expenses'].includes(tab) && (
+          <SystemRecordsPanel tab={tab} records={dashboard[tab]} loading={loading} />
+        )}
       </main>
     </div>
   );
@@ -365,6 +386,7 @@ function UsersPanel({
   setStatusFilter,
   busyId,
   updateApproval,
+  deleteUser,
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
@@ -439,6 +461,9 @@ function UsersPanel({
                           <UserX className="h-4 w-4" />
                         </button>
                       )}
+                      <button type="button" onClick={() => deleteUser(user)} className="rounded-lg border border-zinc-700 p-2 text-zinc-500 hover:border-red-500/40 hover:text-red-400" title="Delete user" aria-label={`Delete ${user.email}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -451,7 +476,7 @@ function UsersPanel({
   );
 }
 
-function StoresPanel({ stores, loading }) {
+function StoresPanel({ stores, loading, deleteStore }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
       <div className="overflow-x-auto">
@@ -494,6 +519,7 @@ function StoresPanel({ stores, loading }) {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-5 py-4 text-zinc-500">{fmtDate(store.createdAt)}</td>
+                  <td className="px-5 py-4 text-right"><button type="button" onClick={() => deleteStore(store)} className="rounded-lg border border-zinc-700 p-2 text-zinc-500 hover:border-red-500/40 hover:text-red-400" title="Delete store"><Trash2 className="h-4 w-4" /></button></td>
                 </tr>
               ))
             )}
@@ -502,6 +528,11 @@ function StoresPanel({ stores, loading }) {
       </div>
     </section>
   );
+}
+
+function SystemRecordsPanel({ tab, records = [], loading }) {
+  const fields = tab === 'sales' ? ['receiptNo', 'total', 'status', 'createdAt'] : tab === 'products' ? ['name', 'stock', 'salePrice', 'storeId'] : ['title', 'amount', 'category', 'date'];
+  return <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-zinc-800 text-left text-xs uppercase text-zinc-500">{fields.map((field) => <th key={field} className="px-5 py-3">{field.replace(/([A-Z])/g, ' $1')}</th>)}</tr></thead><tbody>{loading ? <tr><td colSpan={fields.length}><LoadingRows count={4} /></td></tr> : records.length === 0 ? <tr><td colSpan={fields.length} className="px-5 py-12 text-center text-zinc-500">No {tab} recorded yet.</td></tr> : records.map((record) => <tr key={record.id} className="border-b border-zinc-800/70 last:border-0">{fields.map((field) => <td key={field} className="px-5 py-4 text-zinc-300">{String(record[field] ?? '—')}</td>)}</tr>)}</tbody></table></div></section>;
 }
 
 function LoadingRows({ count }) {
