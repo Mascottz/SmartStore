@@ -235,7 +235,7 @@ export default function POS() {
         </div>
 
         {loading ? (
-          <p className="text-zinc-500 text-sm">Loading…</p>
+          <p className="text-zinc-500 text-sm">Loading...</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredProducts.map((p) => {
@@ -354,7 +354,7 @@ export default function POS() {
             disabled={isCompleting || cart.length === 0}
             className="w-full mt-4 px-4 py-3.5 rounded-2xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 disabled:opacity-40"
           >
-            {isCompleting ? 'Completing…' : 'Complete Sale'}
+            {isCompleting ? 'Completing...' : 'Complete Sale'}
           </button>
 
           <button

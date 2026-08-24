@@ -28,7 +28,7 @@ export default function Pricing() {
   const handleUpgrade = async () => {
     try {
       await upgradeToOwner();
-      toast.success('Welcome to Owner Mode 👑');
+      toast.success('Welcome to Owner Mode');
       navigate('/');
     } catch (e) {
       toast.error(e.message || 'Could not upgrade.');
@@ -87,11 +87,11 @@ export default function Pricing() {
             disabled={isOwnerMode}
             className="w-full mt-8 px-4 py-3 rounded-2xl bg-emerald-500 text-black text-sm font-bold hover:bg-emerald-400 disabled:opacity-50"
           >
-            {isOwnerMode ? 'You are on Owner Mode 👑' : 'Upgrade to Owner Mode'}
+            {isOwnerMode ? 'You are on Owner Mode' : 'Upgrade to Owner Mode'}
           </button>
           {!isOwnerMode && (
             <p className="text-[11px] text-zinc-500 text-center mt-2">
-              Demo billing — connect Paystack/Flutterwave for production.
+              Demo billing, connect Paystack/Flutterwave for production.
             </p>
           )}
         </div>

@@ -67,7 +67,7 @@ export default function VoidReports() {
                   ) : voidLogs.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-5 py-10 text-center text-zinc-500">
-                        No voided sales. Great discipline! 👏
+                        No voided sales. Great discipline!
                       </td>
                     </tr>
                   ) : (

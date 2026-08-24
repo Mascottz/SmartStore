@@ -97,7 +97,7 @@ export default function SalesHistory() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by receipt number or item…"
+            placeholder="Search by receipt number or item..."
             className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:border-emerald-500 text-sm"
           />
         </div>
@@ -114,7 +114,7 @@ export default function SalesHistory() {
 
       <div className="space-y-3">
         {loading ? (
-          <p className="text-zinc-500 text-sm py-10 text-center">Loading…</p>
+          <p className="text-zinc-500 text-sm py-10 text-center">Loading...</p>
         ) : filtered.length === 0 ? (
           <p className="text-zinc-500 text-sm py-10 text-center">No sales found.</p>
         ) : (

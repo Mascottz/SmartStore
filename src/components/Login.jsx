@@ -24,7 +24,7 @@ export default function Login() {
     try {
       if (mode === 'login') {
         await api.auth.signIn({ email, password });
-        toast.success('Welcome back to SmartStore NG 👋');
+        toast.success('Welcome back to SmartStore NG');
         navigate('/', { replace: true });
       } else {
         if (signupType === 'staff' && !joinCode.trim()) {
@@ -37,10 +37,10 @@ export default function Login() {
 
         if (signupType === 'staff') {
           await api.stores.joinWithCode(user.id, user.email, joinCode);
-          toast.success('You have joined the store 🎉');
+          toast.success('You have joined the store');
           navigate('/pos', { replace: true });
         } else {
-          toast.success('Account created — let’s set up your business 🎉');
+          toast.success('Account created, let’s set up your business');
           navigate('/onboarding', { replace: true });
         }
       }
@@ -56,7 +56,7 @@ export default function Login() {
     setLoading(true);
     try {
       await loginOrCreateDemo();
-      toast.success('Welcome to the demo store 👋');
+      toast.success('Welcome to the demo store');
       navigate('/', { replace: true });
     } catch (e) {
       console.error(e);
@@ -220,7 +220,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-zinc-600 text-xs mt-6">
-          Point of Sale · Inventory · Reports — for every kind of business
+          Point of Sale · Inventory · Reports, for every kind of business
         </p>
       </div>
     </div>

@@ -108,7 +108,7 @@ export default function Sidebar() {
         </div>
         {isDemoBackend && (
           <p className="mt-3 text-[10px] px-2 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            Local demo mode — add Supabase keys to go live
+            Local demo mode, add Supabase keys to go live
           </p>
         )}
       </div>

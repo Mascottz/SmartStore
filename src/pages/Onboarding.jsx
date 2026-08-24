@@ -61,7 +61,7 @@ export default function Onboarding() {
         categories: selectedCategories,
       });
       await refreshMembership();
-      toast.success(`${name.trim()} is ready 🎉`);
+      toast.success(`${name.trim()} is ready`);
       navigate('/', { replace: true });
     } catch (e) {
       console.error(e);
@@ -85,7 +85,7 @@ export default function Onboarding() {
             Set up your business
           </h1>
           <p className="text-zinc-400 text-sm mt-1">
-            Step {step} of 3 —{' '}
+            Step {step} of 3,{' '}
             {step === 1
               ? 'Tell us about your business'
               : step === 2
@@ -221,7 +221,7 @@ export default function Onboarding() {
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addCustomCategory()}
-                  placeholder="Add custom category…"
+                  placeholder="Add custom category..."
                   className="flex-1 px-4 py-2.5 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 text-sm"
                 />
                 <button

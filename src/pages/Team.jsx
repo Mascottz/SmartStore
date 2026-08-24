@@ -74,7 +74,7 @@ export default function Team() {
           </h3>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
             Staff sign up with &quot;I&apos;m joining a store&quot; and enter this code. They
-            start as cashiers — you can promote them below.
+            start as cashiers, you can promote them below.
           </p>
         </div>
         <button

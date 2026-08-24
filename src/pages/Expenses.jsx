@@ -106,7 +106,7 @@ export default function Expenses() {
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-10 text-center text-zinc-500">
-                    Loading…
+                    Loading...
                   </td>
                 </tr>
               ) : expenses.length === 0 ? (
@@ -226,7 +226,7 @@ export default function Expenses() {
                   className={inputCls}
                   value={form.note}
                   onChange={(e) => setForm({ ...form, note: e.target.value })}
-                  placeholder="Any extra detail…"
+                  placeholder="Any extra detail..."
                 />
               </div>
             </div>
@@ -236,7 +236,7 @@ export default function Expenses() {
               disabled={saving}
               className="w-full mt-6 px-4 py-3 rounded-2xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Record Expense'}
+              {saving ? 'Saving...' : 'Record Expense'}
             </button>
           </div>
         </div>

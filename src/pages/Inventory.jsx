@@ -168,7 +168,7 @@ export default function Inventory() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={`Search ${niche.itemNounPlural.toLowerCase()} by name, SKU or category…`}
+            placeholder={`Search ${niche.itemNounPlural.toLowerCase()} by name, SKU or category...`}
             className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:border-emerald-500 text-sm"
           />
         </div>
@@ -203,7 +203,7 @@ export default function Inventory() {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-10 text-center text-zinc-500">
-                    Loading…
+                    Loading...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
@@ -321,7 +321,7 @@ export default function Inventory() {
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                   >
-                    <option value="">Select…</option>
+                    <option value="">Select...</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.name}>
                         {c.name}
@@ -383,7 +383,7 @@ export default function Inventory() {
               disabled={saving}
               className="w-full mt-6 px-4 py-3 rounded-2xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50"
             >
-              {saving ? 'Saving…' : editingId ? 'Save Changes' : `Add ${niche.itemNoun}`}
+              {saving ? 'Saving...' : editingId ? 'Save Changes' : `Add ${niche.itemNoun}`}
             </button>
           </div>
         </div>

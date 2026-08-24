@@ -113,7 +113,7 @@ export default function OwnerSettings() {
             disabled={saving}
             className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50"
           >
-            <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}
+            <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save changes'}
           </button>
         </div>
       </div>
@@ -146,7 +146,7 @@ export default function OwnerSettings() {
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCategory()}
-            placeholder="New category name…"
+            placeholder="New category name..."
           />
           <button
             onClick={addCategory}

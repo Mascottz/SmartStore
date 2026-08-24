@@ -118,7 +118,7 @@ export default function Dashboard() {
       <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
         <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-          {storeName} — here&apos;s how your business is doing.
+          {storeName}, here&apos;s how your business is doing.
         </p>
       </div>
 
@@ -127,12 +127,12 @@ export default function Dashboard() {
         <div className="mb-6 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5 flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex-1">
             <h3 className="font-semibold text-emerald-600 dark:text-emerald-400">
-              Get your first sale in 🎉
+              Get your first sale in
             </h3>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
               {products.length === 0
                 ? `Start by adding your first ${niche.itemNoun.toLowerCase()}, then ring up a sale at the POS.`
-                : 'Your items are in — head to the POS Register and complete your first sale.'}
+                : 'Your items are in; head to the POS Register and complete your first sale.'}
             </p>
           </div>
           <button
@@ -178,7 +178,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2">
           <OwnerFeatureGate label="Monthly revenue chart">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
-              <h3 className="font-semibold mb-4">Revenue — last 6 months</h3>
+              <h3 className="font-semibold mb-4">Revenue, last 6 months</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyData}>
