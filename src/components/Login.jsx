@@ -1,12 +1,13 @@
 // src/components/Login.jsx
 import { useState } from 'react';
-import { ArrowRight, UserPlus, PlayCircle, ShieldCheck } from 'lucide-react';
+import { ArrowRight, UserPlus, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api, isDemoBackend } from '../lib/backend';
 import { loginOrCreateDemo } from '../lib/demo';
 import { useAuth } from '../context/AuthContext';
 import { sanitize, isValidEmail, isValidPassword, isValidJoinCode } from '../lib/validate';
+import { isSuperAdminEmail } from '../lib/superAdmin';
 import logo from '/logo-smartstore.png';
 
 export default function Login() {
@@ -19,13 +20,7 @@ export default function Login() {
 
   const navigate = useNavigate();
   const { refreshMembership } = useAuth();
-  const showSuperAdmin =
-    email.trim().toLowerCase() === 'admin' && password === 'admin';
-
-  const openSuperAdmin = () => {
-    sessionStorage.setItem('smartstore-super-admin-unlocked', 'true');
-    navigate('/super-admin');
-  };
+  const isSuperAdmin = isSuperAdminEmail(email);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,12 +46,22 @@ export default function Login() {
       if (mode === 'login') {
         await api.auth.signIn({ email: cleanEmail, password: cleanPw });
         await refreshMembership();
-        toast.success('Welcome back to SmartStore NG');
-        navigate('/', { replace: true });
+        if (isSuperAdminEmail(cleanEmail)) {
+          sessionStorage.setItem('smartstore-super-admin-unlocked', 'true');
+          toast.success('Welcome back, Administrator');
+          navigate('/super-admin', { replace: true });
+        } else {
+          toast.success('Welcome back to SmartStore NG');
+          navigate('/', { replace: true });
+        }
       } else {
         const user = await api.auth.signUp({ email: cleanEmail, password: cleanPw });
 
-        if (signupType === 'staff') {
+        if (isSuperAdminEmail(user.email)) {
+          sessionStorage.setItem('smartstore-super-admin-unlocked', 'true');
+          toast.success('Administrator account created');
+          navigate('/super-admin', { replace: true });
+        } else if (signupType === 'staff') {
           await api.stores.joinWithCode(user.id, user.email, joinCode.trim().toUpperCase());
           await refreshMembership();
           toast.success('Request sent to the store owner for approval');
@@ -175,9 +180,16 @@ export default function Login() {
             )}
 
             <div>
-              <label htmlFor="login-email" className="block text-xs font-medium text-zinc-400 mb-1.5">
-                Email address
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <label htmlFor="login-email" className="block text-xs font-medium text-zinc-400">
+                  Email address
+                </label>
+                {isSuperAdmin && (
+                  <span className="rounded-full border border-red-500/50 bg-red-500/15 px-2 py-0.5 text-[10px] font-bold tracking-wider text-red-300">
+                    ADMIN
+                  </span>
+                )}
+              </div>
               <input
                 id="login-email"
                 type="email"
@@ -232,13 +244,17 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50 transition-all"
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl font-semibold disabled:opacity-50 transition-all ${
+                isSuperAdmin && mode === 'login'
+                  ? 'bg-red-600 text-white hover:bg-red-500'
+                  : 'bg-emerald-500 text-black hover:bg-emerald-400'
+              }`}
             >
               {loading ? (
                 'Please wait...'
               ) : mode === 'login' ? (
                 <>
-                  Log In <ArrowRight className="w-4 h-4" />
+                  {isSuperAdmin ? 'Admin Sign In' : 'Log In'} <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>
@@ -247,17 +263,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          {showSuperAdmin && (
-            <button
-              type="button"
-              onClick={openSuperAdmin}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-500/60 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-300 transition-all hover:border-violet-400 hover:bg-violet-500/20"
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Open Super Admin
-            </button>
-          )}
 
           {isDemoBackend && (
             <button
