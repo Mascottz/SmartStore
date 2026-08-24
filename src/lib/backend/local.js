@@ -2,6 +2,7 @@
 // LocalStorage-backed adapter. Used automatically when Supabase env vars
 // are not configured, so the whole app works as an offline demo.
 import { sanitize, clamp } from '../validate';
+import { isSuperAdminEmail } from '../superAdmin';
 
 const DB_KEY = 'smartstore-db';
 const SESSION_KEY = 'smartstore-session';
@@ -151,6 +152,8 @@ export const localAdapter = {
         id: uid(),
         email: normalized,
         password,
+        // The designated administrator never waits in the local approval queue.
+        approvalStatus: isSuperAdminEmail(normalized) ? 'approved' : 'pending',
         createdAt: new Date().toISOString(),
       };
       db.users.push(user);
@@ -286,17 +289,18 @@ export const localAdapter = {
           approvalStatus: approvalStatus(member),
         };
       }
+      const memberApprovalStatus = isSuperAdminEmail(email) ? 'approved' : 'pending';
       db.members.push({
         id: uid(),
         storeId: store.id,
         userId,
         email: sanitize(email),
         role: 'cashier',
-        approvalStatus: 'pending',
+        approvalStatus: memberApprovalStatus,
         createdAt: new Date().toISOString(),
       });
       save(db);
-      return { store, role: 'cashier', approvalStatus: 'pending' };
+      return { store, role: 'cashier', approvalStatus: memberApprovalStatus };
     },
   },
 
@@ -583,7 +587,9 @@ export const localAdapter = {
           membershipId: member?.id || null,
           email: user.email,
           role: member?.role || null,
-          approvalStatus: member ? approvalStatus(member) : 'unassigned',
+          approvalStatus: member
+            ? approvalStatus(member)
+            : user.approvalStatus || 'unassigned',
           storeId: store?.id || null,
           storeName: store?.name || '',
           createdAt: user.createdAt || member?.createdAt || null,
