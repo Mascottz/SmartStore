@@ -6,6 +6,9 @@ import { sanitize, clamp } from '../validate';
 const DB_KEY = 'smartstore-db';
 const SESSION_KEY = 'smartstore-session';
 
+const APPROVAL_STATUSES = ['pending', 'approved', 'rejected'];
+const approvalStatus = (member) => member?.approvalStatus || 'approved';
+
 // Use crypto.randomUUID when available, fall back to a timestamp+random combo.
 const uid = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -144,7 +147,12 @@ export const localAdapter = {
         throw new Error('That email already has an account. Try logging in instead.');
       }
 
-      const user = { id: uid(), email: normalized, password };
+      const user = {
+        id: uid(),
+        email: normalized,
+        password,
+        createdAt: new Date().toISOString(),
+      };
       db.users.push(user);
       save(db);
       localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id }));
@@ -197,7 +205,7 @@ export const localAdapter = {
       if (!m) return null;
       const store = db.stores.find((s) => s.id === m.storeId);
       if (!store) return null;
-      return { store, role: m.role };
+      return { store, role: m.role, approvalStatus: approvalStatus(m) };
     },
 
     async create(userId, email, { name, type, categories }) {
@@ -228,6 +236,7 @@ export const localAdapter = {
         userId,
         email: sanitize(email),
         role: 'owner',
+        approvalStatus: 'approved',
         createdAt: new Date().toISOString(),
       });
       (categories || []).forEach((c) => {
@@ -270,7 +279,12 @@ export const localAdapter = {
       const store = db.stores.find((s) => s.joinCode === cleanCode);
       if (!store) throw new Error('No store found for that join code.');
       if (db.members.some((m) => m.userId === userId && m.storeId === store.id)) {
-        return { store, role: db.members.find((m) => m.userId === userId).role };
+        const member = db.members.find((m) => m.userId === userId);
+        return {
+          store,
+          role: member.role,
+          approvalStatus: approvalStatus(member),
+        };
       }
       db.members.push({
         id: uid(),
@@ -278,10 +292,11 @@ export const localAdapter = {
         userId,
         email: sanitize(email),
         role: 'cashier',
+        approvalStatus: 'pending',
         createdAt: new Date().toISOString(),
       });
       save(db);
-      return { store, role: 'cashier' };
+      return { store, role: 'cashier', approvalStatus: 'pending' };
     },
   },
 
@@ -509,6 +524,7 @@ export const localAdapter = {
     async list(storeId) {
       return load()
         .members.filter((m) => m.storeId === storeId)
+        .map((m) => ({ ...m, approvalStatus: approvalStatus(m) }))
         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     },
     async updateRole(memberId, role) {
@@ -523,6 +539,18 @@ export const localAdapter = {
       save(db);
       return m;
     },
+    async updateApproval(memberId, status) {
+      if (!APPROVAL_STATUSES.includes(status)) {
+        throw new Error('Invalid approval status.');
+      }
+      const db = load();
+      const m = db.members.find((x) => x.id === memberId);
+      if (!m) throw new Error('Member not found');
+      if (m.role === 'owner') throw new Error('The store owner is always approved.');
+      m.approvalStatus = status;
+      save(db);
+      return { ...m, approvalStatus: status };
+    },
     async remove(memberId) {
       const db = load();
       const m = db.members.find((x) => x.id === memberId);
@@ -530,6 +558,62 @@ export const localAdapter = {
       if (m.role === 'owner') throw new Error('Cannot remove the store owner.');
       db.members = db.members.filter((x) => x.id !== memberId);
       save(db);
+    },
+  },
+
+  // System-wide functions used by the hidden Super Admin console. The local
+  // adapter intentionally contains no passwords in any returned record.
+  admin: {
+    async getDashboard() {
+      const db = load();
+      const stores = db.stores.map((store) => {
+        const members = db.members.filter((m) => m.storeId === store.id);
+        return {
+          ...store,
+          memberCount: members.length,
+          pendingCount: members.filter((m) => approvalStatus(m) === 'pending').length,
+        };
+      });
+      const users = db.users.map((user) => {
+        const member = db.members.find((m) => m.userId === user.id);
+        const store = member && db.stores.find((s) => s.id === member.storeId);
+        return {
+          id: user.id,
+          userId: user.id,
+          membershipId: member?.id || null,
+          email: user.email,
+          role: member?.role || null,
+          approvalStatus: member ? approvalStatus(member) : 'unassigned',
+          storeId: store?.id || null,
+          storeName: store?.name || '',
+          createdAt: user.createdAt || member?.createdAt || null,
+          joinedAt: member?.createdAt || null,
+        };
+      });
+      const statuses = users.map((u) => u.approvalStatus);
+      return {
+        stats: {
+          totalUsers: users.length,
+          totalStores: stores.length,
+          totalMembers: db.members.length,
+          pendingUsers: statuses.filter((s) => s === 'pending').length,
+          approvedUsers: statuses.filter((s) => s === 'approved').length,
+          rejectedUsers: statuses.filter((s) => s === 'rejected').length,
+        },
+        users,
+        stores,
+      };
+    },
+    async listUsers() {
+      const dashboard = await this.getDashboard();
+      return dashboard.users;
+    },
+    async listStores() {
+      const dashboard = await this.getDashboard();
+      return dashboard.stores;
+    },
+    async updateApproval(memberId, status) {
+      return localAdapter.team.updateApproval(memberId, status);
     },
   },
 };

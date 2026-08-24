@@ -25,6 +25,8 @@ const VoidReports = lazy(() => import('./pages/VoidReports'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const OwnerSettings = lazy(() => import('./pages/OwnerSettings'));
+const AdminApprovals = lazy(() => import('./pages/AdminApprovals'));
+const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 
 // Mobile-friendly shell layout
 function ShellLayout() {
@@ -66,6 +68,14 @@ function AppInner() {
 
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/super-admin"
+          element={
+            <Suspense fallback={<SplashScreen />}>
+              <SuperAdmin />
+            </Suspense>
+          }
+        />
 
         {/* Onboarding flow (no store required yet) */}
         <Route
@@ -100,6 +110,7 @@ function AppInner() {
           <Route path="/team" element={<Team />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/owner-settings" element={<OwnerSettings />} />
+          <Route path="/admin/approvals" element={<AdminApprovals />} />
         </Route>
 
         {/* Catch-all: redirect to dashboard */}

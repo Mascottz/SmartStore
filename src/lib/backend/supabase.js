@@ -83,6 +83,7 @@ const mapMember = (m) =>
     userId: m.user_id,
     email: m.email,
     role: m.role,
+    approvalStatus: m.approval_status || 'approved',
     createdAt: m.created_at,
   };
 
@@ -126,14 +127,18 @@ export const supabaseAdapter = {
 
   stores: {
     async getMyMembership(userId) {
-      const { data, error } = await supabase
-        .from('store_members')
-        .select('role, stores(*)')
-        .eq('user_id', userId)
-        .maybeSingle();
+      // The RPC can return a pending user's own membership without opening up
+      // store data through RLS. The userId argument keeps this adapter aligned
+      // with the local interface; the server always uses auth.uid().
+      if (!userId) return null;
+      const { data, error } = await supabase.rpc('get_my_membership');
       ensure(error);
-      if (!data || !data.stores) return null;
-      return { store: mapStore(data.stores), role: data.role };
+      if (!data?.store) return null;
+      return {
+        store: mapStore(data.store),
+        role: data.role,
+        approvalStatus: data.approval_status || 'approved',
+      };
     },
 
     async create(userId, email, { name, type, categories }) {
@@ -180,7 +185,11 @@ export const supabaseAdapter = {
         p_code: cleanCode,
       });
       ensure(error);
-      return { store: mapStore(data), role: 'cashier' };
+      return {
+        store: mapStore(data),
+        role: 'cashier',
+        approvalStatus: 'pending',
+      };
     },
   },
 
@@ -367,12 +376,48 @@ export const supabaseAdapter = {
       ensure(error);
       return mapMember(data);
     },
+    async updateApproval(memberId, status) {
+      const { data, error } = await supabase.rpc('set_member_approval', {
+        p_member_id: memberId,
+        p_status: status,
+      });
+      ensure(error);
+      return mapMember(data);
+    },
     async remove(memberId) {
       const { error } = await supabase
         .from('store_members')
         .delete()
         .eq('id', memberId);
       ensure(error);
+    },
+  },
+
+  admin: {
+    async getDashboard() {
+      const { data, error } = await supabase.rpc('admin_dashboard');
+      ensure(error);
+      return {
+        stats: data?.stats || {},
+        users: data?.users || [],
+        stores: data?.stores || [],
+      };
+    },
+    async listUsers() {
+      const dashboard = await this.getDashboard();
+      return dashboard.users;
+    },
+    async listStores() {
+      const dashboard = await this.getDashboard();
+      return dashboard.stores;
+    },
+    async updateApproval(memberId, status) {
+      const { data, error } = await supabase.rpc('set_member_approval', {
+        p_member_id: memberId,
+        p_status: status,
+      });
+      ensure(error);
+      return mapMember(data);
     },
   },
 };

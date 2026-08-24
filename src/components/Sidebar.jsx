@@ -5,6 +5,7 @@ import {
   ShoppingCart,
   BarChart3,
   Users,
+  UserCheck,
   LogOut,
   Receipt,
   DollarSign,
@@ -63,6 +64,12 @@ export default function Sidebar() {
       minRole: 'manager',
     },
     { name: 'Team', icon: Users, path: '/team', minRole: 'admin' },
+    {
+      name: 'User Approvals',
+      icon: UserCheck,
+      path: '/admin/approvals',
+      ownerOnly: true,
+    },
   ];
 
   const handleSignOut = async () => {
@@ -117,6 +124,7 @@ export default function Sidebar() {
       <div className="flex-1 p-4">
         {menuItems
           .filter((item) => {
+            if (item.ownerOnly && !isOwner) return false;
             if (!item.minRole) return true;
             return userRank >= (rank[item.minRole] || 1);
           })
