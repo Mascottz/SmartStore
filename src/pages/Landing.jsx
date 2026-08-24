@@ -351,7 +351,7 @@ function DashboardPreview() {
           </span>
         </div>
 
-        <div className="w-full rounded-2xl border border-zinc-200 bg-white shadow-[0_48px_90px_-24px_rgba(16,24,40,0.22)] transition-transform duration-700 ease-out [transform:rotateX(7deg)_rotateY(-13deg)] hover:[transform:rotateX(0deg)_rotateY(0deg)]">
+        <div className="w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_48px_90px_-24px_rgba(16,24,40,0.22)] transition-transform duration-700 ease-out [transform:rotateX(7deg)_rotateY(-13deg)] hover:[transform:rotateX(0deg)_rotateY(0deg)]">
           <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-5 py-3">
             <div className="flex items-center gap-2">
               <img src={logo} alt="" className="h-5 w-5 rounded object-contain" />
@@ -362,22 +362,22 @@ function DashboardPreview() {
             </span>
           </div>
 
-          <div className="p-5">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-xl bg-emerald-50 p-3.5">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700/70">Sales today</p>
-                <p className="mt-1 text-lg font-bold text-emerald-800">{'\u20A6'}86,400</p>
-                <p className="mt-0.5 text-[11px] font-semibold text-emerald-700">+12% vs yesterday</p>
+          <div className="p-4 sm:p-5">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
+              <div className="min-w-0 overflow-hidden rounded-xl bg-emerald-50 p-3.5">
+                <p className="truncate text-[10px] font-medium uppercase tracking-wide text-emerald-700/70 sm:text-[11px]">Sales today</p>
+                <p className="mt-1 truncate text-base font-bold tabular-nums text-emerald-800 sm:text-lg">{'\u20A6'}86,400</p>
+                <p className="mt-0.5 truncate text-[11px] font-semibold text-emerald-700">+12% this week</p>
               </div>
-              <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3.5">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Transactions</p>
-                <p className="mt-1 text-lg font-bold text-zinc-900">47</p>
-                <p className="mt-0.5 text-[11px] text-zinc-500">Cash, transfer, card</p>
+              <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50 p-3.5">
+                <p className="truncate text-[10px] font-medium uppercase tracking-wide text-zinc-500 sm:text-[11px]">Transactions</p>
+                <p className="mt-1 truncate text-base font-bold tabular-nums text-zinc-900 sm:text-lg">47</p>
+                <p className="mt-0.5 truncate text-[11px] text-zinc-500">today so far</p>
               </div>
-              <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3.5">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Low stock</p>
-                <p className="mt-1 text-lg font-bold text-zinc-900">3 items</p>
-                <p className="mt-0.5 text-[11px] text-zinc-500">Restock soon</p>
+              <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50 p-3.5">
+                <p className="truncate text-[10px] font-medium uppercase tracking-wide text-zinc-500 sm:text-[11px]">Low stock</p>
+                <p className="mt-1 truncate text-base font-bold tabular-nums text-zinc-900 sm:text-lg">3 items</p>
+                <p className="mt-0.5 truncate text-[11px] text-zinc-500">Restock soon</p>
               </div>
             </div>
 
