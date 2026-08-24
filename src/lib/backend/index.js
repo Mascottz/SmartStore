@@ -45,5 +45,10 @@ export const api = {
   sales: withNotify(backend.sales, 'sales', ['create', 'void']),
   expenses: withNotify(backend.expenses, 'expenses', ['create', 'remove']),
   voidLogs: backend.voidLogs,
-  team: withNotify(backend.team, 'team', ['updateRole', 'remove']),
+  team: withNotify(backend.team, 'team', [
+    'updateRole',
+    'updateApproval',
+    'remove',
+  ]),
+  admin: withNotify(backend.admin, 'admin', ['updateApproval']),
 };

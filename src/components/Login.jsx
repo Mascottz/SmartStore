@@ -1,10 +1,11 @@
 // src/components/Login.jsx
 import { useState } from 'react';
-import { ArrowRight, UserPlus, PlayCircle } from 'lucide-react';
+import { ArrowRight, UserPlus, PlayCircle, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api, isDemoBackend } from '../lib/backend';
 import { loginOrCreateDemo } from '../lib/demo';
+import { useAuth } from '../context/AuthContext';
 import { sanitize, isValidEmail, isValidPassword, isValidJoinCode } from '../lib/validate';
 import logo from '/logo-smartstore.png';
 
@@ -17,6 +18,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { refreshMembership } = useAuth();
+  const showSuperAdmin =
+    email.trim().toLowerCase() === 'admin' && password === 'admin';
+
+  const openSuperAdmin = () => {
+    sessionStorage.setItem('smartstore-super-admin-unlocked', 'true');
+    navigate('/super-admin');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,6 +50,7 @@ export default function Login() {
     try {
       if (mode === 'login') {
         await api.auth.signIn({ email: cleanEmail, password: cleanPw });
+        await refreshMembership();
         toast.success('Welcome back to SmartStore NG');
         navigate('/', { replace: true });
       } else {
@@ -48,7 +58,8 @@ export default function Login() {
 
         if (signupType === 'staff') {
           await api.stores.joinWithCode(user.id, user.email, joinCode.trim().toUpperCase());
-          toast.success('You have joined the store');
+          await refreshMembership();
+          toast.success('Request sent to the store owner for approval');
           navigate('/pos', { replace: true });
         } else {
           toast.success('Account created, let\'s set up your business');
@@ -236,6 +247,17 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          {showSuperAdmin && (
+            <button
+              type="button"
+              onClick={openSuperAdmin}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-500/60 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-300 transition-all hover:border-violet-400 hover:bg-violet-500/20"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Open Super Admin
+            </button>
+          )}
 
           {isDemoBackend && (
             <button

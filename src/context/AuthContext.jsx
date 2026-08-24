@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [store, setStore] = useState(null);
+  const [approvalStatus, setApprovalStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // THEME: light | dark
@@ -39,6 +40,7 @@ export function AuthProvider({ children }) {
     if (!u) {
       setRole(null);
       setStore(null);
+      setApprovalStatus(null);
       return;
     }
     try {
@@ -46,11 +48,16 @@ export function AuthProvider({ children }) {
       if (membership) {
         setStore(membership.store);
         setRole(membership.role);
+        setApprovalStatus(membership.approvalStatus || 'approved');
       } else {
         setStore(null);
         setRole(null);
+        setApprovalStatus(null);
       }
     } catch (e) {
+      setStore(null);
+      setRole(null);
+      setApprovalStatus(null);
       console.error('membership load failed', e);
     }
   }, []);
@@ -72,9 +79,9 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
 
-    // refetch store doc when stores change (plan upgrades, onboarding flags)
+    // Refetch membership when store details, roles, or approvals change.
     const unsubData = subscribe(async (topic) => {
-      if (topic === 'stores') {
+      if (['stores', 'team', 'admin'].includes(topic)) {
         const u = await api.auth.getUser();
         await refreshMembership(u);
       }
@@ -97,6 +104,7 @@ export function AuthProvider({ children }) {
     return {
       user,
       role,
+      approvalStatus,
       store,
       storeId: store?.id || null,
       storeName: store?.name || '',
@@ -110,9 +118,21 @@ export function AuthProvider({ children }) {
       theme,
       toggleTheme,
       upgradeToOwner,
-      refreshMembership: () => refreshMembership(user),
+      refreshMembership: async () => {
+        const currentUser = await api.auth.getUser();
+        return refreshMembership(currentUser);
+      },
     };
-  }, [user, role, store, loading, theme, upgradeToOwner, refreshMembership]);
+  }, [
+    user,
+    role,
+    approvalStatus,
+    store,
+    loading,
+    theme,
+    upgradeToOwner,
+    refreshMembership,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

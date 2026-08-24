@@ -101,11 +101,6 @@ export default function POS() {
     };
   }, [isScanning, addToCart]);
 
-  const completeSaleRef = useRef(completeSale);
-  completeSaleRef.current = completeSale;
-  const printLastReceiptRef = useRef(printLastReceipt);
-  printLastReceiptRef.current = printLastReceipt;
-
   // Keyboard shortcuts
   const shortcuts = useMemo(
     () => ({
@@ -246,6 +241,12 @@ export default function POS() {
     `);
     win.document.close();
   };
+
+  // Refs for keyboard shortcut callbacks (avoids stale closures)
+  const completeSaleRef = useRef(completeSale);
+  completeSaleRef.current = completeSale;
+  const printLastReceiptRef = useRef(printLastReceipt);
+  printLastReceiptRef.current = printLastReceipt;
 
   return (
     <div className="p-4 md:p-6 flex flex-col lg:flex-row gap-6 min-h-screen">
