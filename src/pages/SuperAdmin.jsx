@@ -19,8 +19,114 @@ import {
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../lib/backend';
+import { supabase, isSupabaseConfigured } from '../lib/backend/supabase';
 import { fmtDate } from '../lib/format';
 import logo from '/logo-smartstore.png';
+
+function mapStoreRow(store, members = []) {
+  const storeMembers = members.filter((member) => member.store_id === store.id);
+  return {
+    id: store.id,
+    name: store.name,
+    type: store.type,
+    plan: store.plan,
+    isDemo: store.is_demo,
+    createdAt: store.created_at,
+    memberCount: storeMembers.length,
+    pendingCount: storeMembers.filter((member) => member.approval_status === 'pending').length,
+  };
+}
+
+function mapMemberRow(member, stores = []) {
+  const store = stores.find((item) => item.id === member.store_id);
+  return {
+    id: member.user_id,
+    userId: member.user_id,
+    membershipId: member.id,
+    email: member.email,
+    role: member.role,
+    approvalStatus: member.approval_status || 'unassigned',
+    storeId: member.store_id,
+    storeName: store?.name || '',
+    createdAt: member.created_at,
+    joinedAt: member.created_at,
+  };
+}
+
+function mapSaleRow(sale) {
+  return {
+    id: sale.id,
+    receiptNo: sale.receipt_no,
+    total: Number(sale.total || 0),
+    status: sale.status,
+    createdAt: sale.created_at,
+    storeId: sale.store_id,
+    paymentMethod: sale.payment_method,
+    items: sale.items || [],
+    cashierEmail: sale.cashier_email,
+  };
+}
+
+function mapProductRow(product) {
+  return {
+    id: product.id,
+    name: product.name,
+    stock: Number(product.stock || 0),
+    salePrice: Number(product.sale_price || 0),
+    storeId: product.store_id,
+  };
+}
+
+function mapExpenseRow(expense) {
+  return {
+    id: expense.id,
+    title: expense.title,
+    amount: Number(expense.amount || 0),
+    category: expense.category,
+    date: expense.date,
+  };
+}
+
+async function loadFromSupabase() {
+  const [
+    { data: stores, error: storesError },
+    { data: members, error: membersError },
+    { data: sales, error: salesError },
+    { data: products, error: productsError },
+    { data: expenses, error: expensesError },
+  ] = await Promise.all([
+    supabase.from('stores').select('*').order('created_at', { ascending: false }),
+    supabase.from('store_members').select('*').order('created_at', { ascending: false }),
+    supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('products').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('expenses').select('*').order('created_at', { ascending: false }).limit(500),
+  ]);
+
+  const firstError = storesError || membersError || salesError || productsError || expensesError;
+  if (firstError) throw new Error(firstError.message);
+
+  const storeRows = stores || [];
+  const memberRows = members || [];
+  const users = memberRows.map((member) => mapMemberRow(member, storeRows));
+  const mappedStores = storeRows.map((store) => mapStoreRow(store, memberRows));
+  const statuses = users.map((user) => user.approvalStatus);
+
+  return {
+    stats: {
+      totalUsers: users.length,
+      totalStores: mappedStores.length,
+      totalMembers: memberRows.length,
+      pendingUsers: statuses.filter((status) => status === 'pending').length,
+      approvedUsers: statuses.filter((status) => status === 'approved').length,
+      rejectedUsers: statuses.filter((status) => status === 'rejected').length,
+    },
+    users,
+    stores: mappedStores,
+    sales: (sales || []).map(mapSaleRow),
+    products: (products || []).map(mapProductRow),
+    expenses: (expenses || []).map(mapExpenseRow),
+  };
+}
 
 const EMPTY_DASHBOARD = { stats: {}, users: [], stores: [], sales: [], products: [], expenses: [] };
 const STATUS_STYLES = {
@@ -44,7 +150,10 @@ export default function SuperAdmin() {
     setLoading(true);
     setError('');
     try {
-      const result = await api.admin.getDashboard();
+      const result =
+        isSupabaseConfigured && supabase
+          ? await loadFromSupabase()
+          : await api.admin.getDashboard();
       setDashboard({
         stats: result?.stats || {},
         users: result?.users || [],
@@ -100,7 +209,15 @@ export default function SuperAdmin() {
     if (!user.membershipId) return;
     setBusyId(user.membershipId);
     try {
-      await api.admin.updateApproval(user.membershipId, status);
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.rpc('set_member_approval', {
+          p_member_id: user.membershipId,
+          p_status: status,
+        });
+        if (error) throw new Error(error.message);
+      } else {
+        await api.admin.updateApproval(user.membershipId, status);
+      }
       toast.success(
         status === 'approved'
           ? `${user.email} approved`
@@ -116,12 +233,37 @@ export default function SuperAdmin() {
 
   const deleteUser = async (user) => {
     if (!window.confirm(`Delete ${user.email}? This cannot be undone.`)) return;
-    try { await api.admin.deleteUser(user.userId); toast.success('User deleted'); await loadDashboard(); } catch (e) { toast.error(e.message || 'Could not delete user.'); }
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase
+          .from('store_members')
+          .delete()
+          .eq('user_id', user.userId);
+        if (error) throw new Error(error.message);
+      } else {
+        await api.admin.deleteUser(user.userId);
+      }
+      toast.success('User deleted');
+      await loadDashboard();
+    } catch (e) {
+      toast.error(e.message || 'Could not delete user.');
+    }
   };
 
   const deleteStore = async (store) => {
     if (!window.confirm(`Delete ${store.name}? This cannot be undone.`)) return;
-    try { await api.admin.deleteStore(store.id); toast.success('Store deleted'); await loadDashboard(); } catch (e) { toast.error(e.message || 'Could not delete store.'); }
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.from('stores').delete().eq('id', store.id);
+        if (error) throw new Error(error.message);
+      } else {
+        await api.admin.deleteStore(store.id);
+      }
+      toast.success('Store deleted');
+      await loadDashboard();
+    } catch (e) {
+      toast.error(e.message || 'Could not delete store.');
+    }
   };
 
   const exitAdmin = () => {

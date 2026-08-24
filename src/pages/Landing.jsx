@@ -148,6 +148,7 @@ export default function Landing() {
 
         {/* Business types marquee */}
         <section
+          id="niches"
           aria-label="Types of businesses SmartStore supports"
           className="overflow-hidden border-y border-zinc-100 bg-zinc-50/80 py-7 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]"
         >
@@ -275,14 +276,55 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="border-t border-zinc-100 bg-white px-5 py-10 text-sm text-zinc-500">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 sm:flex-row">
-          <span className="flex items-center gap-2.5 font-bold text-zinc-900">
-            <img src={logo} alt="SmartStore NG" className="h-7 w-7 rounded-lg object-contain" />
-            SmartStore <span className="text-emerald-600">NG</span>
-          </span>
-          <span>Simple tools for ambitious businesses.</span>
-          <span>&copy; {new Date().getFullYear()} SmartStore NG</span>
+      <footer className="border-t border-zinc-100 bg-white text-sm text-zinc-500">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
+          <div>
+            <span className="flex items-center gap-2.5 font-bold text-zinc-900">
+              <img src={logo} alt="SmartStore NG" className="h-7 w-7 rounded-lg object-contain" />
+              SmartStore <span className="text-emerald-600">NG</span>
+            </span>
+            <p className="mt-4 max-w-xs leading-6">
+              Smarter management for shops, pharmacies, boutiques, and restaurants across Nigeria.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-900">Product</h3>
+            <ul className="mt-4 space-y-2.5">
+              <li><a href="#features" className="hover:text-emerald-600">Features</a></li>
+              <li><a href="#niches" className="hover:text-emerald-600">Niches</a></li>
+              <li><a href="#pricing" className="hover:text-emerald-600">Pricing</a></li>
+              <li>
+                <button type="button" onClick={() => navigate('/login')} className="hover:text-emerald-600">
+                  Log In
+                </button>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-900">Support</h3>
+            <ul className="mt-4 space-y-2.5">
+              <li><a href="/contact" className="hover:text-emerald-600">Contact Us</a></li>
+              <li><a href="/help" className="hover:text-emerald-600">Help Center</a></li>
+              <li>
+                <a href="mailto:business@smartstoreng.shop" className="hover:text-emerald-600">
+                  Business Inquiries
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-900">Legal</h3>
+            <ul className="mt-4 space-y-2.5">
+              <li><a href="/privacy" className="hover:text-emerald-600">Privacy Policy</a></li>
+              <li><a href="/terms" className="hover:text-emerald-600">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-zinc-100">
+          <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-5 text-xs sm:flex-row lg:px-8">
+            <span>&copy; {new Date().getFullYear()} SmartStore NG. All rights reserved.</span>
+            <span>Lagos, Nigeria</span>
+          </div>
         </div>
       </footer>
     </div>

@@ -10,6 +10,7 @@ import StoreOnboardingGuard from './components/StoreOnboardingGuard';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineBanner from './components/OfflineBanner';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Lazy-load pages so the initial bundle stays small
@@ -28,6 +29,7 @@ const Onboarding = lazy(() => import('./pages/Onboarding'));
 const OwnerSettings = lazy(() => import('./pages/OwnerSettings'));
 const AdminApprovals = lazy(() => import('./pages/AdminApprovals'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
+const PublicInfo = lazy(() => import('./pages/PublicInfo'));
 
 // Mobile-friendly shell layout
 function ShellLayout() {
@@ -66,6 +68,7 @@ function AppInner() {
         }}
       />
       <OfflineBanner />
+      <PwaInstallPrompt />
 
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -74,6 +77,38 @@ function AppInner() {
           element={
             <Suspense fallback={<SplashScreen />}>
               <Landing />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <Suspense fallback={<SplashScreen />}>
+              <PublicInfo page="privacy" />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/terms"
+          element={
+            <Suspense fallback={<SplashScreen />}>
+              <PublicInfo page="terms" />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/help"
+          element={
+            <Suspense fallback={<SplashScreen />}>
+              <PublicInfo page="help" />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/contact"
+          element={
+            <Suspense fallback={<SplashScreen />}>
+              <PublicInfo page="contact" />
             </Suspense>
           }
         />

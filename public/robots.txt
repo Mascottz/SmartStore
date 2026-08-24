@@ -1,0 +1,27 @@
+# SmartStore NG — public marketing pages are indexable.
+# Authenticated app routes must not be crawled.
+
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /privacy
+Allow: /terms
+Allow: /help
+Allow: /contact
+
+Disallow: /dashboard
+Disallow: /inventory
+Disallow: /pos
+Disallow: /sales
+Disallow: /reports
+Disallow: /reports/
+Disallow: /expenses
+Disallow: /team
+Disallow: /pricing
+Disallow: /owner-settings
+Disallow: /admin
+Disallow: /admin/
+Disallow: /super-admin
+Disallow: /onboarding
+
+Sitemap: https://smartstoreng.shop/sitemap.xml
