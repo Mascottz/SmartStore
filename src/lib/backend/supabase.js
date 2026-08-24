@@ -2,6 +2,7 @@
 // Supabase adapter. Activated when VITE_SUPABASE_URL and
 // VITE_SUPABASE_ANON_KEY are present. Schema: supabase/migrations/001_init.sql
 import { createClient } from '@supabase/supabase-js';
+import { sanitize, clamp } from '../validate';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -136,10 +137,12 @@ export const supabaseAdapter = {
     },
 
     async create(userId, email, { name, type, categories }) {
+      const cleanName = clamp(sanitize(name), 100);
+      if (!cleanName) throw new Error('Store name is required.');
       const { data, error } = await supabase.rpc('create_store', {
-        p_name: name,
-        p_type: type,
-        p_categories: categories || [],
+        p_name: cleanName,
+        p_type: sanitize(type) || 'other',
+        p_categories: (categories || []).map((c) => clamp(sanitize(c), 100)).filter(Boolean),
       });
       ensure(error);
       return mapStore(data);
@@ -147,8 +150,8 @@ export const supabaseAdapter = {
 
     async update(storeId, patch) {
       const row = {};
-      if (patch.name !== undefined) row.name = patch.name;
-      if (patch.type !== undefined) row.type = patch.type;
+      if (patch.name !== undefined) row.name = clamp(sanitize(patch.name), 100);
+      if (patch.type !== undefined) row.type = sanitize(patch.type);
       if (patch.plan !== undefined) row.plan = patch.plan;
       if (patch.onboarding !== undefined) {
         const { data: existing } = await supabase
@@ -169,8 +172,12 @@ export const supabaseAdapter = {
     },
 
     async joinWithCode(userId, email, code) {
+      const cleanCode = sanitize(code).toUpperCase();
+      if (!/^[A-Z0-9]{6}$/.test(cleanCode)) {
+        throw new Error('Invalid join code format.');
+      }
       const { data, error } = await supabase.rpc('join_store_with_code', {
-        p_code: code.trim().toUpperCase(),
+        p_code: cleanCode,
       });
       ensure(error);
       return { store: mapStore(data), role: 'cashier' };
@@ -213,16 +220,18 @@ export const supabaseAdapter = {
       return data.map(mapProduct);
     },
     async create(storeId, d) {
+      const cleanName = clamp(sanitize(d.name), 200);
+      if (!cleanName) throw new Error('Product name is required.');
       const { data, error } = await supabase
         .from('products')
         .insert({
           store_id: storeId,
-          name: d.name,
-          sku: d.sku,
-          category: d.category,
-          cost_price: d.costPrice,
-          sale_price: d.salePrice,
-          stock: d.stock,
+          name: cleanName,
+          sku: clamp(sanitize(d.sku || ''), 50),
+          category: clamp(sanitize(d.category || 'General'), 100),
+          cost_price: Math.max(0, Number(d.costPrice) || 0),
+          sale_price: Math.max(0, Number(d.salePrice) || 0),
+          stock: Math.max(0, Math.floor(Number(d.stock) || 0)),
           expiry_date: d.expiryDate || null,
         })
         .select()
@@ -299,14 +308,18 @@ export const supabaseAdapter = {
       return data.map(mapExpense);
     },
     async create(storeId, d) {
+      const cleanTitle = clamp(sanitize(d.title), 200);
+      if (!cleanTitle) throw new Error('Expense title is required.');
+      const amount = Number(d.amount);
+      if (!amount || amount <= 0) throw new Error('Enter a valid expense amount.');
       const { data, error } = await supabase
         .from('expenses')
         .insert({
           store_id: storeId,
-          title: d.title,
-          amount: d.amount,
-          category: d.category,
-          note: d.note || '',
+          title: cleanTitle,
+          amount,
+          category: clamp(sanitize(d.category || 'Other'), 100),
+          note: clamp(sanitize(d.note || ''), 500),
           date: d.date,
         })
         .select()
@@ -343,6 +356,8 @@ export const supabaseAdapter = {
       return data.map(mapMember);
     },
     async updateRole(memberId, role) {
+      const allowed = ['cashier', 'manager', 'admin'];
+      if (!allowed.includes(role)) throw new Error('Invalid role.');
       const { data, error } = await supabase
         .from('store_members')
         .update({ role })

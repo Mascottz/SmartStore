@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { NICHES } from '../config/niches';
+import { sanitize, isValidStoreName } from '../lib/validate';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function OwnerSettings() {
   const { storeId, store, theme, toggleTheme } = useAuth();
@@ -14,6 +16,7 @@ export default function OwnerSettings() {
   const [type, setType] = useState(store?.type || 'other');
   const [saving, setSaving] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  const [removeCatTarget, setRemoveCatTarget] = useState(null);
 
   useEffect(() => {
     setName(store?.name || '');
@@ -26,10 +29,13 @@ export default function OwnerSettings() {
   );
 
   const handleSave = async () => {
-    if (!name.trim()) return toast.error('Store name cannot be empty.');
+    const cleanName = sanitize(name);
+    if (!isValidStoreName(cleanName)) {
+      return toast.error('Store name must be 2 to 100 characters.');
+    }
     setSaving(true);
     try {
-      await api.stores.update(storeId, { name: name.trim(), type });
+      await api.stores.update(storeId, { name: cleanName, type });
       toast.success('Store settings saved');
     } catch (e) {
       toast.error(e.message || 'Could not save settings.');
@@ -39,10 +45,10 @@ export default function OwnerSettings() {
   };
 
   const addCategory = async () => {
-    const cat = newCategory.trim();
+    const cat = sanitize(newCategory);
     if (!cat) return;
-    if (categories.some((c) => c.name.toLowerCase() === cat.toLowerCase())) {
-      return toast.error('That category already exists.');
+    if (cat.length > 100) {
+      return toast.error('Category name is too long (max 100 characters).');
     }
     try {
       await api.categories.add(storeId, cat);
@@ -53,14 +59,15 @@ export default function OwnerSettings() {
     }
   };
 
-  const removeCategory = async (c) => {
-    if (!window.confirm(`Remove category "${c.name}"?`)) return;
+  const handleRemoveCategory = async () => {
+    if (!removeCatTarget) return;
     try {
-      await api.categories.remove(c.id);
+      await api.categories.remove(removeCatTarget.id);
       toast.success('Category removed');
     } catch (e) {
       toast.error(e.message || 'Could not remove category.');
     }
+    setRemoveCatTarget(null);
   };
 
   return (
@@ -79,20 +86,23 @@ export default function OwnerSettings() {
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-zinc-500 mb-1.5">
+            <label htmlFor="settings-name" className="block text-xs font-medium text-zinc-500 mb-1.5">
               Store name
             </label>
             <input
+              id="settings-name"
               className={inputCls}
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={100}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-500 mb-1.5">
+            <label htmlFor="settings-type" className="block text-xs font-medium text-zinc-500 mb-1.5">
               Business type
             </label>
             <select
+              id="settings-type"
               className={inputCls}
               value={type}
               onChange={(e) => setType(e.target.value)}
@@ -129,8 +139,9 @@ export default function OwnerSettings() {
             >
               {c.name}
               <button
-                onClick={() => removeCategory(c)}
+                onClick={() => setRemoveCatTarget(c)}
                 className="text-zinc-400 hover:text-red-500"
+                aria-label={`Remove category ${c.name}`}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -147,10 +158,12 @@ export default function OwnerSettings() {
             onChange={(e) => setNewCategory(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCategory()}
             placeholder="New category name..."
+            maxLength={100}
           />
           <button
             onClick={addCategory}
             className="px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:text-emerald-500"
+            aria-label="Add category"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -175,6 +188,17 @@ export default function OwnerSettings() {
           )}
         </button>
       </div>
+
+      {/* Category remove confirmation */}
+      <ConfirmDialog
+        open={Boolean(removeCatTarget)}
+        title="Remove category?"
+        message={removeCatTarget ? `"${removeCatTarget.name}" will be removed. Products in this category will keep their category name.` : ''}
+        confirmLabel="Remove"
+        variant="warning"
+        onConfirm={handleRemoveCategory}
+        onCancel={() => setRemoveCatTarget(null)}
+      />
     </div>
   );
 }

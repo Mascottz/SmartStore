@@ -11,4 +11,8 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: true,
   },
+  build: {
+    // Warn on chunks larger than 500 KB
+    chunkSizeWarningLimit: 500,
+  },
 })

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { fmtDate } from '../lib/format';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const ROLES = ['cashier', 'manager', 'admin'];
 
@@ -19,6 +20,7 @@ const ROLE_STYLES = {
 export default function Team() {
   const { storeId, store, user, role } = useAuth();
   const [busyId, setBusyId] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState(null);
 
   const { data: members, loading } = useStoreData(
     () => (storeId ? api.team.list(storeId) : []),
@@ -28,11 +30,16 @@ export default function Team() {
   const isOwner = role === 'owner';
 
   const copyJoinCode = () => {
-    navigator.clipboard.writeText(store?.joinCode || '');
-    toast.success('Join code copied');
+    const code = store?.joinCode || '';
+    if (!code) return toast.error('No join code available.');
+    navigator.clipboard.writeText(code).then(
+      () => toast.success('Join code copied to clipboard'),
+      () => toast.error('Could not copy. Please copy manually.')
+    );
   };
 
   const changeRole = async (member, newRole) => {
+    if (member.role === 'owner') return toast.error('Cannot change the owner role.');
     setBusyId(member.id);
     try {
       await api.team.updateRole(member.id, newRole);
@@ -44,16 +51,17 @@ export default function Team() {
     }
   };
 
-  const removeMember = async (member) => {
-    if (!window.confirm(`Remove ${member.email} from the team?`)) return;
-    setBusyId(member.id);
+  const handleRemove = async () => {
+    if (!removeTarget) return;
+    setBusyId(removeTarget.id);
     try {
-      await api.team.remove(member.id);
+      await api.team.remove(removeTarget.id);
       toast.success('Member removed');
     } catch (e) {
       toast.error(e.message || 'Could not remove member.');
     } finally {
       setBusyId(null);
+      setRemoveTarget(null);
     }
   };
 
@@ -79,9 +87,10 @@ export default function Team() {
         </div>
         <button
           onClick={copyJoinCode}
-          className="shrink-0 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-500/40 font-mono font-bold tracking-widest text-lg"
+          className="shrink-0 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-500/40 font-mono font-bold tracking-widest text-lg hover:border-emerald-500 transition-all"
+          aria-label="Copy join code"
         >
-          {store?.joinCode || '——————'}
+          {store?.joinCode || '------'}
           <Copy className="w-4 h-4 text-emerald-500" />
         </button>
       </div>
@@ -102,7 +111,13 @@ export default function Team() {
               {loading ? (
                 <tr>
                   <td colSpan={4} className="px-5 py-10 text-center text-zinc-500">
-                    Loading…
+                    Loading...
+                  </td>
+                </tr>
+              ) : members.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-5 py-10 text-center text-zinc-500">
+                    No team members yet.
                   </td>
                 </tr>
               ) : (
@@ -137,6 +152,7 @@ export default function Team() {
                                 value={m.role}
                                 disabled={busyId === m.id}
                                 onChange={(e) => changeRole(m, e.target.value)}
+                                aria-label={`Change role for ${m.email}`}
                                 className="px-3 py-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs capitalize focus:outline-none"
                               >
                                 {ROLES.map((r) => (
@@ -146,9 +162,10 @@ export default function Team() {
                                 ))}
                               </select>
                               <button
-                                onClick={() => removeMember(m)}
+                                onClick={() => setRemoveTarget(m)}
                                 disabled={busyId === m.id}
                                 className="p-2 rounded-xl text-zinc-500 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                aria-label={`Remove ${m.email} from team`}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -164,6 +181,17 @@ export default function Team() {
           </table>
         </div>
       </div>
+
+      {/* Remove confirmation */}
+      <ConfirmDialog
+        open={Boolean(removeTarget)}
+        title="Remove team member?"
+        message={removeTarget ? `${removeTarget.email} will lose access to this store.` : ''}
+        confirmLabel="Remove"
+        variant="danger"
+        onConfirm={handleRemove}
+        onCancel={() => setRemoveTarget(null)}
+      />
     </div>
   );
 }

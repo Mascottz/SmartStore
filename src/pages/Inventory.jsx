@@ -1,11 +1,15 @@
 // src/pages/Inventory.jsx
 import { useMemo, useState } from 'react';
-import { Plus, Search, Pencil, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, X, AlertTriangle, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
+import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../lib/backend';
 import { fmtMoney, fmtDate } from '../lib/format';
+import { sanitize, isValidItemName } from '../lib/validate';
+import { downloadCsv } from '../lib/exportCsv';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const LOW_STOCK_THRESHOLD = 50;
 
@@ -37,9 +41,12 @@ export default function Inventory() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const debouncedSearch = useDebounce(searchTerm, 200);
 
   const filtered = useMemo(() => {
-    const term = searchTerm.toLowerCase();
+    const term = debouncedSearch.toLowerCase();
     const list = products.filter(
       (p) =>
         p.name.toLowerCase().includes(term) ||
@@ -51,7 +58,7 @@ export default function Inventory() {
       if (sortBy === 'price') return (b.salePrice || 0) - (a.salePrice || 0);
       return a.name.localeCompare(b.name);
     });
-  }, [products, searchTerm, sortBy]);
+  }, [products, debouncedSearch, sortBy]);
 
   const inventoryValue = useMemo(
     () =>
@@ -88,16 +95,29 @@ export default function Inventory() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) return toast.error(`${niche.itemNoun} name is required.`);
+    const cleanName = sanitize(form.name);
+    if (!isValidItemName(cleanName)) {
+      return toast.error(`${niche.itemNoun} name is required (1 to 200 characters).`);
+    }
+
+    const costPrice = Number(form.costPrice);
+    const salePrice = Number(form.salePrice);
+    if (salePrice <= 0) {
+      return toast.error('Selling price must be greater than zero.');
+    }
+    if (costPrice < 0) {
+      return toast.error('Cost price cannot be negative.');
+    }
+
     setSaving(true);
     try {
       const payload = {
-        name: form.name.trim(),
-        sku: form.sku.trim(),
-        category: form.category || 'General',
-        costPrice: Number(form.costPrice || 0),
-        salePrice: Number(form.salePrice || 0),
-        stock: niche.trackStock ? Number(form.stock || 0) : 0,
+        name: cleanName,
+        sku: sanitize(form.sku),
+        category: sanitize(form.category) || 'General',
+        costPrice,
+        salePrice,
+        stock: niche.trackStock ? Math.max(0, Math.floor(Number(form.stock) || 0)) : 0,
         expiryDate: niche.hasExpiry && form.expiryDate ? form.expiryDate : null,
       };
       if (editingId) {
@@ -121,20 +141,34 @@ export default function Inventory() {
     }
   };
 
-  const handleDelete = async (p) => {
-    if (!window.confirm(`Delete ${p.name}?`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.products.remove(p.id);
+      await api.products.remove(deleteTarget.id);
       toast.success('Deleted');
     } catch (e) {
       toast.error(e.message || 'Could not delete.');
     }
+    setDeleteTarget(null);
   };
 
   const isExpiringSoon = (p) => {
     if (!p.expiryDate) return false;
     const days = (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
     return days < 90;
+  };
+
+  const handleExport = () => {
+    const headers = niche.trackStock
+      ? ['Name', 'SKU', 'Category', 'Cost Price', 'Selling Price', 'Stock']
+      : ['Name', 'SKU', 'Category', 'Cost Price', 'Selling Price'];
+    const rows = products.map((p) =>
+      niche.trackStock
+        ? [p.name, p.sku, p.category, p.costPrice, p.salePrice, p.stock]
+        : [p.name, p.sku, p.category, p.costPrice, p.salePrice]
+    );
+    downloadCsv(`${store?.name || 'inventory'}-export`, headers, rows);
+    toast.success('Exported to CSV');
   };
 
   return (
@@ -146,18 +180,29 @@ export default function Inventory() {
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
             {products.length} {niche.itemNounPlural.toLowerCase()}
-            {niche.trackStock && <> · Stock value {fmtMoney(inventoryValue)}</>}
+            {niche.trackStock && <> &middot; Stock value {fmtMoney(inventoryValue)}</>}
             {niche.trackStock && lowStockCount > 0 && (
-              <span className="text-amber-500"> · {lowStockCount} low stock</span>
+              <span className="text-amber-500"> &middot; {lowStockCount} low stock</span>
             )}
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-500 text-black font-semibold text-sm hover:bg-emerald-400"
-        >
-          <Plus className="w-4 h-4" /> Add {niche.itemNoun}
-        </button>
+        <div className="flex items-center gap-2">
+          {products.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-sm font-medium hover:border-emerald-500 transition-all"
+              aria-label="Export inventory to CSV"
+            >
+              <Download className="w-4 h-4" /> Export
+            </button>
+          )}
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-500 text-black font-semibold text-sm hover:bg-emerald-400"
+          >
+            <Plus className="w-4 h-4" /> Add {niche.itemNoun}
+          </button>
+        </div>
       </div>
 
       {/* Search & sort */}
@@ -169,12 +214,14 @@ export default function Inventory() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={`Search ${niche.itemNounPlural.toLowerCase()} by name, SKU or category...`}
+            aria-label={`Search ${niche.itemNounPlural.toLowerCase()}`}
             className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:border-emerald-500 text-sm"
           />
         </div>
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
+          aria-label="Sort products"
           className="px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm focus:outline-none"
         >
           <option value="name">Sort: Name</option>
@@ -209,7 +256,9 @@ export default function Inventory() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-10 text-center text-zinc-500">
-                    No {niche.itemNounPlural.toLowerCase()} yet. Add your first one!
+                    {debouncedSearch
+                      ? `No ${niche.itemNounPlural.toLowerCase()} match "${debouncedSearch}".`
+                      : `No ${niche.itemNounPlural.toLowerCase()} yet. Add your first one!`}
                   </td>
                 </tr>
               ) : (
@@ -261,12 +310,14 @@ export default function Inventory() {
                         <button
                           onClick={() => openEdit(p)}
                           className="p-2 rounded-xl text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          aria-label={`Edit ${p.name}`}
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(p)}
+                          onClick={() => setDeleteTarget(p)}
                           className="p-2 rounded-xl text-zinc-500 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          aria-label={`Delete ${p.name}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -282,8 +333,17 @@ export default function Inventory() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShowModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={editingId ? `Edit ${niche.itemNoun}` : `Add ${niche.itemNoun}`}
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold">
                 {editingId ? `Edit ${niche.itemNoun}` : `Add ${niche.itemNoun}`}
@@ -291,6 +351,7 @@ export default function Inventory() {
               <button
                 onClick={() => setShowModal(false)}
                 className="p-2 rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -303,6 +364,8 @@ export default function Inventory() {
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="e.g. Peak Milk 400g"
+                  maxLength={200}
+                  autoFocus
                 />
               </Field>
 
@@ -313,6 +376,7 @@ export default function Inventory() {
                     value={form.sku}
                     onChange={(e) => setForm({ ...form, sku: e.target.value })}
                     placeholder="e.g. PK-400"
+                    maxLength={50}
                   />
                 </Field>
                 <Field label="Category">
@@ -340,15 +404,17 @@ export default function Inventory() {
                     value={form.costPrice}
                     onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
                     placeholder="0"
+                    min="0"
                   />
                 </Field>
-                <Field label="Selling price (₦)">
+                <Field label="Selling price (₦) *">
                   <input
                     type="number"
                     className={inputCls}
                     value={form.salePrice}
                     onChange={(e) => setForm({ ...form, salePrice: e.target.value })}
                     placeholder="0"
+                    min="0"
                   />
                 </Field>
               </div>
@@ -362,6 +428,7 @@ export default function Inventory() {
                       value={form.stock}
                       onChange={(e) => setForm({ ...form, stock: e.target.value })}
                       placeholder="0"
+                      min="0"
                     />
                   </Field>
                 )}
@@ -388,6 +455,17 @@ export default function Inventory() {
           </div>
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={`Delete ${niche.itemNoun}?`}
+        message={deleteTarget ? `"${deleteTarget.name}" will be permanently removed.` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

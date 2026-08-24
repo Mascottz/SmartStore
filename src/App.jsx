@@ -1,26 +1,30 @@
 // src/App.jsx
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
-import Dashboard from './pages/Dashboard';
-import Inventory from './pages/Inventory';
-import POS from './pages/POS';
-import SalesHistory from './pages/SalesHistory';
-import Reports from './pages/Reports';
-import Expenses from './pages/Expenses';
-import ExpensesReport from './pages/ExpensesReport';
-import Team from './pages/Team';
-import VoidReports from './pages/VoidReports';
-import Pricing from './pages/Pricing';
-import Onboarding from './pages/Onboarding';
-import OwnerSettings from './pages/OwnerSettings';
-
 import ProtectedRoute from './components/ProtectedRoute';
 import StoreOnboardingGuard from './components/StoreOnboardingGuard';
 import SplashScreen from './components/SplashScreen';
+import ErrorBoundary from './components/ErrorBoundary';
+import OfflineBanner from './components/OfflineBanner';
 import { AuthProvider, useAuth } from './context/AuthContext';
+
+// Lazy-load pages so the initial bundle stays small
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const POS = lazy(() => import('./pages/POS'));
+const SalesHistory = lazy(() => import('./pages/SalesHistory'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const ExpensesReport = lazy(() => import('./pages/ExpensesReport'));
+const Team = lazy(() => import('./pages/Team'));
+const VoidReports = lazy(() => import('./pages/VoidReports'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const OwnerSettings = lazy(() => import('./pages/OwnerSettings'));
 
 // Mobile-friendly shell layout
 function ShellLayout() {
@@ -30,7 +34,9 @@ function ShellLayout() {
         <Sidebar />
       </div>
       <main className="flex-1 min-h-screen overflow-x-hidden">
-        <Outlet />
+        <Suspense fallback={<SplashScreen />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );
@@ -46,8 +52,17 @@ function AppInner() {
       <Toaster
         position="top-right"
         containerStyle={{ zIndex: 9999 }}
-        toastOptions={{ duration: 3000 }}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            borderRadius: '16px',
+            background: 'var(--toast-bg, #18181b)',
+            color: 'var(--toast-color, #fff)',
+            fontSize: '14px',
+          },
+        }}
       />
+      <OfflineBanner />
 
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -57,7 +72,9 @@ function AppInner() {
           path="/onboarding"
           element={
             <ProtectedRoute>
-              <Onboarding />
+              <Suspense fallback={<SplashScreen />}>
+                <Onboarding />
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -84,6 +101,9 @@ function AppInner() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/owner-settings" element={<OwnerSettings />} />
         </Route>
+
+        {/* Catch-all: redirect to dashboard */}
+        <Route path="*" element={<Login />} />
       </Routes>
     </>
   );
@@ -91,8 +111,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppInner />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppInner />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

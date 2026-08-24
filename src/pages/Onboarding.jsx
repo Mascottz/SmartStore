@@ -1,5 +1,5 @@
 // src/pages/Onboarding.jsx
-// Business setup wizard: name → niche → categories → create store.
+// Business setup wizard: name, niche, categories, create store.
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/backend';
 import { NICHES, getNiche } from '../config/niches';
 import SplashScreen from '../components/SplashScreen';
+import { sanitize, isValidStoreName } from '../lib/validate';
 import logo from '/logo-smartstore.png';
 
 export default function Onboarding() {
@@ -39,8 +40,11 @@ export default function Onboarding() {
   };
 
   const addCustomCategory = () => {
-    const cat = customCategory.trim();
+    const cat = sanitize(customCategory);
     if (!cat) return;
+    if (cat.length > 100) {
+      return toast.error('Category name is too long (max 100 characters).');
+    }
     if (!selectedCategories.includes(cat)) {
       setSelectedCategories((prev) => [...prev, cat]);
     }
@@ -48,20 +52,27 @@ export default function Onboarding() {
   };
 
   const handleFinish = async () => {
-    if (!name.trim()) {
-      toast.error('Please give your business a name.');
+    const cleanName = sanitize(name);
+    if (!isValidStoreName(cleanName)) {
+      toast.error('Please give your business a name (2 to 100 characters).');
       setStep(1);
       return;
     }
+    if (selectedCategories.length === 0) {
+      toast.error('Please select at least one category.');
+      setStep(3);
+      return;
+    }
+
     setSaving(true);
     try {
       await api.stores.create(user.id, user.email, {
-        name: name.trim(),
+        name: cleanName,
         type: businessType,
         categories: selectedCategories,
       });
       await refreshMembership();
-      toast.success(`${name.trim()} is ready`);
+      toast.success(`${cleanName} is ready`);
       navigate('/', { replace: true });
     } catch (e) {
       console.error(e);
@@ -92,7 +103,7 @@ export default function Onboarding() {
               ? 'Choose your business type'
               : 'Pick your categories'}
           </p>
-          <div className="flex justify-center gap-2 mt-4">
+          <div className="flex justify-center gap-2 mt-4" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={3}>
             {[1, 2, 3].map((s) => (
               <div
                 key={s}
@@ -108,21 +119,26 @@ export default function Onboarding() {
           {/* STEP 1: name */}
           {step === 1 && (
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="store-name" className="block text-sm font-medium text-zinc-300 mb-2">
                 What is your business called?
               </label>
               <input
+                id="store-name"
                 autoFocus
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Mama Nkechi Supermart"
+                maxLength={100}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && name.trim()) setStep(2);
+                }}
                 className="w-full px-4 py-3.5 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
               <div className="flex justify-end mt-6">
                 <button
                   onClick={() => {
-                    if (!name.trim()) return toast.error('Enter your business name first.');
+                    if (!sanitize(name)) return toast.error('Enter your business name first.');
                     setStep(2);
                   }}
                   className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400"
@@ -136,13 +152,15 @@ export default function Onboarding() {
           {/* STEP 2: niche picker */}
           {step === 2 && (
             <div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Business type">
                 {NICHES.map((n) => {
                   const Icon = n.icon;
                   const active = businessType === n.value;
                   return (
                     <button
                       key={n.value}
+                      role="radio"
+                      aria-checked={active}
                       onClick={() => setBusinessType(n.value)}
                       className={`text-left p-4 rounded-2xl border transition-all ${
                         active
@@ -202,13 +220,14 @@ export default function Onboarding() {
                     <button
                       key={cat}
                       onClick={() => toggleCategory(cat)}
+                      aria-pressed={active}
                       className={`px-4 py-2 rounded-full text-sm border transition-all ${
                         active
                           ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
                           : 'border-zinc-700 text-zinc-400 hover:text-white'
                       }`}
                     >
-                      {active ? '✓ ' : ''}
+                      {active ? '\u2713 ' : ''}
                       {cat}
                     </button>
                   );
@@ -222,11 +241,13 @@ export default function Onboarding() {
                   onChange={(e) => setCustomCategory(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addCustomCategory()}
                   placeholder="Add custom category..."
+                  maxLength={100}
                   className="flex-1 px-4 py-2.5 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 text-sm"
                 />
                 <button
                   onClick={addCustomCategory}
                   className="px-4 py-2.5 rounded-2xl bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white"
+                  aria-label="Add custom category"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -244,7 +265,7 @@ export default function Onboarding() {
                   disabled={saving}
                   className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50"
                 >
-                  {saving ? 'Creating…' : 'Finish Setup'} <Check className="w-4 h-4" />
+                  {saving ? 'Creating...' : 'Finish Setup'} <Check className="w-4 h-4" />
                 </button>
               </div>
             </div>

@@ -21,7 +21,7 @@ const OWNER_FEATURES = [
 ];
 
 export default function Pricing() {
-  const { plan, upgradeToOwner } = useAuth();
+  const { plan, upgradeToOwner, storeIsDemo } = useAuth();
   const navigate = useNavigate();
   const isOwnerMode = plan === 'owner';
 
@@ -49,7 +49,7 @@ export default function Pricing() {
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-7">
           <h3 className="font-bold text-lg">Shop Mode</h3>
           <p className="text-3xl font-bold mt-2">
-            ₦0<span className="text-sm font-normal text-zinc-500">/month</span>
+            &#8358;0<span className="text-sm font-normal text-zinc-500">/month</span>
           </p>
           <ul className="mt-6 space-y-3">
             {FREE_FEATURES.map((f) => (
@@ -73,7 +73,7 @@ export default function Pricing() {
           </span>
           <h3 className="font-bold text-lg">Owner Mode</h3>
           <p className="text-3xl font-bold mt-2">
-            ₦5,000<span className="text-sm font-normal text-zinc-500">/month</span>
+            &#8358;5,000<span className="text-sm font-normal text-zinc-500">/month</span>
           </p>
           <ul className="mt-6 space-y-3">
             {OWNER_FEATURES.map((f) => (
@@ -89,7 +89,7 @@ export default function Pricing() {
           >
             {isOwnerMode ? 'You are on Owner Mode' : 'Upgrade to Owner Mode'}
           </button>
-          {!isOwnerMode && (
+          {!isOwnerMode && !storeIsDemo && (
             <p className="text-[11px] text-zinc-500 text-center mt-2">
               Demo billing, connect Paystack/Flutterwave for production.
             </p>

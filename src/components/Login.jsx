@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api, isDemoBackend } from '../lib/backend';
 import { loginOrCreateDemo } from '../lib/demo';
+import { sanitize, isValidEmail, isValidPassword, isValidJoinCode } from '../lib/validate';
 import logo from '/logo-smartstore.png';
 
 export default function Login() {
@@ -19,28 +20,38 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const cleanEmail = sanitize(email).toLowerCase();
+    const cleanPw = password;
+
+    // Client-side validation
+    if (!isValidEmail(cleanEmail)) {
+      return toast.error('Please enter a valid email address.');
+    }
+    if (!isValidPassword(cleanPw)) {
+      return toast.error('Password must be at least 6 characters.');
+    }
+    if (mode === 'signup' && signupType === 'staff') {
+      if (!isValidJoinCode(joinCode.trim().toUpperCase())) {
+        return toast.error('Join code must be 6 characters (letters and numbers).');
+      }
+    }
+
     setLoading(true);
 
     try {
       if (mode === 'login') {
-        await api.auth.signIn({ email, password });
+        await api.auth.signIn({ email: cleanEmail, password: cleanPw });
         toast.success('Welcome back to SmartStore NG');
         navigate('/', { replace: true });
       } else {
-        if (signupType === 'staff' && !joinCode.trim()) {
-          toast.error('Enter the store join code from your manager.');
-          setLoading(false);
-          return;
-        }
-
-        const user = await api.auth.signUp({ email, password });
+        const user = await api.auth.signUp({ email: cleanEmail, password: cleanPw });
 
         if (signupType === 'staff') {
-          await api.stores.joinWithCode(user.id, user.email, joinCode);
+          await api.stores.joinWithCode(user.id, user.email, joinCode.trim().toUpperCase());
           toast.success('You have joined the store');
           navigate('/pos', { replace: true });
         } else {
-          toast.success('Account created, let’s set up your business');
+          toast.success('Account created, let\'s set up your business');
           navigate('/onboarding', { replace: true });
         }
       }
@@ -91,9 +102,11 @@ export default function Login() {
         {/* Card */}
         <div className="bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-zinc-800">
           {/* Mode toggle */}
-          <div className="flex mb-6 bg-zinc-800 rounded-2xl p-1">
+          <div className="flex mb-6 bg-zinc-800 rounded-2xl p-1" role="tablist">
             <button
               type="button"
+              role="tab"
+              aria-selected={mode === 'login'}
               onClick={() => setMode('login')}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 mode === 'login'
@@ -105,6 +118,8 @@ export default function Login() {
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={mode === 'signup'}
               onClick={() => setMode('signup')}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 mode === 'signup'
@@ -116,11 +131,13 @@ export default function Login() {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {mode === 'signup' && (
-              <div className="flex gap-2">
+              <div className="flex gap-2" role="radiogroup" aria-label="Account type">
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={signupType === 'owner'}
                   onClick={() => setSignupType('owner')}
                   className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                     signupType === 'owner'
@@ -132,6 +149,8 @@ export default function Login() {
                 </button>
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={signupType === 'staff'}
                   onClick={() => setSignupType('staff')}
                   className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
                     signupType === 'staff'
@@ -145,43 +164,52 @@ export default function Login() {
             )}
 
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+              <label htmlFor="login-email" className="block text-xs font-medium text-zinc-400 mb-1.5">
                 Email address
               </label>
               <input
+                id="login-email"
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@business.com"
+                maxLength={200}
                 className="w-full px-4 py-3 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+              <label htmlFor="login-password" className="block text-xs font-medium text-zinc-400 mb-1.5">
                 Password
               </label>
               <input
+                id="login-password"
                 type="password"
                 required
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Min. 6 characters"
+                maxLength={128}
                 className="w-full px-4 py-3 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             {mode === 'signup' && signupType === 'staff' && (
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                <label htmlFor="login-joincode" className="block text-xs font-medium text-zinc-400 mb-1.5">
                   Store join code
                 </label>
                 <input
+                  id="login-joincode"
                   type="text"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   placeholder="e.g. 8G2KQP"
+                  maxLength={6}
+                  autoComplete="off"
                   className="w-full px-4 py-3 rounded-2xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 tracking-widest uppercase"
                 />
                 <p className="text-[11px] text-zinc-500 mt-1">
@@ -195,7 +223,9 @@ export default function Login() {
               disabled={loading}
               className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50 transition-all"
             >
-              {mode === 'login' ? (
+              {loading ? (
+                'Please wait...'
+              ) : mode === 'login' ? (
                 <>
                   Log In <ArrowRight className="w-4 h-4" />
                 </>
@@ -220,7 +250,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-zinc-600 text-xs mt-6">
-          Point of Sale · Inventory · Reports, for every kind of business
+          Point of Sale &middot; Inventory &middot; Reports, for every kind of business
         </p>
       </div>
     </div>

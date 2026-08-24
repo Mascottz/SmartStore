@@ -1,11 +1,14 @@
 // src/pages/Expenses.jsx
 import { useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { fmtMoney, fmtDate } from '../lib/format';
+import { sanitize, isValidItemName } from '../lib/validate';
+import { downloadCsv } from '../lib/exportCsv';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const EXPENSE_CATEGORIES = [
   'Rent',
@@ -27,7 +30,7 @@ const emptyForm = {
 };
 
 export default function Expenses() {
-  const { storeId } = useAuth();
+  const { storeId, store } = useAuth();
 
   const { data: expenses, loading } = useStoreData(
     () => (storeId ? api.expenses.list(storeId) : []),
@@ -37,19 +40,33 @@ export default function Expenses() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const total = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const handleSave = async () => {
-    if (!form.title.trim()) return toast.error('Give the expense a title.');
-    if (!Number(form.amount)) return toast.error('Enter a valid amount.');
+    const cleanTitle = sanitize(form.title);
+    if (!isValidItemName(cleanTitle)) {
+      return toast.error('Give the expense a title (1 to 200 characters).');
+    }
+    const amount = Number(form.amount);
+    if (!amount || amount <= 0) {
+      return toast.error('Enter a valid amount.');
+    }
+    if (amount > 999_999_999) {
+      return toast.error('Amount is too large.');
+    }
+    if (!form.date) {
+      return toast.error('Please select a date.');
+    }
+
     setSaving(true);
     try {
       await api.expenses.create(storeId, {
-        title: form.title.trim(),
-        amount: Number(form.amount),
-        category: form.category,
-        note: form.note.trim(),
+        title: cleanTitle,
+        amount,
+        category: sanitize(form.category) || 'Other',
+        note: sanitize(form.note),
         date: form.date,
       });
       toast.success('Expense recorded');
@@ -62,14 +79,28 @@ export default function Expenses() {
     }
   };
 
-  const handleDelete = async (e) => {
-    if (!window.confirm(`Delete expense "${e.title}"?`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.expenses.remove(e.id);
+      await api.expenses.remove(deleteTarget.id);
       toast.success('Deleted');
     } catch (err) {
       toast.error(err.message || 'Could not delete.');
     }
+    setDeleteTarget(null);
+  };
+
+  const handleExport = () => {
+    const headers = ['Title', 'Category', 'Date', 'Note', 'Amount'];
+    const rows = expenses.map((e) => [
+      e.title,
+      e.category,
+      e.date,
+      e.note,
+      e.amount,
+    ]);
+    downloadCsv(`${store?.name || 'expenses'}-export`, headers, rows);
+    toast.success('Exported to CSV');
   };
 
   return (
@@ -78,15 +109,26 @@ export default function Expenses() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Expenses</h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-            {expenses.length} recorded · Total {fmtMoney(total)}
+            {expenses.length} recorded &middot; Total {fmtMoney(total)}
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-500 text-black font-semibold text-sm hover:bg-emerald-400"
-        >
-          <Plus className="w-4 h-4" /> Record Expense
-        </button>
+        <div className="flex items-center gap-2">
+          {expenses.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-sm font-medium hover:border-emerald-500 transition-all"
+              aria-label="Export expenses to CSV"
+            >
+              <Download className="w-4 h-4" /> Export
+            </button>
+          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-500 text-black font-semibold text-sm hover:bg-emerald-400"
+          >
+            <Plus className="w-4 h-4" /> Record Expense
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
@@ -137,8 +179,9 @@ export default function Expenses() {
                     <td className="px-5 py-3">
                       <div className="flex justify-end">
                         <button
-                          onClick={() => handleDelete(e)}
+                          onClick={() => setDeleteTarget(e)}
                           className="p-2 rounded-xl text-zinc-500 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          aria-label={`Delete expense: ${e.title}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -153,13 +196,23 @@ export default function Expenses() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md p-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShowModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Record Expense"
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold">Record Expense</h2>
               <button
                 onClick={() => setShowModal(false)}
                 className="p-2 rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -175,6 +228,8 @@ export default function Expenses() {
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   placeholder="e.g. Generator fuel"
+                  maxLength={200}
+                  autoFocus
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -188,11 +243,12 @@ export default function Expenses() {
                     value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
                     placeholder="0"
+                    min="0"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-zinc-500 mb-1.5">
-                    Date
+                    Date *
                   </label>
                   <input
                     type="date"
@@ -227,6 +283,7 @@ export default function Expenses() {
                   value={form.note}
                   onChange={(e) => setForm({ ...form, note: e.target.value })}
                   placeholder="Any extra detail..."
+                  maxLength={500}
                 />
               </div>
             </div>
@@ -241,6 +298,17 @@ export default function Expenses() {
           </div>
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete expense?"
+        message={deleteTarget ? `"${deleteTarget.title}" (${fmtMoney(deleteTarget.amount)}) will be permanently removed.` : ''}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

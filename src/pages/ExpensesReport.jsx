@@ -112,7 +112,7 @@ export default function ExpensesReport() {
             <Kpi label="Revenue (same period)" value={fmtMoney(revenueInRange)} accent="text-emerald-500" />
             <Kpi
               label="Expenses as % of revenue"
-              value={revenueInRange > 0 ? `${Math.round((totalExpenses / revenueInRange) * 100)}%` : '—'}
+              value={revenueInRange > 0 ? `${Math.round((totalExpenses / revenueInRange) * 100)}%` : '-'}
               accent="text-sky-500"
             />
           </div>

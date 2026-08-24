@@ -7,7 +7,7 @@ export const fmtMoney = (n) =>
   });
 
 export const fmtDate = (d) => {
-  if (!d) return '—';
+  if (!d) return '-';
   const date = d instanceof Date ? d : new Date(d);
   return date.toLocaleDateString('en-NG', {
     day: 'numeric',
@@ -17,7 +17,7 @@ export const fmtDate = (d) => {
 };
 
 export const fmtDateTime = (d) => {
-  if (!d) return '—';
+  if (!d) return '-';
   const date = d instanceof Date ? d : new Date(d);
   return date.toLocaleString('en-NG', {
     day: 'numeric',
