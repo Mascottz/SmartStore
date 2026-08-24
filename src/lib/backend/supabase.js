@@ -96,7 +96,13 @@ export const supabaseAdapter = {
 
   auth: {
     async signUp({ email, password }) {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const redirectTo =
+        typeof window !== 'undefined' ? window.location.origin : undefined;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
+      });
       ensure(error);
       return { id: data.user.id, email: data.user.email };
     },
@@ -430,6 +436,19 @@ export const supabaseAdapter = {
     },
     async rejectUser(memberId) {
       return this.updateApproval(memberId, 'rejected');
+    },
+    async deleteUser(userId) {
+      const { error } = await supabase
+        .from('store_members')
+        .delete()
+        .eq('user_id', userId);
+      ensure(error);
+      return { userId };
+    },
+    async deleteStore(storeId) {
+      const { error } = await supabase.from('stores').delete().eq('id', storeId);
+      ensure(error);
+      return storeId;
     },
   },
 };

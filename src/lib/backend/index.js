@@ -50,5 +50,9 @@ export const api = {
     'updateApproval',
     'remove',
   ]),
-  admin: withNotify(backend.admin, 'admin', ['updateApproval']),
+  admin: withNotify(backend.admin, 'admin', [
+    'updateApproval',
+    'deleteUser',
+    'deleteStore',
+  ]),
 };
