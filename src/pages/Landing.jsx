@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BarChart3,
@@ -303,8 +303,8 @@ export default function Landing() {
           <div>
             <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-900">Support</h3>
             <ul className="mt-4 space-y-2.5">
-              <li><a href="/contact" className="hover:text-emerald-600">Contact Us</a></li>
-              <li><a href="/help" className="hover:text-emerald-600">Help Center</a></li>
+              <li><Link to="/contact" className="hover:text-emerald-600">Contact Us</Link></li>
+              <li><Link to="/help" className="hover:text-emerald-600">Help Center</Link></li>
               <li>
                 <a href="mailto:business@smartstoreng.shop" className="hover:text-emerald-600">
                   Business Inquiries
@@ -315,8 +315,8 @@ export default function Landing() {
           <div>
             <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-900">Legal</h3>
             <ul className="mt-4 space-y-2.5">
-              <li><a href="/privacy" className="hover:text-emerald-600">Privacy Policy</a></li>
-              <li><a href="/terms" className="hover:text-emerald-600">Terms of Service</a></li>
+              <li><Link to="/privacy" className="hover:text-emerald-600">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="hover:text-emerald-600">Terms of Service</Link></li>
             </ul>
           </div>
         </div>
