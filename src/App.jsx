@@ -1,6 +1,6 @@
 // src/App.jsx
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Outlet } from 'react-router-dom';
+import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import Login from './components/Login';
@@ -13,6 +13,7 @@ import OfflineBanner from './components/OfflineBanner';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Lazy-load pages so the initial bundle stays small
+const Landing = lazy(() => import('./pages/Landing'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const POS = lazy(() => import('./pages/POS'));
@@ -69,11 +70,21 @@ function AppInner() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
-          path="/super-admin"
+          path="/"
           element={
             <Suspense fallback={<SplashScreen />}>
-              <SuperAdmin />
+              <Landing />
             </Suspense>
+          }
+        />
+        <Route
+          path="/super-admin"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<SplashScreen />}>
+                <SuperAdmin />
+              </Suspense>
+            </ProtectedRoute>
           }
         />
 
@@ -99,7 +110,7 @@ function AppInner() {
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/pos" element={<POS />} />
           <Route path="/sales" element={<SalesHistory />} />
@@ -113,8 +124,8 @@ function AppInner() {
           <Route path="/admin/approvals" element={<AdminApprovals />} />
         </Route>
 
-        {/* Catch-all: redirect to dashboard */}
-        <Route path="*" element={<Login />} />
+        {/* Catch-all: return visitors to the marketing page. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );

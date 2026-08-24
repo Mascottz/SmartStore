@@ -153,7 +153,10 @@ export const localAdapter = {
         email: normalized,
         password,
         // The designated administrator never waits in the local approval queue.
-        approvalStatus: isSuperAdminEmail(normalized) ? 'approved' : 'pending',
+        approvalStatus:
+          isSuperAdminEmail(normalized) || normalized === 'demo@smartstoreng.com'
+            ? 'approved'
+            : 'pending',
         createdAt: new Date().toISOString(),
       };
       db.users.push(user);
@@ -597,6 +600,9 @@ export const localAdapter = {
         };
       });
       const statuses = users.map((u) => u.approvalStatus);
+      const sales = db.sales.filter((sale) => sale.status === 'completed');
+      const products = db.products;
+      const expenses = db.expenses;
       return {
         stats: {
           totalUsers: users.length,
@@ -605,14 +611,25 @@ export const localAdapter = {
           pendingUsers: statuses.filter((s) => s === 'pending').length,
           approvedUsers: statuses.filter((s) => s === 'approved').length,
           rejectedUsers: statuses.filter((s) => s === 'rejected').length,
+          revenue: sales.reduce((sum, sale) => sum + Number(sale.total || 0), 0),
+          profit: sales.reduce((sum, sale) => sum + Number(sale.total || 0), 0) - expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
         },
         users,
         stores,
+        sales,
+        products,
+        expenses,
       };
     },
     async listUsers() {
       const dashboard = await this.getDashboard();
       return dashboard.users;
+    },
+    async listAllUsers() {
+      return this.listUsers();
+    },
+    async listPendingUsers() {
+      return (await this.listUsers()).filter((user) => user.approvalStatus === 'pending');
     },
     async listStores() {
       const dashboard = await this.getDashboard();
@@ -620,6 +637,32 @@ export const localAdapter = {
     },
     async updateApproval(memberId, status) {
       return localAdapter.team.updateApproval(memberId, status);
+    },
+    async approveUser(memberId) {
+      return this.updateApproval(memberId, 'approved');
+    },
+    async rejectUser(memberId) {
+      return this.updateApproval(memberId, 'rejected');
+    },
+    async deleteUser(userId) {
+      const db = load();
+      const memberIds = db.members.filter((member) => member.userId === userId).map((member) => member.id);
+      db.members = db.members.filter((member) => member.userId !== userId);
+      db.users = db.users.filter((user) => user.id !== userId);
+      save(db);
+      return { userId, memberIds };
+    },
+    async deleteStore(storeId) {
+      const db = load();
+      db.stores = db.stores.filter((store) => store.id !== storeId);
+      db.members = db.members.filter((member) => member.storeId !== storeId);
+      db.categories = db.categories.filter((item) => item.storeId !== storeId);
+      db.products = db.products.filter((item) => item.storeId !== storeId);
+      db.sales = db.sales.filter((item) => item.storeId !== storeId);
+      db.expenses = db.expenses.filter((item) => item.storeId !== storeId);
+      db.voidLogs = db.voidLogs.filter((item) => item.storeId !== storeId);
+      save(db);
+      return storeId;
     },
   },
 };

@@ -5,7 +5,7 @@ import {
   ShoppingCart,
   BarChart3,
   Users,
-  UserCheck,
+  ShieldCheck,
   LogOut,
   Receipt,
   DollarSign,
@@ -40,7 +40,7 @@ export default function Sidebar() {
   const isOwner = role === 'owner';
 
   const menuItems = [
-    { name: 'Dashboard', icon: Home, path: '/', minRole: 'manager' },
+    { name: 'Dashboard', icon: Home, path: '/dashboard', minRole: 'manager' },
     {
       name: niche.itemNounPlural === 'Products' ? 'Inventory' : niche.itemNounPlural,
       icon: Package,
@@ -66,7 +66,7 @@ export default function Sidebar() {
     { name: 'Team', icon: Users, path: '/team', minRole: 'admin' },
     {
       name: 'User Approvals',
-      icon: UserCheck,
+      icon: ShieldCheck,
       path: '/admin/approvals',
       ownerOnly: true,
     },
