@@ -13,6 +13,7 @@ import { fmtMoney } from '../lib/format';
 import { printReceipt } from '../lib/printReceipt';
 import { sanitize } from '../lib/validate';
 import ConfirmDialog from '../components/ConfirmDialog';
+import QuickAddProduct from '../components/QuickAddProduct';
 
 const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS/Card'];
 
@@ -21,6 +22,10 @@ export default function POS() {
 
   const { data: products, loading } = useStoreData(
     () => (storeId ? api.products.list(storeId) : []),
+    [storeId]
+  );
+  const { data: categories } = useStoreData(
+    () => (storeId ? api.categories.list(storeId) : []),
     [storeId]
   );
 
@@ -32,11 +37,21 @@ export default function POS() {
   const [lastSale, setLastSale] = useState(null);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  // Barcode scanned by a customer that has no matching product yet — opens
+  // the quick-add modal so it can be created and sold in one go.
+  const [quickAddBarcode, setQuickAddBarcode] = useState(null);
 
   const scannerRef = useRef(null);
   const searchRef = useRef(null);
   const productsRef = useRef(products);
   productsRef.current = products;
+  // Refs so the stable camera/USB scan handlers always see the latest state
+  // without re-creating the camera scanner or re-binding the key listener.
+  const quickAddOpenRef = useRef(false);
+  quickAddOpenRef.current = quickAddBarcode !== null;
+  // { codes: [...], at } — briefly ignore rescans of a barcode that was just
+  // created, so a camera still pointed at the box doesn't double-add it.
+  const justCreatedRef = useRef(null);
 
   const debouncedSearch = useDebounce(searchTerm, 200);
 
@@ -72,7 +87,39 @@ export default function POS() {
     [niche.trackStock]
   );
 
-  // Barcode scanner
+  // Unknown barcodes (camera or USB) open the quick-add modal.
+  const openQuickAdd = useCallback((code) => {
+    if (quickAddOpenRef.current) return; // already quick-adding — ignore
+    setQuickAddBarcode(code);
+  }, []);
+
+  // Shared result handler for both scanner types: known product → cart,
+  // unknown barcode → quick-add modal.
+  const handleScanResult = useCallback(
+    (code) => {
+      // A camera still pointed at the box keeps decoding it — skip the
+      // rescans of a barcode that was just quick-added for a few seconds.
+      const just = justCreatedRef.current;
+      if (
+        just &&
+        Date.now() - just.at < 5000 &&
+        just.codes.includes(code.toLowerCase())
+      ) {
+        return;
+      }
+      const text = code.toLowerCase();
+      const product =
+        productsRef.current.find((p) => (p.sku || '').toLowerCase() === text) ||
+        productsRef.current.find((p) => p.name.toLowerCase().includes(text));
+      if (product) addToCart(product);
+      else openQuickAdd(code);
+    },
+    [addToCart, openQuickAdd]
+  );
+  const handleScanResultRef = useRef(handleScanResult);
+  handleScanResultRef.current = handleScanResult;
+
+  // Camera barcode scanner
   useEffect(() => {
     if (!isScanning) return;
 
@@ -83,16 +130,7 @@ export default function POS() {
     );
 
     scanner.render(
-      (decodedText) => {
-        const text = decodedText.toLowerCase();
-        const product = productsRef.current.find(
-          (p) =>
-            (p.sku || '').toLowerCase() === text ||
-            p.name.toLowerCase().includes(text)
-        );
-        if (product) addToCart(product);
-        else toast.error(`No product found for barcode: ${decodedText}`);
-      },
+      (decodedText) => handleScanResultRef.current(decodedText),
       () => {}
     );
 
@@ -101,25 +139,36 @@ export default function POS() {
       scannerRef.current?.clear().catch(() => {});
       scannerRef.current = null;
     };
-  }, [isScanning, addToCart]);
+  }, [isScanning]);
 
   // USB barcode scanner: scanners type the code rapidly and finish with Enter.
-  const handleBarcodeScan = useCallback(
-    (code) => {
-      const text = code.toLowerCase();
-      const product =
-        productsRef.current.find((p) => (p.sku || '').toLowerCase() === text) ||
-        productsRef.current.find((p) => p.name.toLowerCase().includes(text));
-      if (product) addToCart(product);
-      else toast.error(`No product found for barcode: ${code}`);
-    },
-    [addToCart]
+  useBarcodeScanner(
+    (code) => handleScanResultRef.current(code),
+    { enabled: niche.hasBarcode }
   );
-  useBarcodeScanner(handleBarcodeScan, { enabled: niche.hasBarcode });
 
-  // Keyboard shortcuts
-  const shortcuts = useMemo(
-    () => ({
+  // Quick add finished: remember the barcode(s) just created, add the new
+  // product to the sale and close the modal.
+  const handleQuickAddCreated = useCallback(
+    (product) => {
+      justCreatedRef.current = {
+        codes: [quickAddBarcode, product.sku]
+          .filter(Boolean)
+          .map((c) => String(c).toLowerCase()),
+        at: Date.now(),
+      };
+      addToCart(product);
+      setQuickAddBarcode(null);
+    },
+    [addToCart, quickAddBarcode]
+  );
+  const closeQuickAdd = useCallback(() => setQuickAddBarcode(null), []);
+
+  // Keyboard shortcuts. While the quick-add modal is open it owns the
+  // keyboard (its Escape listener closes the modal), so no page shortcuts.
+  const shortcuts = useMemo(() => {
+    if (quickAddBarcode !== null) return {};
+    return {
       Escape: () => {
         if (isScanning) setIsScanning(false);
         else if (showShortcuts) setShowShortcuts(false);
@@ -133,9 +182,8 @@ export default function POS() {
       'Ctrl+P': () => {
         if (lastSale) printLastReceiptRef.current();
       },
-    }),
-    [isScanning, showShortcuts, showVoidConfirm, cart.length, isCompleting, lastSale]
-  );
+    };
+  }, [quickAddBarcode, isScanning, showShortcuts, showVoidConfirm, cart.length, isCompleting, lastSale]);
   useKeyboard(shortcuts);
 
   const updateQuantity = (id, newQty) => {
@@ -306,6 +354,7 @@ export default function POS() {
           {niche.hasBarcode && (
             <p className="mt-1.5 pl-1 text-[11px] text-zinc-400 dark:text-zinc-500">
               USB barcode scanners are detected automatically, anywhere on this page.
+              Scanning an unknown barcode opens quick add.
             </p>
           )}
         </div>
@@ -463,6 +512,19 @@ export default function POS() {
           </button>
         </div>
       </div>
+
+      {/* Quick add for an unknown scanned barcode */}
+      {quickAddBarcode !== null && (
+        <QuickAddProduct
+          barcode={quickAddBarcode}
+          storeId={storeId}
+          store={store}
+          niche={niche}
+          categories={categories}
+          onCreated={handleQuickAddCreated}
+          onCancel={closeQuickAdd}
+        />
+      )}
 
       {/* Void confirmation dialog */}
       <ConfirmDialog
