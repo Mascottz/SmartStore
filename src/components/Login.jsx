@@ -52,7 +52,7 @@ export default function Login() {
           navigate('/super-admin', { replace: true });
         } else {
           toast.success('Welcome back to SmartStore NG');
-          navigate('/dashboard', { replace: true });
+          navigate('/', { replace: true });
         }
       } else {
         const user = await api.auth.signUp({ email: cleanEmail, password: cleanPw });
@@ -83,8 +83,9 @@ export default function Login() {
     setLoading(true);
     try {
       await loginOrCreateDemo();
+      await refreshMembership();
       toast.success('Welcome to the demo store');
-      navigate('/dashboard', { replace: true });
+      navigate('/', { replace: true });
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Could not start demo.');

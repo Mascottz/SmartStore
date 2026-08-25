@@ -4,6 +4,7 @@ import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import Login from './components/Login';
+import PendingApproval from './components/PendingApproval';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
 import StoreOnboardingGuard from './components/StoreOnboardingGuard';
@@ -47,6 +48,28 @@ function ShellLayout() {
   );
 }
 
+function RootRoute() {
+  const { user, approvalStatus, store } = useAuth();
+
+  // Approval takes precedence over every other authenticated route. In
+  // particular, a pending staff member must not be sent to onboarding just
+  // because their membership already includes a store.
+  if (approvalStatus === 'pending' || approvalStatus === 'rejected') {
+    return <PendingApproval />;
+  }
+
+  if (!user) {
+    return (
+      <Suspense fallback={<SplashScreen />}>
+        <Landing />
+      </Suspense>
+    );
+  }
+
+  if (!store) return <Navigate to="/onboarding" replace />;
+  return <Navigate to="/dashboard" replace />;
+}
+
 function AppInner() {
   const { loading } = useAuth();
 
@@ -72,14 +95,7 @@ function AppInner() {
 
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route
-          path="/"
-          element={
-            <Suspense fallback={<SplashScreen />}>
-              <Landing />
-            </Suspense>
-          }
-        />
+        <Route path="/" element={<RootRoute />} />
         <Route
           path="/privacy"
           element={
