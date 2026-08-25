@@ -31,13 +31,13 @@ export default function Onboarding() {
     setSelectedCategories(getNiche(businessType).categories);
   }, [businessType]);
 
-  // If the auth context already has a store, force a full-page redirect to
-  // /dashboard. Using window.location avoids the StoreOnboardingGuard race
-  // condition where a soft navigate() can re-render before the context has
-  // updated, bouncing the user back to /onboarding.
+  // If the auth context already has a store, return to the root route so it
+  // can make the canonical dashboard redirect. Using window.location avoids
+  // the StoreOnboardingGuard race condition where a soft navigate() can
+  // re-render before the context has updated.
   useEffect(() => {
     if (!loading && store) {
-      window.location.href = '/dashboard';
+      window.location.href = '/';
     }
   }, [loading, store]);
 
@@ -89,17 +89,18 @@ export default function Onboarding() {
       });
       await refreshMembership();
       toast.success(`${cleanName} is ready`);
-      // Force a full page reload so AuthContext re-fetches membership from
-      // scratch before StoreOnboardingGuard renders. A soft navigate()
-      // can race: the guard still sees store=null and bounces back here.
-      window.location.href = '/dashboard';
+      // Return to the root route so AuthContext re-fetches membership and
+      // RootRoute can make the canonical dashboard redirect. A direct
+      // /dashboard navigation can race with StoreOnboardingGuard while the
+      // new store is still loading.
+      window.location.href = '/';
     } catch (e) {
       console.error(e);
       // If the backend says the user already has a store, skip the error
-      // toast and just redirect them to the dashboard.
+      // toast and return to the root route for canonical routing.
       if (ALREADY_HAS_STORE_RE.test(e.message || '')) {
         toast('You already have a store — redirecting…');
-        window.location.href = '/dashboard';
+        window.location.href = '/';
         return;
       }
       toast.error(e.message || 'Could not create your store.');
