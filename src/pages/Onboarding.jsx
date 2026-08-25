@@ -1,7 +1,6 @@
 // src/pages/Onboarding.jsx
 // Business setup wizard: name, niche, categories, create store.
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Check, Plus, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -11,8 +10,12 @@ import SplashScreen from '../components/SplashScreen';
 import { sanitize, isValidStoreName } from '../lib/validate';
 import logo from '/logo-smartstore.png';
 
+// Patterns that indicate the user already owns a store (broad matching
+// to handle different backend / RPC error messages).
+const ALREADY_HAS_STORE_RE =
+  /already\s+(has|have|owns?|exists?)\b.*store|store\s+already\b|duplicate\s+store|one\s+store\s+per/i;
+
 export default function Onboarding() {
-  const navigate = useNavigate();
   const { user, store, loading, refreshMembership } = useAuth();
 
   const [step, setStep] = useState(1);
@@ -28,8 +31,21 @@ export default function Onboarding() {
     setSelectedCategories(getNiche(businessType).categories);
   }, [businessType]);
 
+  // If the auth context already has a store, force a full-page redirect to
+  // /dashboard. Using window.location avoids the StoreOnboardingGuard race
+  // condition where a soft navigate() can re-render before the context has
+  // updated, bouncing the user back to /onboarding.
+  useEffect(() => {
+    if (!loading && store) {
+      window.location.href = '/dashboard';
+    }
+  }, [loading, store]);
+
   if (loading) return <SplashScreen />;
-  if (store) return <Navigate to="/" replace />;
+
+  // While the redirect effect fires, show an immediate transition screen so
+  // the user never sees the onboarding wizard flash.
+  if (store) return <SplashScreen />;
 
   const niche = getNiche(businessType);
 
@@ -73,9 +89,19 @@ export default function Onboarding() {
       });
       await refreshMembership();
       toast.success(`${cleanName} is ready`);
-      navigate('/', { replace: true });
+      // Force a full page reload so AuthContext re-fetches membership from
+      // scratch before StoreOnboardingGuard renders. A soft navigate()
+      // can race: the guard still sees store=null and bounces back here.
+      window.location.href = '/dashboard';
     } catch (e) {
       console.error(e);
+      // If the backend says the user already has a store, skip the error
+      // toast and just redirect them to the dashboard.
+      if (ALREADY_HAS_STORE_RE.test(e.message || '')) {
+        toast('You already have a store — redirecting…');
+        window.location.href = '/dashboard';
+        return;
+      }
       toast.error(e.message || 'Could not create your store.');
     } finally {
       setSaving(false);
