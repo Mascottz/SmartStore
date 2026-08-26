@@ -2,7 +2,7 @@
 // Business setup wizard: name, niche, categories, create store.
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Check, Plus, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Check, Plus, ArrowRight, ArrowLeft, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/backend';
 import { NICHES, getNiche } from '../config/niches';
@@ -140,6 +140,16 @@ export default function Onboarding() {
               />
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = '/login';
+            }}
+            className="inline-flex items-center gap-1.5 mt-4 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            Go back to login
+          </button>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8">
