@@ -450,5 +450,29 @@ export const supabaseAdapter = {
       ensure(error);
       return storeId;
     },
+    async upgradeStoreToOwner(storeId) {
+      // Prefer the dedicated super-admin RPC; fall back to a direct update
+      // when the RPC is not yet deployed (e.g. older environments).
+      const { data, error } = await supabase.rpc('admin_upgrade_store_to_owner', {
+        p_store_id: storeId,
+      });
+      if (error) {
+        // If the RPC does not exist or fails with 404, try a direct update.
+        // The RLS policy "super admin update stores" allows this.
+        if (error.code === 'PGRST202' || /not found|does not exist/i.test(error.message)) {
+          const { data: fallback, error: fallbackError } = await supabase
+            .from('stores')
+            .update({ plan: 'owner' })
+            .eq('id', storeId)
+            .select()
+            .single();
+          ensure(fallbackError);
+          return mapStore(fallback);
+        }
+        ensure(error);
+      }
+      // RPC returns a stores row directly
+      return data ? mapStore(data) : storeId;
+    },
   },
 };

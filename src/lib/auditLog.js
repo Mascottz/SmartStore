@@ -2,9 +2,9 @@
 // Lightweight admin action audit trail persisted in localStorage.
 //
 // Super-admin actions that mutate tenant data (approve / reject a user,
-// delete a user, delete a store) are recorded here so there is a writable
-// history of what an administrator did, when, and to whom — independent of
-// the tenant tables themselves.
+// delete a user, delete a store, upgrade a store to Owner Mode) are recorded
+// here so there is a writable history of what an administrator did, when,
+// and to whom — independent of the tenant tables themselves.
 //
 // The log is capped at MAX_ENTRIES (500); oldest entries fall off first.
 // New entries are prepended, so the list renders newest-first.
@@ -40,7 +40,7 @@ export function getAuditLog() {
  * Append an entry to the audit log.
  *
  * @param {object} entry
- * @param {string} entry.action   e.g. 'approve_user' | 'reject_user' | 'delete_user' | 'delete_store'
+ * @param {string} entry.action   e.g. 'approve_user' | 'reject_user' | 'delete_user' | 'delete_store' | 'upgrade_to_owner'
  * @param {string} entry.actor     Who performed the action (admin email).
  * @param {string} entry.target    The object acted upon (email / store name / id).
  * @param {string} [entry.details] Optional human-readable context.

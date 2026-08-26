@@ -6,6 +6,7 @@ import {
   Building2,
   CheckCircle2,
   Clock3,
+  Crown,
   History,
   RefreshCw,
   Search,
@@ -23,6 +24,7 @@ import { api } from '../lib/backend';
 import { supabase, isSupabaseConfigured } from '../lib/backend/supabase';
 import { getAuditLog, logAudit, clearAuditLog } from '../lib/auditLog';
 import { fmtDate, fmtDateTime } from '../lib/format';
+import ConfirmDialog from '../components/ConfirmDialog';
 import logo from '/logo-smartstore.png';
 
 function mapStoreRow(store, members = []) {
@@ -149,6 +151,7 @@ export default function SuperAdmin() {
   const [busyId, setBusyId] = useState(null);
   const [actor, setActor] = useState('');
   const [auditLog, setAuditLog] = useState([]);
+  const [upgradeTarget, setUpgradeTarget] = useState(null);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -302,6 +305,45 @@ export default function SuperAdmin() {
       await loadDashboard();
     } catch (e) {
       toast.error(e.message || 'Could not delete store.');
+    }
+  };
+
+  const confirmUpgradeToOwner = async () => {
+    const store = upgradeTarget;
+    if (!store) return;
+    setBusyId(store.id);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        // Try the dedicated RPC first, fall back to direct table update.
+        const { error: rpcError } = await supabase.rpc('admin_upgrade_store_to_owner', {
+          p_store_id: store.id,
+        });
+        if (rpcError) {
+          if (rpcError.code === 'PGRST202' || /not found|does not exist/i.test(rpcError.message)) {
+            const { error } = await supabase
+              .from('stores')
+              .update({ plan: 'owner' })
+              .eq('id', store.id);
+            if (error) throw new Error(error.message);
+          } else {
+            throw new Error(rpcError.message);
+          }
+        }
+      } else {
+        await api.admin.upgradeStoreToOwner(store.id);
+      }
+      toast.success(`${store.name} upgraded to Owner Mode`);
+      recordAudit(
+        'upgrade_to_owner',
+        store.name,
+        `Store id ${store.id} upgraded to owner plan without Paystack`
+      );
+      setUpgradeTarget(null);
+      await loadDashboard();
+    } catch (e) {
+      toast.error(e.message || 'Could not upgrade store.');
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -465,7 +507,15 @@ export default function SuperAdmin() {
             deleteUser={deleteUser}
           />
         )}
-        {tab === 'stores' && <StoresPanel stores={visibleStores} loading={loading} deleteStore={deleteStore} />}
+        {tab === 'stores' && (
+          <StoresPanel
+            stores={visibleStores}
+            loading={loading}
+            busyId={busyId}
+            deleteStore={deleteStore}
+            onUpgrade={(store) => setUpgradeTarget(store)}
+          />
+        )}
         {['sales', 'products', 'expenses'].includes(tab) && (
           <SystemRecordsPanel tab={tab} records={dashboard[tab]} loading={loading} />
         )}
@@ -480,6 +530,25 @@ export default function SuperAdmin() {
           />
         )}
       </main>
+
+      <ConfirmDialog
+        open={Boolean(upgradeTarget)}
+        title="Upgrade to Owner Mode?"
+        message={
+          upgradeTarget
+            ? `Upgrade "${upgradeTarget.name}" to Owner Mode without Paystack? This will unlock full reports, expenses analytics, void audit trail and unlimited team members.`
+            : ''
+        }
+        confirmLabel={
+          busyId === upgradeTarget?.id ? 'Upgrading…' : 'Upgrade to Owner'
+        }
+        variant="default"
+        onConfirm={confirmUpgradeToOwner}
+        onCancel={() => {
+          if (busyId) return;
+          setUpgradeTarget(null);
+        }}
+      />
     </div>
   );
 }
@@ -674,7 +743,7 @@ function UsersPanel({
   );
 }
 
-function StoresPanel({ stores, loading, deleteStore }) {
+function StoresPanel({ stores, loading, busyId, deleteStore, onUpgrade }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
       <div className="overflow-x-auto">
@@ -687,39 +756,91 @@ function StoresPanel({ stores, loading, deleteStore }) {
               <th className="px-5 py-3">Members</th>
               <th className="px-5 py-3">Pending</th>
               <th className="px-5 py-3">Created</th>
+              <th className="px-5 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6}><LoadingRows count={5} /></td></tr>
+              <tr>
+                <td colSpan={7}>
+                  <LoadingRows count={5} />
+                </td>
+              </tr>
             ) : stores.length === 0 ? (
-              <tr><td colSpan={6} className="px-5 py-12 text-center text-zinc-500">No stores match your search.</td></tr>
+              <tr>
+                <td colSpan={7} className="px-5 py-12 text-center text-zinc-500">
+                  No stores match your search.
+                </td>
+              </tr>
             ) : (
-              stores.map((store) => (
-                <tr key={store.id} className="border-b border-zinc-800/70 last:border-0">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
-                        <Store className="h-4 w-4" />
+              stores.map((store) => {
+                const isOwner = String(store.plan || '').toLowerCase() === 'owner';
+                const isBusy = busyId === store.id;
+                return (
+                  <tr key={store.id} className="border-b border-zinc-800/70 last:border-0">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+                          <Store className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{store.name}</p>
+                          {store.isDemo && <p className="text-[11px] text-amber-400">Demo store</p>}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{store.name}</p>
-                        {store.isDemo && <p className="text-[11px] text-amber-400">Demo store</p>}
+                    </td>
+                    <td className="px-5 py-4 capitalize text-zinc-400">{store.type}</td>
+                    <td className="px-5 py-4 capitalize">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${
+                          isOwner
+                            ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                            : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                        }`}
+                      >
+                        {isOwner && <Crown className="h-3 w-3" />}
+                        {store.plan || 'free'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-zinc-400">{store.memberCount || 0}</td>
+                    <td className="px-5 py-4">
+                      <span className={store.pendingCount ? 'text-amber-400' : 'text-zinc-500'}>
+                        {store.pendingCount || 0}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-zinc-500">
+                      {fmtDate(store.createdAt)}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        {!isOwner && (
+                          <button
+                            type="button"
+                            onClick={() => onUpgrade?.(store)}
+                            disabled={isBusy}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black hover:bg-amber-400 disabled:opacity-50"
+                            title="Upgrade to Owner Mode without Paystack"
+                            aria-label={`Upgrade ${store.name} to Owner Mode`}
+                          >
+                            <Crown className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Upgrade to Owner</span>
+                            <span className="sm:hidden">Upgrade</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => deleteStore(store)}
+                          className="rounded-lg border border-zinc-700 p-2 text-zinc-500 hover:border-red-500/40 hover:text-red-400"
+                          title="Delete store"
+                          aria-label={`Delete ${store.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 capitalize text-zinc-400">{store.type}</td>
-                  <td className="px-5 py-4 capitalize text-zinc-400">{store.plan}</td>
-                  <td className="px-5 py-4 text-zinc-400">{store.memberCount || 0}</td>
-                  <td className="px-5 py-4">
-                    <span className={store.pendingCount ? 'text-amber-400' : 'text-zinc-500'}>
-                      {store.pendingCount || 0}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-4 text-zinc-500">{fmtDate(store.createdAt)}</td>
-                  <td className="px-5 py-4 text-right"><button type="button" onClick={() => deleteStore(store)} className="rounded-lg border border-zinc-700 p-2 text-zinc-500 hover:border-red-500/40 hover:text-red-400" title="Delete store"><Trash2 className="h-4 w-4" /></button></td>
-                </tr>
-              ))
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -738,6 +859,7 @@ const AUDIT_ACTION_STYLES = {
   reject_user: ['User rejected', 'bg-red-500/10 text-red-300 border-red-500/20'],
   delete_user: ['User deleted', 'bg-red-500/10 text-red-300 border-red-500/20'],
   delete_store: ['Store deleted', 'bg-amber-500/10 text-amber-300 border-amber-500/20'],
+  upgrade_to_owner: ['Upgraded to Owner', 'bg-amber-500/10 text-amber-300 border-amber-500/20'],
 };
 
 function AuditLogPanel({ entries, loading, onClear }) {
