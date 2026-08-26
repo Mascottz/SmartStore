@@ -54,5 +54,6 @@ export const api = {
     'updateApproval',
     'deleteUser',
     'deleteStore',
+    'upgradeStoreToOwner',
   ]),
 };

@@ -664,5 +664,13 @@ export const localAdapter = {
       save(db);
       return storeId;
     },
+    async upgradeStoreToOwner(storeId) {
+      const db = load();
+      const store = db.stores.find((s) => s.id === storeId);
+      if (!store) throw new Error('Store not found');
+      store.plan = 'owner';
+      save(db);
+      return storeId;
+    },
   },
 };
