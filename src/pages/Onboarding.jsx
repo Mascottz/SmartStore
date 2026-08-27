@@ -2,7 +2,7 @@
 // Business setup wizard: name, niche, categories, create store.
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Check, Plus, ArrowRight, ArrowLeft, LogIn } from 'lucide-react';
+import { Check, Plus, ArrowRight, ArrowLeft, LogIn, Store, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/backend';
 import { NICHES, getNiche } from '../config/niches';
@@ -15,6 +15,52 @@ import logo from '/logo-smartstore.png';
 const ALREADY_HAS_STORE_RE =
   /already\s+(has|have|owns?|exists?)\b.*store|store\s+already\b|duplicate\s+store|one\s+store\s+per/i;
 
+/**
+ * Terminal screen for an account that already owns a store: a stale tab, a
+ * bookmarked /onboarding link, or a "one store per account" rejection from
+ * the backend. Going through the root route keeps RootRoute as the single
+ * place that decides where an authenticated user lands, and a full page load
+ * sidesteps the StoreOnboardingGuard race with a soft navigate().
+ */
+function AlreadyHasStore({ storeName }) {
+  const go = () => {
+    window.location.href = '/';
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+          <Store className="w-7 h-7 text-emerald-400" />
+        </div>
+        <h1 className="text-xl font-bold text-white mb-2">
+          You already have a store
+        </h1>
+        <p className="text-zinc-400 text-sm mb-6">
+          {storeName ? (
+            <>
+              <span className="text-zinc-200 font-medium">{storeName}</span> is already
+              set up on this account.
+            </>
+          ) : (
+            'This account is already set up with a store.'
+          )}{' '}
+          Head to your dashboard to keep going — each account can only run one
+          store.
+        </p>
+        <button
+          type="button"
+          onClick={go}
+          className="inline-flex items-center gap-2 w-full justify-center px-6 py-3.5 rounded-2xl bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400"
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          Go to Dashboard
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Onboarding() {
   const { user, store, loading, refreshMembership } = useAuth();
 
@@ -26,26 +72,25 @@ export default function Onboarding() {
   );
   const [customCategory, setCustomCategory] = useState('');
   const [saving, setSaving] = useState(false);
+  // Set when the backend rejects store creation because the account already
+  // owns one, before refreshMembership() has had a chance to surface it.
+  const [alreadyHasStore, setAlreadyHasStore] = useState(false);
 
   useEffect(() => {
     setSelectedCategories(getNiche(businessType).categories);
   }, [businessType]);
 
-  // If the auth context already has a store, return to the root route so it
-  // can make the canonical dashboard redirect. Using window.location avoids
-  // the StoreOnboardingGuard race condition where a soft navigate() can
-  // re-render before the context has updated.
-  useEffect(() => {
-    if (!loading && store) {
-      window.location.href = '/';
-    }
-  }, [loading, store]);
-
   if (loading) return <SplashScreen />;
 
-  // While the redirect effect fires, show an immediate transition screen so
-  // the user never sees the onboarding wizard flash.
-  if (store) return <SplashScreen />;
+  // This account already owns a store — a stale tab, a bookmarked
+  // /onboarding link, or a redirect that landed here. Show an explicit
+  // screen with a working way through instead of a splash that only resolves
+  // if an automatic navigation happens to fire. (RootRoute only sends users
+  // here when they have no store, so this is the rare edge case; a hard
+  // window.location also sidesteps the StoreOnboardingGuard race where a soft
+  // navigate() re-renders before AuthContext has updated.)
+  if (store) return <AlreadyHasStore storeName={store.name} />;
+  if (alreadyHasStore) return <AlreadyHasStore />;
 
   const niche = getNiche(businessType);
 
@@ -97,10 +142,16 @@ export default function Onboarding() {
     } catch (e) {
       console.error(e);
       // If the backend says the user already has a store, skip the error
-      // toast and return to the root route for canonical routing.
+      // toast and show the terminal screen with an explicit way through.
       if (ALREADY_HAS_STORE_RE.test(e.message || '')) {
-        toast('You already have a store — redirecting…');
-        window.location.href = '/';
+        // Pull the membership we just failed to create so the screen can name
+        // the store; either way the screen is what the user sees next.
+        try {
+          await refreshMembership();
+        } catch {
+          // The screen works without a store name too.
+        }
+        setAlreadyHasStore(true);
         return;
       }
       toast.error(e.message || 'Could not create your store.');

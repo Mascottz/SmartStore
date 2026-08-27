@@ -33,7 +33,8 @@ npm run dev
 Checks:
 
 ```bash
-npm test    # vitest + jsdom: staff join-on-login flow, join-code storage, receipt popup
+npm test    # vitest + jsdom: staff join-on-login flow, join-code storage,
+            # receipt popup close/timeout, onboarding duplicate-store screen
 npm run lint
 npm run build
 ```
