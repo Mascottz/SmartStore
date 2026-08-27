@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { api, isDemoBackend } from '../lib/backend';
 import { loginOrCreateDemo } from '../lib/demo';
 import { useAuth } from '../context/AuthContext';
+import { clearJoinRequestFor } from '../lib/joinRequest';
 import { sanitize, isValidEmail, isValidPassword, isValidJoinCode } from '../lib/validate';
 import { isSuperAdminEmail } from '../lib/superAdmin';
 import logo from '/logo-smartstore.png';
@@ -19,7 +20,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { refreshMembership } = useAuth();
+  const { refreshMembership, joinStore } = useAuth();
   const isSuperAdmin = isSuperAdminEmail(email);
 
   const handleSubmit = async (e) => {
@@ -62,11 +63,24 @@ export default function Login() {
           toast.success('Administrator account created');
           navigate('/super-admin', { replace: true });
         } else if (signupType === 'staff') {
-          await api.stores.joinWithCode(user.id, user.email, joinCode.trim().toUpperCase());
+          // joinStore remembers the code in localStorage first, so an
+          // interruption between the account creation and the join request
+          // (a dropped request, a closed tab) cannot lose it: the app
+          // re-sends the request on the next sign-in.
+          const result = await joinStore(joinCode.trim().toUpperCase(), user);
+          if (result?.joined) {
+            toast.success('Request sent to the store owner for approval');
+          } else if (result?.error) {
+            toast.error(result.error.message || 'Could not send the join request yet.');
+          }
           await refreshMembership();
-          toast.success('Request sent to the store owner for approval');
           navigate('/', { replace: true });
         } else {
+          // Creating a store, not joining one — drop this email's leftover
+          // join code so it cannot pull the new owner onto the waiting
+          // screen. A code queued for somebody else on this device is left
+          // alone.
+          clearJoinRequestFor(cleanEmail);
           toast.success('Account created, let\'s set up your business');
           navigate('/onboarding', { replace: true });
         }

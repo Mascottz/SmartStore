@@ -270,8 +270,13 @@ export function printReceipt(sale = {}, options = {}) {
     <hr class="rule" />
     <p class="footer">${escapeHtml(footer)}</p>
     <script>
-      window.print();
+      // Register the handler BEFORE print(): on browsers where window.print()
+      // blocks (Chrome, Safari), "afterprint" fires by the time the next line
+      // of this script runs, so a handler assigned after print() never fires
+      // and the popup is left open, dimmed, behind the dialog.
       window.onafterprint = function () { window.close(); };
+      window.print();
+      // Fallback for browsers that never fire "afterprint".
       setTimeout(function () { window.close(); }, 60000);
     </script>
   </body>

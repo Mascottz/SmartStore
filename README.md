@@ -19,7 +19,7 @@ backend is configured.
 - 🚨 **Void audit trail** — who voided what, when and why
 - 💸 **Expenses + expense analytics** — category & monthly breakdowns
 - 👥 **Team** — staff join with a store code; roles: owner / admin / manager / cashier
-- ✅ **Access approvals** — new staff wait for owner approval before tenant data is available
+- ✅ **Access approvals** — new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
 - 🛡️ **System admin dashboard** — platform metrics, stores, users and global approval controls
 - 👑 **Owner Mode plan gating**, 🌙 light/dark theme
 
@@ -28,6 +28,14 @@ backend is configured.
 ```bash
 npm install
 npm run dev
+```
+
+Checks:
+
+```bash
+npm test    # vitest + jsdom: staff join-on-login flow, join-code storage, receipt popup
+npm run lint
+npm run build
 ```
 
 With no env vars set, the app runs entirely on localStorage — click

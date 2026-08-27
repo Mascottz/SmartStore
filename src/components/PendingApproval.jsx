@@ -1,10 +1,16 @@
 // src/components/PendingApproval.jsx
+// The "Approval pending" screen. A staff member lands here straight after
+// signup — or after logging in while a join code from a previous, interrupted
+// signup is still stored — and sees the store code the request is waiting on.
+// If the code was wrong they can enter a different one; if they were never
+// joining a store at all, they can clear the request and start their own.
 import { useState } from 'react';
-import { Clock3, LogOut, RefreshCw, ShieldX, Store } from 'lucide-react';
+import { Clock3, KeyRound, LogOut, RefreshCw, ShieldX, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../lib/backend';
 import { useAuth } from '../context/AuthContext';
+import { isValidJoinCode } from '../lib/validate';
 import logo from '/logo-smartstore.png';
 
 export default function PendingApproval() {
@@ -12,15 +18,32 @@ export default function PendingApproval() {
     user,
     storeName,
     approvalStatus,
+    membershipStatus,
+    pendingJoin,
     refreshMembership,
+    retryJoin,
+    joinStore,
+    dismissJoinRequest,
   } = useAuth();
   const [checking, setChecking] = useState(false);
+  const [editingCode, setEditingCode] = useState(false);
+  const [newCode, setNewCode] = useState('');
   const navigate = useNavigate();
+
   const rejected = approvalStatus === 'rejected';
+  const hasMembership = Boolean(membershipStatus);
+  const joinCode = pendingJoin?.code || '';
 
   const checkStatus = async () => {
     setChecking(true);
     try {
+      // If the request never reached the backend (interrupted signup, an
+      // offline moment), "check" re-sends it instead of only re-reading the
+      // status.
+      if (!hasMembership && joinCode) {
+        const result = await retryJoin();
+        if (result?.joined) toast.success('Join request sent to the store owner');
+      }
       await refreshMembership();
       toast.success('Approval status refreshed');
     } catch (error) {
@@ -28,6 +51,35 @@ export default function PendingApproval() {
     } finally {
       setChecking(false);
     }
+  };
+
+  const submitNewCode = async (event) => {
+    event.preventDefault();
+    const code = newCode.trim().toUpperCase();
+    if (!isValidJoinCode(code)) {
+      return toast.error('Join code must be 6 characters (letters and numbers).');
+    }
+    setChecking(true);
+    try {
+      const result = await joinStore(code);
+      if (result?.joined) {
+        toast.success('Request sent to the store owner for approval');
+        setEditingCode(false);
+        setNewCode('');
+      } else {
+        toast.error(result?.error?.message || 'Could not join with that code.');
+      }
+    } catch (error) {
+      toast.error(error.message || 'Could not join with that code.');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const startOwnStore = () => {
+    dismissJoinRequest();
+    toast('Join request cleared — set up your own store', { icon: '🏪' });
+    navigate('/onboarding', { replace: true });
   };
 
   const signOut = async () => {
@@ -84,7 +136,59 @@ export default function PendingApproval() {
               {approvalStatus}
             </span>
           </div>
+
+          {joinCode && (
+            <div className="mt-3 flex items-center gap-2 border-t border-zinc-800 pt-3 text-xs text-zinc-400">
+              <KeyRound className="h-4 w-4 shrink-0 text-zinc-500" />
+              <span>Store join code</span>
+              <span className="ml-auto font-mono text-sm font-bold tracking-widest text-emerald-400">
+                {joinCode}
+              </span>
+            </div>
+          )}
         </div>
+
+        {pendingJoin?.error && !rejected && (
+          <p className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-left text-xs leading-5 text-red-300">
+            {pendingJoin.error}
+            {pendingJoin.permanent
+              ? ' Check the code with your store owner and try again below.'
+              : ' We will keep trying automatically.'}
+          </p>
+        )}
+
+        {!hasMembership && !rejected && (
+          <div className="mt-4 text-left">
+            {editingCode ? (
+              <form onSubmit={submitNewCode} className="flex gap-2">
+                <input
+                  autoFocus
+                  value={newCode}
+                  onChange={(event) => setNewCode(event.target.value.toUpperCase())}
+                  maxLength={6}
+                  placeholder="e.g. 8G2KQP"
+                  aria-label="Store join code"
+                  className="w-full rounded-2xl border border-zinc-700 bg-zinc-800 px-4 py-3 font-mono uppercase tracking-widest text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={checking}
+                  className="shrink-0 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  Join
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingCode(true)}
+                className="text-xs font-medium text-zinc-500 underline decoration-zinc-700 underline-offset-4 hover:text-zinc-300"
+              >
+                Entered the wrong code? Use a different one
+              </button>
+            )}
+          </div>
+        )}
 
         {!rejected && (
           <p className="mt-5 text-xs text-zinc-500">
@@ -111,6 +215,16 @@ export default function PendingApproval() {
             Sign out
           </button>
         </div>
+
+        {!hasMembership && !rejected && (
+          <button
+            type="button"
+            onClick={startOwnStore}
+            className="mt-4 text-xs text-zinc-600 underline decoration-zinc-800 underline-offset-4 hover:text-zinc-400"
+          >
+            Not joining a store? Set up your own business
+          </button>
+        )}
       </div>
     </div>
   );
