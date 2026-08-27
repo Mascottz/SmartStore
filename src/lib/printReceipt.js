@@ -18,6 +18,7 @@
 //     total: 6800,
 //     paymentMethod: 'Cash',
 //     cashier: 'marta@example.com',
+//     cashierRole: 'cashier', // optional — shown as 'marta@example.com (cashier)'
 //     status: 'completed', // or 'voided'
 //   });
 //   if (!ok) toast.error('Pop-up blocked...');
@@ -79,6 +80,7 @@ export function printReceipt(sale = {}, options = {}) {
     total = 0,
     paymentMethod = '',
     cashier = '',
+    cashierRole = '',
     status = 'completed',
   } = sale;
   const items = Array.isArray(suppliedItems) ? suppliedItems : [];
@@ -107,6 +109,13 @@ export function printReceipt(sale = {}, options = {}) {
     .join('');
 
   const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+
+  // 'Served by: email (role)' when the caller knows the cashier's role; older
+  // callers that only pass an email (or whose role lookup fails) still print
+  // the plain email address.
+  const servedBy = typeof cashierRole === 'string' && cashierRole.trim()
+    ? `${cashier} (${cashierRole.trim()})`
+    : cashier;
 
   const win = window.open('', '_blank', 'width=420,height=640');
   if (!win) return false;
@@ -237,7 +246,7 @@ export function printReceipt(sale = {}, options = {}) {
         <tr><th scope="row" class="k">Receipt:</th><td>${escapeHtml(receiptNo)}</td></tr>
         <tr><th scope="row" class="k">Date:</th><td>${escapeHtml(validDate.toLocaleString('en-NG'))}</td></tr>
         ${paymentMethod ? `<tr><th scope="row" class="k">Payment:</th><td>${escapeHtml(paymentMethod)}</td></tr>` : ''}
-        ${cashier ? `<tr><th scope="row" class="k">Served by:</th><td>${escapeHtml(cashier)}</td></tr>` : ''}
+        ${cashier ? `<tr><th scope="row" class="k">Served by:</th><td>${escapeHtml(servedBy)}</td></tr>` : ''}
       </tbody>
     </table>
     ${status === 'voided' ? '<p class="voided">** VOIDED **</p>' : ''}

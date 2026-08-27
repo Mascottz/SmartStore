@@ -18,7 +18,7 @@ import QuickAddProduct from '../components/QuickAddProduct';
 const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS/Card'];
 
 export default function POS() {
-  const { storeId, user, niche, store, storeName, firstSaleCompleted } = useAuth();
+  const { storeId, user, role, niche, store, storeName, firstSaleCompleted } = useAuth();
 
   const { data: products, loading } = useStoreData(
     () => (storeId ? api.products.list(storeId) : []),
@@ -279,6 +279,7 @@ export default function POS() {
       total,
       paymentMethod: method,
       cashier: user?.email || '',
+      cashierRole: role || '',
     });
     if (!printed) toast.error('Pop-up blocked. Please allow pop-ups for receipts.');
   };
