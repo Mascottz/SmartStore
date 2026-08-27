@@ -66,8 +66,24 @@ describe('printReceipt', () => {
     expect(script).toMatch(/window\.onafterprint\s*=\s*function\s*\(\)\s*\{\s*window\.close\(\);\s*\}/);
   });
 
-  it('keeps a fallback that closes the window even when afterprint never fires', () => {
+  it('keeps a 10-second fallback that closes the window when afterprint never fires', () => {
     printReceipt(sale);
-    expect(written).toMatch(/setTimeout\(function\s*\(\)\s*\{\s*window\.close\(\);\s*\},\s*60000\)/);
+    // print() blocks while the dialog is open, so a short fallback cannot
+    // close the popup out from under a user who is still choosing a printer —
+    // it only fires once the dialog has gone away and afterprint was missed.
+    expect(written).toMatch(/setTimeout\(function\s*\(\)\s*\{\s*window\.close\(\);\s*\},\s*10000\)/);
+  });
+
+  it('prints "Served by: email (role)" when the cashier role is known', () => {
+    printReceipt({ ...sale, cashierRole: 'cashier' });
+    expect(written).toContain('Served by:');
+    expect(written).toContain('ada@shop.com (cashier)');
+  });
+
+  it('falls back to the bare email when there is no role to show', () => {
+    printReceipt(sale);
+    expect(written).toContain('Served by:');
+    expect(written).toContain('>ada@shop.com</td>');
+    expect(written).not.toContain('ada@shop.com (');
   });
 });

@@ -285,8 +285,11 @@ export function printReceipt(sale = {}, options = {}) {
       // and the popup is left open, dimmed, behind the dialog.
       window.onafterprint = function () { window.close(); };
       window.print();
-      // Fallback for browsers that never fire "afterprint".
-      setTimeout(function () { window.close(); }, 60000);
+      // Fallback for browsers that never fire "afterprint" (cancelled print,
+      // or a browser where print() returns without blocking). Safe at 10s:
+      // window.print() blocks the main thread while the dialog is open, so
+      // this timer only starts counting once the dialog has been dismissed.
+      setTimeout(function () { window.close(); }, 10000);
     </script>
   </body>
 </html>`);
