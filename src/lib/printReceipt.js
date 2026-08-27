@@ -4,6 +4,11 @@
 // out at paper width, triggers the browser print dialog (choose the thermal
 // printer), and closes itself afterwards.
 //
+// The receipt is deliberately built from normal HTML elements rather than a
+// pre-formatted text block. This lets the browser wrap long product names,
+// align amounts in a real column, and render readable sans-serif type on a
+// thermal roll.
+//
 // Usage:
 //   const ok = printReceipt({
 //     storeName: "Marta's Mart",
@@ -30,42 +35,78 @@ const escapeHtml = (value) =>
     "'": '&#39;',
   }[ch]));
 
-export function printReceipt(sale, options = {}) {
+/**
+ * Use a larger type scale on the standard roll and step it down slightly for
+ * 58mm paper so the narrow layout remains readable without clipping.
+ */
+function typeScale(widthMm) {
+  const compact = widthMm < 70;
+  return {
+    body: compact ? 11 : 13,
+    store: compact ? 14 : 17,
+    branding: compact ? 9 : 11,
+    meta: compact ? 10 : 12,
+    columnHead: compact ? 9 : 10,
+    item: compact ? 11 : 13,
+    itemSub: compact ? 9 : 11,
+    total: compact ? 14 : 17,
+    summary: compact ? 10 : 12,
+    footer: compact ? 9 : 11,
+  };
+}
+
+export function printReceipt(sale = {}, options = {}) {
   const {
-    widthMm = DEFAULT_WIDTH_MM,
+    widthMm: requestedWidthMm = DEFAULT_WIDTH_MM,
     footer = 'Thank you for your patronage.',
     branding = 'Powered by SmartStore NG',
   } = options;
+
+  // Keep dimensions numeric before interpolating them into the print CSS. The
+  // public helper accepts a width option, but an invalid value should never
+  // produce malformed CSS or a negative content width.
+  const parsedWidthMm = Number(requestedWidthMm);
+  const widthMm = Number.isFinite(parsedWidthMm) && parsedWidthMm >= 40
+    ? parsedWidthMm
+    : DEFAULT_WIDTH_MM;
+  const contentWidthMm = Math.max(widthMm - 4, 1);
 
   const {
     storeName = 'SmartStore',
     receiptNo = '',
     createdAt = new Date(),
-    items = [],
+    items: suppliedItems = [],
     total = 0,
     paymentMethod = '',
     cashier = '',
     status = 'completed',
   } = sale;
+  const items = Array.isArray(suppliedItems) ? suppliedItems : [];
 
   const date = createdAt instanceof Date ? createdAt : new Date(createdAt);
   const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
-  const money = (n) =>
-    '\u20A6' + Number(n || 0).toLocaleString('en-NG', { maximumFractionDigits: 2 });
+  const money = (value) => {
+    const amount = Number(value) || 0;
+    return '\u20A6' + amount.toLocaleString('en-NG', { maximumFractionDigits: 2 });
+  };
+  const t = typeScale(widthMm);
 
   const rows = items
     .map((item) => {
-      const lineTotal = item.lineTotal ?? item.price * item.qty;
+      const qty = Number(item.qty) || 0;
+      const lineTotal = item.lineTotal ?? item.price * qty;
       return `
-        <tr>
+        <tr class="line">
           <td class="name">${escapeHtml(item.name)}</td>
           <td class="amt">${escapeHtml(money(lineTotal))}</td>
         </tr>
         <tr class="sub">
-          <td colspan="2">${escapeHtml(`${item.qty} x ${money(item.price)}`)}</td>
+          <td colspan="2">${escapeHtml(`${qty} x ${money(item.price)}`)}</td>
         </tr>`;
     })
     .join('');
+
+  const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
 
   const win = window.open('', '_blank', 'width=420,height=640');
   if (!win) return false;
@@ -74,43 +115,117 @@ export function printReceipt(sale, options = {}) {
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>${escapeHtml(receiptNo ? `${receiptNo} Receipt` : storeName)} </title>
+    <title>${escapeHtml(receiptNo ? `${receiptNo} Receipt` : storeName)}</title>
     <style>
       @page {
         size: ${widthMm}mm auto;
-        margin: 2mm;
+        margin: 3mm 2mm;
       }
       html, body {
-        width: ${widthMm - 4}mm;
+        width: ${contentWidthMm}mm;
         margin: 0 auto;
         padding: 0;
-        font-family: 'Courier New', 'Consolas', monospace;
-        font-size: 12px;
-        line-height: 1.45;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: ${t.body}px;
+        line-height: 1.6;
         color: #000;
         -webkit-print-color-adjust: exact;
       }
-      .store { text-align: center; font-size: 14px; font-weight: bold; text-transform: uppercase; }
-      .branding { text-align: center; font-size: 10px; }
-      .rule { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
-      .meta { font-size: 11px; }
-      .meta td { padding: 1px 0; vertical-align: top; }
-      .meta .k { white-space: nowrap; padding-right: 6px; }
+      p { margin: 0; }
+      table { border-spacing: 0; }
+      .store {
+        text-align: center;
+        font-size: ${t.store}px;
+        line-height: 1.25;
+        font-weight: bold;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+      }
+      .branding {
+        text-align: center;
+        font-size: ${t.branding}px;
+        letter-spacing: 0.02em;
+        margin-bottom: 2px;
+      }
+      .rule { border: 0; border-top: 1px dashed #000; margin: 9px 0; }
+      .meta { width: 100%; font-size: ${t.meta}px; }
+      .meta th,
+      .meta td { padding: 3px 0; vertical-align: top; }
+      .meta .k {
+        width: 1%;
+        white-space: nowrap;
+        padding-right: 8px;
+        text-align: left;
+        font-weight: bold;
+      }
+      .meta td { width: 99%; overflow-wrap: anywhere; }
       .voided {
         text-align: center;
         font-weight: bold;
-        font-size: 13px;
+        font-size: ${t.item + 2}px;
+        letter-spacing: 0.06em;
         border: 1px solid #000;
-        padding: 2px 0;
-        margin: 4px 0;
+        padding: 4px 0;
+        margin: 6px 0;
       }
-      table.items { width: 100%; border-collapse: collapse; }
-      table.items .name { padding-top: 3px; }
-      table.items .amt { text-align: right; padding-top: 3px; white-space: nowrap; }
-      table.items .sub td { font-size: 10px; color: #333; padding-bottom: 2px; }
-      .total td { font-size: 14px; font-weight: bold; padding-top: 2px; }
-      .total .amt { text-align: right; }
-      .footer { text-align: center; font-size: 10px; margin-top: 8px; }
+      table.items {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      table.items tr { page-break-inside: avoid; }
+      table.items .head th {
+        font-size: ${t.columnHead}px;
+        font-weight: bold;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding-bottom: 5px;
+        text-align: left;
+      }
+      table.items .head .amt { text-align: right; }
+      table.items .name {
+        width: 62%;
+        padding-top: 6px;
+        font-size: ${t.item}px;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      table.items .amt {
+        width: 38%;
+        text-align: right;
+        padding-top: 6px;
+        font-size: ${t.item}px;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      table.items .sub td {
+        font-size: ${t.itemSub}px;
+        line-height: 1.4;
+        color: #333;
+        padding-bottom: 6px;
+      }
+      .summary { width: 100%; font-size: ${t.summary}px; padding-top: 2px; }
+      .summary td { padding: 1px 0; }
+      .summary .amt { text-align: right; }
+      .total { width: 100%; }
+      .total td {
+        font-size: ${t.total}px;
+        font-weight: bold;
+        letter-spacing: 0.03em;
+        padding-top: 6px;
+      }
+      .total .amt {
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .footer {
+        text-align: center;
+        font-size: ${t.footer}px;
+        line-height: 1.5;
+        margin-top: 10px;
+      }
     </style>
   </head>
   <body>
@@ -118,19 +233,39 @@ export function printReceipt(sale, options = {}) {
     <p class="branding">${escapeHtml(branding)}</p>
     <hr class="rule" />
     <table class="meta">
-      <tr><td class="k">Receipt:</td><td>${escapeHtml(receiptNo)}</td></tr>
-      <tr><td class="k">Date:</td><td>${escapeHtml(validDate.toLocaleString('en-NG'))}</td></tr>
-      ${paymentMethod ? `<tr><td class="k">Payment:</td><td>${escapeHtml(paymentMethod)}</td></tr>` : ''}
-      ${cashier ? `<tr><td class="k">Served by:</td><td>${escapeHtml(cashier)}</td></tr>` : ''}
+      <tbody>
+        <tr><th scope="row" class="k">Receipt:</th><td>${escapeHtml(receiptNo)}</td></tr>
+        <tr><th scope="row" class="k">Date:</th><td>${escapeHtml(validDate.toLocaleString('en-NG'))}</td></tr>
+        ${paymentMethod ? `<tr><th scope="row" class="k">Payment:</th><td>${escapeHtml(paymentMethod)}</td></tr>` : ''}
+        ${cashier ? `<tr><th scope="row" class="k">Served by:</th><td>${escapeHtml(cashier)}</td></tr>` : ''}
+      </tbody>
     </table>
     ${status === 'voided' ? '<p class="voided">** VOIDED **</p>' : ''}
     <hr class="rule" />
     <table class="items">
-      ${rows}
+      <thead>
+        <tr class="head">
+          <th scope="col">Item</th>
+          <th scope="col" class="amt">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
     </table>
     <hr class="rule" />
-    <table class="total" style="width: 100%;">
-      <tr><td>TOTAL</td><td class="amt">${escapeHtml(money(total))}</td></tr>
+    <table class="total">
+      <tbody>
+        <tr><td>TOTAL</td><td class="amt">${escapeHtml(money(total))}</td></tr>
+      </tbody>
+    </table>
+    <table class="summary">
+      <tbody>
+        <tr>
+          <td>${escapeHtml(`${items.length} item${items.length === 1 ? '' : 's'} · ${totalQty} unit${totalQty === 1 ? '' : 's'}`)}</td>
+          <td class="amt">${escapeHtml(paymentMethod || '')}</td>
+        </tr>
+      </tbody>
     </table>
     <hr class="rule" />
     <p class="footer">${escapeHtml(footer)}</p>
