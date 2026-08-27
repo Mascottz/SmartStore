@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../lib/backend';
 import { supabase, isSupabaseConfigured } from '../lib/backend/supabase';
+import { describeUpgradeFailure } from '../lib/adminErrors';
 import { getAuditLog, logAudit, clearAuditLog } from '../lib/auditLog';
 import { fmtDate, fmtDateTime } from '../lib/format';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -313,25 +314,10 @@ export default function SuperAdmin() {
     if (!store) return;
     setBusyId(store.id);
     try {
-      if (isSupabaseConfigured && supabase) {
-        // Try the dedicated RPC first, fall back to direct table update.
-        const { error: rpcError } = await supabase.rpc('admin_upgrade_store_to_owner', {
-          p_store_id: store.id,
-        });
-        if (rpcError) {
-          if (rpcError.code === 'PGRST202' || /not found|does not exist/i.test(rpcError.message)) {
-            const { error } = await supabase
-              .from('stores')
-              .update({ plan: 'owner' })
-              .eq('id', store.id);
-            if (error) throw new Error(error.message);
-          } else {
-            throw new Error(rpcError.message);
-          }
-        }
-      } else {
-        await api.admin.upgradeStoreToOwner(store.id);
-      }
+      // One path for both backends. The adapter tries the super-admin RPC and
+      // falls back to a direct update that asks for the row back, so a write
+      // swallowed by RLS surfaces as an error instead of a false success.
+      await api.admin.upgradeStoreToOwner(store.id);
       toast.success(`${store.name} upgraded to Owner Mode`);
       recordAudit(
         'upgrade_to_owner',
@@ -341,7 +327,7 @@ export default function SuperAdmin() {
       setUpgradeTarget(null);
       await loadDashboard();
     } catch (e) {
-      toast.error(e.message || 'Could not upgrade store.');
+      toast.error(describeUpgradeFailure(e));
     } finally {
       setBusyId(null);
     }
