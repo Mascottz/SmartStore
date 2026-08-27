@@ -284,14 +284,31 @@ export const localAdapter = {
       const db = load();
       const store = db.stores.find((s) => s.joinCode === cleanCode);
       if (!store) throw new Error('No store found for that join code.');
-      if (db.members.some((m) => m.userId === userId && m.storeId === store.id)) {
-        const member = db.members.find((m) => m.userId === userId);
-        return {
-          store,
-          role: member.role,
-          approvalStatus: approvalStatus(member),
-        };
+
+      // One membership per account, mirroring the SQL schema's
+      // unique (user_id). An approved member is immovable: re-entering any
+      // code is a no-op that reports their real status. A pending or
+      // rejected request, however, follows the code that was typed last —
+      // otherwise a mistyped code would strand the request in a store whose
+      // owner never sees it (and whose approvals page stays empty).
+      const existing = db.members.find((m) => m.userId === userId);
+      if (existing) {
+        if (approvalStatus(existing) === 'approved') {
+          return {
+            store,
+            role: existing.role,
+            approvalStatus: approvalStatus(existing),
+          };
+        }
+        existing.storeId = store.id;
+        existing.email = sanitize(email);
+        existing.role = 'cashier';
+        existing.approvalStatus = isSuperAdminEmail(email) ? 'approved' : 'pending';
+        existing.createdAt = new Date().toISOString();
+        save(db);
+        return { store, role: 'cashier', approvalStatus: approvalStatus(existing) };
       }
+
       const memberApprovalStatus = isSuperAdminEmail(email) ? 'approved' : 'pending';
       db.members.push({
         id: uid(),
