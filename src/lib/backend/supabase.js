@@ -191,6 +191,20 @@ export const supabaseAdapter = {
         p_code: cleanCode,
       });
       ensure(error);
+      // The RPC only tells us the store that was joined. Read the membership
+      // row back so the reported role / approval status is the database's
+      // truth: an approved member re-entering a code keeps their approved
+      // status instead of being shown a phantom 'pending' one.
+      const { data: membership, error: membershipError } = await supabase.rpc(
+        'get_my_membership'
+      );
+      if (!membershipError && membership?.store) {
+        return {
+          store: mapStore(membership.store),
+          role: membership.role,
+          approvalStatus: membership.approval_status || 'approved',
+        };
+      }
       return {
         store: mapStore(data),
         role: 'cashier',
