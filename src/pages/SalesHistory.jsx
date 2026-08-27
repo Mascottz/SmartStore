@@ -19,6 +19,21 @@ export default function SalesHistory() {
     [storeId]
   );
 
+  // Sales only record the cashier's email, so reprints look up their current
+  // role from the team list. When the member (or role) can't be found the
+  // receipt simply falls back to the plain email address.
+  const { data: team } = useStoreData(
+    () => (storeId ? api.team.list(storeId) : []),
+    [storeId]
+  );
+  const roleByEmail = useMemo(() => {
+    const map = new Map();
+    for (const member of team) {
+      if (member?.email) map.set(member.email.toLowerCase(), member.role);
+    }
+    return map;
+  }, [team]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all'); // all | completed | voided
   const [expandedId, setExpandedId] = useState(null);
@@ -60,6 +75,7 @@ export default function SalesHistory() {
 
   // Thermal 80mm receipt reprint
   const printThermalReceipt = (sale) => {
+    const cashierEmail = sale.cashierEmail || '';
     const printed = printReceipt({
       storeName: storeName || 'SmartStore NG',
       receiptNo: sale.receiptNo,
@@ -67,7 +83,8 @@ export default function SalesHistory() {
       items: sale.items,
       total: sale.total,
       paymentMethod: sale.paymentMethod,
-      cashier: sale.cashierEmail || '',
+      cashier: cashierEmail,
+      cashierRole: roleByEmail.get(cashierEmail.toLowerCase()) || '',
       status: sale.status,
     });
     if (!printed) toast.error('Pop-up blocked. Please allow pop-ups for receipts.');
