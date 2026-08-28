@@ -9,6 +9,7 @@ import { fmtMoney, fmtDate } from '../lib/format';
 import { sanitize, isValidItemName } from '../lib/validate';
 import { downloadCsv } from '../lib/exportCsv';
 import ConfirmDialog from '../components/ConfirmDialog';
+import HelpTip from '../components/HelpTip';
 
 const EXPENSE_CATEGORIES = [
   'Rent',
@@ -107,9 +108,21 @@ export default function Expenses() {
     <div className="p-4 md:p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Expenses</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-bold">Expenses</h1>
+            <HelpTip
+              label="Help: Expenses"
+              iconClassName="w-7 h-7"
+              text="The shop's running costs — rent, fuel, salaries, restocking and the like. Recorded expenses feed the Net Profit figure on the Reports page, so log them as you go."
+            />
+          </div>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
             {expenses.length} recorded &middot; Total {fmtMoney(total)}
+            <HelpTip
+              className="ml-1"
+              label="Help: Expenses total"
+              text="The sum of every expense ever recorded, not just this month. Reports breaks the same costs down per period."
+            />
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -259,9 +272,15 @@ export default function Expenses() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1.5">
-                  Category
-                </label>
+                <div className="flex items-center gap-1 mb-1.5">
+                  <label className="block text-xs font-medium text-zinc-500">
+                    Category
+                  </label>
+                  <HelpTip
+                    label="Help: Expense category"
+                    text="Used to group spending in the expense analytics (which categories cost the most, month by month), so pick the closest fit."
+                  />
+                </div>
                 <select
                   className={inputCls}
                   value={form.category}

@@ -701,6 +701,8 @@ export default function POS() {
           store={store}
           niche={niche}
           categories={categories}
+          // So a generated code (blank SKU field) can't clash with the catalogue.
+          existingSkus={products.map((p) => p.sku)}
           onCreated={handleQuickAddCreated}
           onCancel={closeQuickAdd}
         />

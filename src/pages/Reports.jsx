@@ -18,6 +18,7 @@ import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { fmtMoney } from '../lib/format';
 import OwnerFeatureGate from '../components/OwnerFeatureGate';
+import HelpTip from '../components/HelpTip';
 
 const RANGES = [
   { value: 7, label: 'Last 7 days' },
@@ -130,42 +131,78 @@ export default function Reports() {
     <div className="p-4 md:p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Reports</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-bold">Reports</h1>
+            <HelpTip
+              label="Help: Reports"
+              iconClassName="w-7 h-7"
+              text="How the store is trading: revenue, cost of goods and profit for the period you pick, plus what sells best and how customers pay. Only completed sales are counted. Full reports are an Owner Mode feature."
+            />
+          </div>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
             Sales performance and profitability
           </p>
         </div>
-        <select
-          value={rangeDays}
-          onChange={(e) => setRangeDays(Number(e.target.value))}
-          className="px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm focus:outline-none"
-        >
-          {RANGES.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-1.5">
+          <select
+            value={rangeDays}
+            onChange={(e) => setRangeDays(Number(e.target.value))}
+            aria-label="Report period"
+            className="px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm focus:outline-none"
+          >
+            {RANGES.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+          <HelpTip
+            label="Help: Report period"
+            text="Every number and chart on this page is recalculated for the selected window — the last 7, 30 or 90 days counting back from today."
+          />
+        </div>
       </div>
 
       <OwnerFeatureGate label="Full reports are an Owner Mode feature">
         <div>
           {/* KPI cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Kpi label="Revenue" value={fmtMoney(revenue)} accent="text-emerald-500" />
-            <Kpi label="Cost of Goods" value={fmtMoney(costOfGoods)} accent="text-zinc-500" />
-            <Kpi label="Gross Profit" value={fmtMoney(grossProfit)} accent="text-sky-500" />
+            <Kpi
+              label="Revenue"
+              value={fmtMoney(revenue)}
+              accent="text-emerald-500"
+              help="Total of all completed sales in the period. Voided sales are excluded."
+            />
+            <Kpi
+              label="Cost of Goods"
+              value={fmtMoney(costOfGoods)}
+              accent="text-zinc-500"
+              help="What the sold items cost you to buy, at the cost price currently recorded for each product."
+            />
+            <Kpi
+              label="Gross Profit"
+              value={fmtMoney(grossProfit)}
+              accent="text-sky-500"
+              help="Revenue minus the cost of the goods that were sold — what the trading itself earned before running costs."
+            />
             <Kpi
               label="Net Profit (after expenses)"
               value={fmtMoney(netProfit)}
               accent={netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}
+              help="Gross profit minus the expenses recorded in the same period. Negative (red) means the store spent more than its trading earned."
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Daily revenue */}
             <div className="lg:col-span-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
-              <h3 className="font-semibold mb-4">Daily revenue</h3>
+              <h3 className="font-semibold mb-4 flex items-center gap-1.5">
+                Daily revenue
+                <HelpTip
+                  label="Help: Daily revenue"
+                  text="One bar per day in the selected period. Hover or tap a bar for that day's exact total."
+                />
+              </h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyData}>
@@ -193,7 +230,13 @@ export default function Reports() {
 
             {/* Payment methods */}
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
-              <h3 className="font-semibold mb-4">Payment methods</h3>
+              <h3 className="font-semibold mb-4 flex items-center gap-1.5">
+                Payment methods
+                <HelpTip
+                  label="Help: Payment methods"
+                  text="How customers paid in the period — cash, transfer or card — as a share of the money taken in."
+                />
+              </h3>
               {paymentData.length === 0 ? (
                 <p className="text-xs text-zinc-500">No sales in this period.</p>
               ) : (
@@ -231,7 +274,13 @@ export default function Reports() {
 
           {/* Top products */}
           <div className="mt-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
-            <h3 className="font-semibold mb-4">Top sellers</h3>
+            <h3 className="font-semibold mb-4 flex items-center gap-1.5">
+              Top sellers
+              <HelpTip
+                label="Help: Top sellers"
+                text="The eight items that brought in the most revenue from completed sales in the period, with how many units of each went out."
+              />
+            </h3>
             {topProducts.length === 0 ? (
               <p className="text-xs text-zinc-500">No sales in this period.</p>
             ) : (
@@ -265,11 +314,14 @@ export default function Reports() {
   );
 }
 
-function Kpi({ label, value, accent }) {
+function Kpi({ label, value, accent, help }) {
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
       <p className={`text-xl font-bold truncate ${accent}`}>{value}</p>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{label}</p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+        {label}
+        {help && <HelpTip className="ml-1" label={`Help: ${label}`} text={help} />}
+      </p>
     </div>
   );
 }

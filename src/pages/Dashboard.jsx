@@ -23,6 +23,7 @@ import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { fmtMoney, startOfToday, monthKey, monthLabelFromKey } from '../lib/format';
 import OwnerFeatureGate from '../components/OwnerFeatureGate';
+import HelpTip from '../components/HelpTip';
 
 const LOW_STOCK_THRESHOLD = 50;
 
@@ -90,12 +91,14 @@ export default function Dashboard() {
       value: todaySales.length,
       icon: Receipt,
       accent: 'text-emerald-500',
+      help: 'How many receipts were completed since midnight. Voided sales are not counted.',
     },
     {
       label: "Today's Revenue",
       value: fmtMoney(todayRevenue),
       icon: DollarSign,
       accent: 'text-emerald-500',
+      help: 'Money taken in today from completed sales, before costs and expenses are deducted.',
     },
     {
       label: 'Total Revenue',
@@ -103,6 +106,7 @@ export default function Dashboard() {
       icon: TrendingUp,
       accent: 'text-sky-500',
       gated: true,
+      help: 'Every completed sale since the store opened. Owner Mode plan card — on other plans it stays blurred with an upgrade prompt.',
     },
     {
       label: 'Total Expenses',
@@ -110,13 +114,21 @@ export default function Dashboard() {
       icon: ShoppingBag,
       accent: 'text-amber-500',
       gated: true,
+      help: 'Everything recorded on the Expenses page. Owner Mode plan card — on other plans it stays blurred with an upgrade prompt.',
     },
   ];
 
   return (
     <div className="p-4 md:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
+          <HelpTip
+            label="Help: Dashboard"
+            iconClassName="w-7 h-7"
+            text="A live snapshot of the store: today's sales and revenue, the six-month revenue trend, items running low and the most recent receipts. Cards marked with a lock need the Owner Mode plan."
+          />
+        </div>
         <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
           {storeName}, here&apos;s how your business is doing.
         </p>
@@ -160,6 +172,13 @@ export default function Dashboard() {
               <p className="text-xl md:text-2xl font-bold truncate">{stat.value}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                 {stat.label}
+                {stat.help && (
+                  <HelpTip
+                    className="ml-1"
+                    label={`Help: ${stat.label}`}
+                    text={stat.help}
+                  />
+                )}
               </p>
             </div>
           );
@@ -178,7 +197,13 @@ export default function Dashboard() {
         <div className="lg:col-span-2">
           <OwnerFeatureGate label="Monthly revenue chart">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
-              <h3 className="font-semibold mb-4">Revenue, last 6 months</h3>
+              <h3 className="font-semibold mb-4 flex items-center gap-1.5">
+                Revenue, last 6 months
+                <HelpTip
+                  label="Help: Revenue, last 6 months"
+                  text="Completed sales grouped by calendar month. Hover or tap a bar to see that month's exact revenue."
+                />
+              </h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyData}>
@@ -213,6 +238,10 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                 <h3 className="font-semibold text-sm">Low Stock ({lowStockItems.length})</h3>
+                <HelpTip
+                  label="Help: Low Stock"
+                  text={`Everything with fewer than ${LOW_STOCK_THRESHOLD} units on the shelf. Restock from the Inventory page before these run out — the badge shows how many units are left.`}
+                />
               </div>
               {lowStockItems.length === 0 ? (
                 <p className="text-xs text-zinc-500">All stock levels look healthy.</p>
@@ -238,7 +267,13 @@ export default function Dashboard() {
           )}
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
-            <h3 className="font-semibold text-sm mb-3">Recent Sales</h3>
+            <h3 className="font-semibold text-sm mb-3 flex items-center gap-1.5">
+              Recent Sales
+              <HelpTip
+                label="Help: Recent Sales"
+                text="The six most recent completed receipts. Open Sales History to search every receipt, reprint one or void a sale."
+              />
+            </h3>
             {completedSales.length === 0 ? (
               <p className="text-xs text-zinc-500">No sales yet today.</p>
             ) : (

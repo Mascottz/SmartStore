@@ -10,6 +10,7 @@ import { fmtMoney, fmtDateTime } from '../lib/format';
 import { printReceipt } from '../lib/printReceipt';
 import { sanitize } from '../lib/validate';
 import { downloadCsv } from '../lib/exportCsv';
+import HelpTip from '../components/HelpTip';
 
 export default function SalesHistory() {
   const { storeId, user, role, niche, storeName, store } = useAuth();
@@ -108,7 +109,14 @@ export default function SalesHistory() {
     <div className="p-4 md:p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Sales History</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-bold">Sales History</h1>
+            <HelpTip
+              label="Help: Sales History"
+              iconClassName="w-7 h-7"
+              text="Every receipt this store has ever issued. Tap a receipt to expand its line items, reprint the thermal receipt, or void the sale. Voided receipts stay listed — struck through — so the record is never lost."
+            />
+          </div>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
             {sales.length} transaction{sales.length !== 1 ? 's' : ''}
           </p>
@@ -136,16 +144,22 @@ export default function SalesHistory() {
             className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:border-emerald-500 text-sm"
           />
         </div>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          aria-label="Filter sales"
-          className="px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm focus:outline-none"
-        >
-          <option value="all">All sales</option>
-          <option value="completed">Completed</option>
-          <option value="voided">Voided</option>
-        </select>
+        <div className="flex items-center gap-1.5">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            aria-label="Filter sales"
+            className="px-4 py-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm focus:outline-none"
+          >
+            <option value="all">All sales</option>
+            <option value="completed">Completed</option>
+            <option value="voided">Voided</option>
+          </select>
+          <HelpTip
+            label="Help: Sales status filter"
+            text='Completed sales count towards revenue; "Voided" ones were cancelled and put their stock back on the shelf. Voiding needs manager or above, always asks for a reason, and is recorded in the void audit trail.'
+          />
+        </div>
       </div>
 
       <div className="space-y-3">
