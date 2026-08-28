@@ -1,6 +1,17 @@
 // src/pages/Inventory.jsx
 import { useMemo, useState } from 'react';
-import { Plus, Search, Pencil, Trash2, X, AlertTriangle, Download } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  X,
+  AlertTriangle,
+  Download,
+  Wallet,
+  Tag,
+  TrendingUp,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
@@ -12,6 +23,10 @@ import { downloadCsv } from '../lib/exportCsv';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const LOW_STOCK_THRESHOLD = 50;
+
+// Money with the sign out front — "-₦300" reads better on the profit tile
+// than the "₦-300" fmtMoney would build for a negative number.
+const fmtSignedMoney = (n) => (n < 0 ? `-${fmtMoney(Math.abs(n))}` : fmtMoney(n));
 
 const emptyForm = {
   name: '',
@@ -60,14 +75,24 @@ export default function Inventory() {
     });
   }, [products, debouncedSearch, sortBy]);
 
-  const inventoryValue = useMemo(
-    () =>
-      products.reduce(
-        (sum, p) => sum + (Number(p.costPrice) || 0) * (Number(p.stock) || 0),
-        0
-      ),
-    [products]
-  );
+  // What the shelves are worth right now. Always the whole catalogue — the
+  // search box filters the table, not the money summary.
+  const valuation = useMemo(() => {
+    let costValue = 0;
+    let retailValue = 0;
+    let units = 0;
+    products.forEach((p) => {
+      const qty = Math.max(0, Number(p.stock) || 0);
+      costValue += (Number(p.costPrice) || 0) * qty;
+      retailValue += (Number(p.salePrice) || 0) * qty;
+      units += qty;
+    });
+    const profit = retailValue - costValue;
+    // Gross margin: profit as a percentage of what the stock sells for (not of
+    // what it cost) — the number a shop owner reads as "% margin".
+    const marginPct = retailValue > 0 ? (profit / retailValue) * 100 : 0;
+    return { costValue, retailValue, profit, marginPct, units };
+  }, [products]);
 
   const lowStockCount = useMemo(
     () => products.filter((p) => (p.stock || 0) < LOW_STOCK_THRESHOLD).length,
@@ -180,7 +205,9 @@ export default function Inventory() {
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
             {products.length} {niche.itemNounPlural.toLowerCase()}
-            {niche.trackStock && <> &middot; Stock value {fmtMoney(inventoryValue)}</>}
+            {niche.trackStock && (
+              <> &middot; {valuation.units.toLocaleString('en-NG')} units in stock</>
+            )}
             {niche.trackStock && lowStockCount > 0 && (
               <span className="text-amber-500"> &middot; {lowStockCount} low stock</span>
             )}
@@ -204,6 +231,40 @@ export default function Inventory() {
           </button>
         </div>
       </div>
+
+      {/* What the stock on the shelves is worth: what it cost, what it will
+          bring in, and the profit in between. Always the whole catalogue —
+          the search box filters the table, not the money. */}
+      {niche.trackStock && products.length > 0 && (
+        <section
+          aria-label="Inventory worth summary"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"
+        >
+          <ValueCard
+            icon={Wallet}
+            accent="text-sky-500"
+            label="Stock at cost"
+            value={fmtMoney(valuation.costValue)}
+            hint={`${valuation.units.toLocaleString('en-NG')} units on hand`}
+          />
+          <ValueCard
+            icon={Tag}
+            accent="text-emerald-500"
+            label="Retail value"
+            value={fmtMoney(valuation.retailValue)}
+            hint="If every unit sells at list price"
+          />
+          <ValueCard
+            icon={TrendingUp}
+            accent={valuation.profit >= 0 ? 'text-emerald-500' : 'text-red-500'}
+            label="Potential profit"
+            value={fmtSignedMoney(valuation.profit)}
+            hint={valuation.profit >= 0 ? 'Retail value minus cost' : 'Stock is priced below cost'}
+            badge={`${valuation.marginPct.toFixed(1)}% margin`}
+            badgeTone={valuation.profit >= 0 ? 'positive' : 'negative'}
+          />
+        </section>
+      )}
 
       {/* Search & sort */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -472,6 +533,42 @@ export default function Inventory() {
 
 const inputCls =
   'w-full px-4 py-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-emerald-500 text-sm';
+
+/**
+ * Summary tile for the inventory worth cards. `badge` is the small pill on the
+ * right of the value line (used for the margin percentage).
+ */
+function ValueCard({
+  icon: Icon,
+  accent = 'text-emerald-500',
+  label,
+  value,
+  hint,
+  badge,
+  badgeTone = 'positive',
+}) {
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <Icon className={`w-5 h-5 ${accent}`} />
+        {badge && (
+          <span
+            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+              badgeTone === 'positive'
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                : 'bg-red-500/10 text-red-600 dark:text-red-400'
+            }`}
+          >
+            {badge}
+          </span>
+        )}
+      </div>
+      <p className="text-xl md:text-2xl font-bold truncate">{value}</p>
+      <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300 mt-1">{label}</p>
+      {hint && <p className="text-[11px] text-zinc-500 mt-0.5">{hint}</p>}
+    </div>
+  );
+}
 
 function Field({ label, children }) {
   return (

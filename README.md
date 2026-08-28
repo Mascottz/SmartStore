@@ -12,8 +12,11 @@ backend is configured.
 ## Features
 
 - 🏪 **Multi-niche onboarding** — Supermarket, Boutique, Pharmacy, Restaurant, Salon/Services, Other
-- 🛒 **POS Register** — product grid, cart, camera barcode scanning, payment methods, receipt printing
-- 📦 **Inventory** — SKU, categories, cost/sale price, stock levels, low-stock alerts, expiry dates (pharmacy)
+- 🛒 **POS Register** — product grid with category filter tabs and paged results, cart,
+  camera barcode scanning, payment methods, receipt printing
+- 📦 **Inventory** — SKU, categories, cost/sale price, stock levels, low-stock alerts, expiry
+  dates (pharmacy), plus the worth of what is on the shelves: stock at cost, retail value
+  and potential profit with margin %
 - 📊 **Dashboard & Reports** — daily/monthly revenue, gross & net profit, top sellers, payment breakdown
 - 🧾 **Sales History** — searchable receipts, reprint, void with reason (restocks automatically)
 - 🚨 **Void audit trail** — who voided what, when and why
@@ -46,6 +49,9 @@ With no env vars set, the app runs entirely on localStorage — click
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run the SQL files in `supabase/migrations/` in numeric order in the SQL editor
+   (the `004`+ fixes are written to be idempotent — `drop policy if exists` /
+   `create or replace` — so they can be re-run on a database that only
+   half-applied an earlier migration)
 3. Create a `.env` file:
 
 ```env
