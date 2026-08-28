@@ -16,12 +16,15 @@ backend is configured.
   help tooltips, cart, camera barcode scanning, payment methods, receipt printing
 - 📦 **Inventory** — SKU, categories, cost/sale price, stock levels, low-stock alerts, expiry
   dates (pharmacy), plus the worth of what is on the shelves: stock at cost, retail value
-  and potential profit with margin %, each explained with help tooltips
+  and potential profit with margin %, each explained with help tooltips. A blank SKU is
+  auto-generated from the product name — "Peak Milk 400g" becomes `PEA-MIL-400G-A7F3`
 - 📊 **Dashboard & Reports** — daily/monthly revenue, gross & net profit, top sellers, payment breakdown
 - 🧾 **Sales History** — searchable receipts, reprint, void with reason (restocks automatically)
 - 🚨 **Void audit trail** — who voided what, when and why
 - 💸 **Expenses + expense analytics** — category & monthly breakdowns
 - 👥 **Team** — staff join with a store code; roles: owner / admin / manager / cashier
+- ❓ **Contextual help tooltips** — the "?" icons across Dashboard, POS, Inventory,
+  Sales History, Reports, Expenses and Team explain each number and control in place
 - ✅ **Access approvals** — new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
 - 🛡️ **System admin dashboard** — platform metrics, stores, users and global approval controls
 - 👑 **Owner Mode plan gating**, 🌙 light/dark theme
@@ -36,8 +39,10 @@ npm run dev
 Checks:
 
 ```bash
-npm test    # vitest + jsdom: staff join-on-login flow, join-code storage,
-            # receipt popup close/timeout, onboarding duplicate-store screen
+npm test    # vitest + jsdom: POS category/pagination behaviour, inventory worth
+            # summary + auto-SKU, help tooltips, staff join-on-login flow,
+            # join-code storage, receipt popup close/timeout, onboarding
+            # duplicate-store screen
 npm run lint
 npm run build
 ```

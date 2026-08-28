@@ -24,6 +24,7 @@ import { PackagePlus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../lib/backend';
 import { sanitize, isValidItemName } from '../lib/validate';
+import { generateSku } from '../lib/sku';
 
 const inputCls =
   'w-full px-4 py-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-emerald-500 text-sm';
@@ -34,6 +35,7 @@ export default function QuickAddProduct({
   store,
   niche,
   categories = [],
+  existingSkus = [],
   onCreated,
   onCancel,
 }) {
@@ -88,7 +90,9 @@ export default function QuickAddProduct({
     try {
       const product = await api.products.create(storeId, {
         name: cleanName,
-        sku: sanitize(form.sku),
+        // The scanned barcode normally pre-fills this; if the cashier cleared
+        // it, fall back to a code generated from the name like Inventory does.
+        sku: sanitize(form.sku) || generateSku(cleanName, existingSkus),
         category: sanitize(form.category) || 'General',
         costPrice,
         salePrice,

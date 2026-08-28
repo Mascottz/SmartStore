@@ -19,6 +19,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { api } from '../lib/backend';
 import { fmtMoney, fmtDate } from '../lib/format';
 import { sanitize, isValidItemName } from '../lib/validate';
+import { generateSku } from '../lib/sku';
 import { downloadCsv } from '../lib/exportCsv';
 import ConfirmDialog from '../components/ConfirmDialog';
 import HelpTip from '../components/HelpTip';
@@ -137,9 +138,16 @@ export default function Inventory() {
 
     setSaving(true);
     try {
+      // Blank SKU → a readable code built from the product's own name
+      // (e.g. "Peak Milk 400g" → "PEA-MIL-400G-A7F3"), avoiding any code
+      // another product in this store already uses.
+      const manualSku = sanitize(form.sku);
+      const autoSku = !manualSku;
+      const sku = manualSku || generateSku(cleanName, products.map((p) => p.sku));
+
       const payload = {
         name: cleanName,
-        sku: sanitize(form.sku),
+        sku,
         category: sanitize(form.category) || 'General',
         costPrice,
         salePrice,
@@ -148,7 +156,9 @@ export default function Inventory() {
       };
       if (editingId) {
         await api.products.update(editingId, payload);
-        toast.success(`${niche.itemNoun} updated`);
+        toast.success(
+          autoSku ? `${niche.itemNoun} updated — SKU ${sku}` : `${niche.itemNoun} updated`
+        );
       } else {
         await api.products.create(storeId, payload);
         if (!store?.onboarding?.firstProductAdded) {
@@ -156,7 +166,9 @@ export default function Inventory() {
             onboarding: { firstProductAdded: true },
           });
         }
-        toast.success(`${niche.itemNoun} added`);
+        toast.success(
+          autoSku ? `${niche.itemNoun} added — SKU ${sku}` : `${niche.itemNoun} added`
+        );
       }
       setShowModal(false);
     } catch (e) {
@@ -430,17 +442,26 @@ export default function Inventory() {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="e.g. Peak Milk 400g"
                   maxLength={200}
+                  aria-label={`${niche.itemNoun} name`}
                   autoFocus
                 />
               </Field>
 
               <div className="grid grid-cols-2 gap-3">
-                <Field label={niche.hasBarcode ? 'SKU / Barcode' : 'Code (optional)'}>
+                <Field
+                  label={niche.hasBarcode ? 'SKU / Barcode' : 'Code (optional)'}
+                  help={
+                    niche.hasBarcode
+                      ? 'Scan or type the printed barcode if the item has one. Leave it blank and SmartStore generates a readable code from the name, like PEA-MIL-400G-A7F3 — it can be searched at the POS straight away.'
+                      : 'Leave it blank and SmartStore generates a readable code from the name, like PEA-MIL-400G-A7F3. Type your own only if you already use codes elsewhere.'
+                  }
+                >
                   <input
                     className={inputCls}
                     value={form.sku}
                     onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                    placeholder="e.g. PK-400"
+                    placeholder="Auto-generated from the name"
+                    aria-label="SKU / Barcode"
                     maxLength={50}
                   />
                 </Field>
@@ -469,6 +490,7 @@ export default function Inventory() {
                     value={form.costPrice}
                     onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
                     placeholder="0"
+                    aria-label="Cost price"
                     min="0"
                   />
                 </Field>
@@ -479,6 +501,7 @@ export default function Inventory() {
                     value={form.salePrice}
                     onChange={(e) => setForm({ ...form, salePrice: e.target.value })}
                     placeholder="0"
+                    aria-label="Selling price"
                     min="0"
                   />
                 </Field>
@@ -493,6 +516,7 @@ export default function Inventory() {
                       value={form.stock}
                       onChange={(e) => setForm({ ...form, stock: e.target.value })}
                       placeholder="0"
+                      aria-label="Stock quantity"
                       min="0"
                     />
                   </Field>
@@ -504,6 +528,7 @@ export default function Inventory() {
                       className={inputCls}
                       value={form.expiryDate}
                       onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
+                      aria-label="Expiry date"
                     />
                   </Field>
                 )}
@@ -584,12 +609,15 @@ function ValueCard({
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, help, children }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
-        {label}
-      </label>
+      <div className="flex items-center gap-1 mb-1.5">
+        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          {label}
+        </label>
+        {help && <HelpTip label={`Help: ${label}`} text={help} />}
+      </div>
       {children}
     </div>
   );

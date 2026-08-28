@@ -7,6 +7,7 @@ import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { fmtDate } from '../lib/format';
 import ConfirmDialog from '../components/ConfirmDialog';
+import HelpTip from '../components/HelpTip';
 
 const ROLES = ['cashier', 'manager', 'admin'];
 
@@ -68,7 +69,14 @@ export default function Team() {
   return (
     <div className="p-4 md:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold">Team</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold">Team</h1>
+          <HelpTip
+            label="Help: Team"
+            iconClassName="w-7 h-7"
+            text="Everyone with access to this store. Staff create their own account, sign in with your join code and wait for your approval before they can start selling."
+          />
+        </div>
         <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
           {members.length} member{members.length !== 1 ? 's' : ''} in your store
         </p>
@@ -79,6 +87,10 @@ export default function Team() {
         <div className="flex-1">
           <h3 className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
             <Users className="w-4 h-4" /> Invite staff with your join code
+            <HelpTip
+              label="Help: Join code"
+              text="Share this six-character code with staff you trust — anyone holding it can request access to your store. Tap the code to copy it. Each new member starts as a cashier and needs your approval before their first shift."
+            />
           </h3>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
             Staff sign up with &quot;I&apos;m joining a store&quot; and enter this code. They
@@ -102,7 +114,15 @@ export default function Team() {
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800 text-left text-xs text-zinc-500 uppercase">
                 <th className="px-5 py-3">Member</th>
-                <th className="px-5 py-3">Role</th>
+                <th className="px-5 py-3">
+                  <span className="inline-flex items-center gap-1">
+                    Role
+                    <HelpTip
+                      label="Help: Roles"
+                      text="Cashiers ring up sales at the POS. Managers also run inventory, expenses and voids. Admins manage the whole store, and the owner (only one per store) controls the plan, the team and billing."
+                    />
+                  </span>
+                </th>
                 <th className="px-5 py-3">Joined</th>
                 {isOwner && <th className="px-5 py-3 text-right">Actions</th>}
               </tr>
