@@ -20,3 +20,13 @@
   }
 }
 
+/* Hide the scrollbar on horizontal strip rows (POS category pills) while
+   keeping them scrollable/draggable. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+

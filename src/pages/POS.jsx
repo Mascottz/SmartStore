@@ -1,6 +1,6 @@
 // src/pages/POS.jsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Trash2, Printer, Camera, Minus, Plus, Search, Keyboard } from 'lucide-react';
+import { Trash2, Printer, Camera, Minus, Plus, Search, Keyboard, ChevronDown } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +17,18 @@ import QuickAddProduct from '../components/QuickAddProduct';
 
 const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS/Card'];
 
+// How many tiles the grid renders per batch. 48 fills the 4-column grid
+// (xl:grid-cols-4) six times over, so "Show more" always adds whole rows.
+const PAGE_SIZE = 48;
+// Sentinel value for the category filter — "everything", not a real category.
+const ALL_CATEGORIES = 'All';
+
+/**
+ * Category a product belongs to, normalised the same way the inventory form
+ * writes it ("General" for anything blank) so tiles and tabs always agree.
+ */
+const categoryOf = (p) => (p?.category || '').trim() || 'General';
+
 export default function POS() {
   const { storeId, user, role, niche, store, storeName, firstSaleCompleted } = useAuth();
 
@@ -31,6 +43,10 @@ export default function POS() {
 
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  // Category tab + paged grid. visibleCount grows in PAGE_SIZE batches when
+  // "Show more" is pressed and resets whenever the filters change.
+  const [category, setCategory] = useState(ALL_CATEGORIES);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isScanning, setIsScanning] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -55,16 +71,77 @@ export default function POS() {
 
   const debouncedSearch = useDebounce(searchTerm, 200);
 
+  // Pills come from the products themselves (not the store's category list) so
+  // a tab is never there for a category nobody sells yet. Counts ride along
+  // so the cashier can see how big a shelf is before tapping it.
+  const productCategories = useMemo(() => {
+    const counts = new Map();
+    products.forEach((p) => {
+      const name = categoryOf(p);
+      counts.set(name, (counts.get(name) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count }));
+  }, [products]);
+
+  // The selected category can disappear when the last product in it is renamed
+  // or deleted — fall back to "All" instead of an empty grid.
+  useEffect(() => {
+    if (
+      category !== ALL_CATEGORIES &&
+      products.length > 0 &&
+      !productCategories.some((c) => c.name === category)
+    ) {
+      setCategory(ALL_CATEGORIES);
+    }
+  }, [category, productCategories, products.length]);
+
   const filteredProducts = useMemo(() => {
-    const term = debouncedSearch.toLowerCase();
-    if (!term) return products;
-    return products.filter(
-      (p) =>
+    const term = debouncedSearch.trim().toLowerCase();
+    return products.filter((p) => {
+      if (category !== ALL_CATEGORIES && categoryOf(p) !== category) return false;
+      if (!term) return true;
+      return (
         p.name.toLowerCase().includes(term) ||
         (p.sku || '').toLowerCase().includes(term) ||
         (p.category || '').toLowerCase().includes(term)
-    );
-  }, [products, debouncedSearch]);
+      );
+    });
+  }, [products, debouncedSearch, category]);
+
+  // Pagination: the grid renders the first `visibleCount` matches and offers
+  // the rest behind "Show more", so a 900-SKU store still opens instantly.
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, visibleCount),
+    [filteredProducts, visibleCount]
+  );
+  const remainingCount = Math.max(0, filteredProducts.length - visibleCount);
+  const isFiltered = Boolean(debouncedSearch.trim()) || category !== ALL_CATEGORIES;
+
+  // "Nothing matches" has to say what it matched against, otherwise a cashier
+  // blames the search box for a category tab they forgot they picked.
+  const emptyMessage = useMemo(() => {
+    const noun = niche.itemNounPlural.toLowerCase();
+    if (!isFiltered) return `No ${noun} yet. Add some from Inventory.`;
+    const bits = [`No ${noun} found`];
+    if (debouncedSearch.trim()) bits.push(`for "${debouncedSearch.trim()}"`);
+    if (category !== ALL_CATEGORIES) bits.push(`in ${category}`);
+    return `${bits.join(' ')}.`;
+  }, [niche.itemNounPlural, isFiltered, debouncedSearch, category]);
+
+  // Any change to the filters restarts the batch so the cashier is never
+  // looking at "144 of 200" for a search that only matches six items.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [debouncedSearch, category]);
+
+  const selectCategory = useCallback((name) => setCategory(name), []);
+
+  const clearFilters = useCallback(() => {
+    setSearchTerm('');
+    setCategory(ALL_CATEGORIES);
+  }, []);
 
   const addToCart = useCallback(
     (product) => {
@@ -173,6 +250,7 @@ export default function POS() {
         if (isScanning) setIsScanning(false);
         else if (showShortcuts) setShowShortcuts(false);
         else if (showVoidConfirm) setShowVoidConfirm(false);
+        else if (isFiltered) clearFilters();
         else setSearchTerm('');
       },
       F2: () => searchRef.current?.focus(),
@@ -183,7 +261,7 @@ export default function POS() {
         if (lastSale) printLastReceiptRef.current();
       },
     };
-  }, [quickAddBarcode, isScanning, showShortcuts, showVoidConfirm, cart.length, isCompleting, lastSale]);
+  }, [quickAddBarcode, isScanning, showShortcuts, showVoidConfirm, cart.length, isCompleting, lastSale, isFiltered, clearFilters]);
   useKeyboard(shortcuts);
 
   const updateQuantity = (id, newQty) => {
@@ -330,7 +408,7 @@ export default function POS() {
               <span><kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">F2</kbd> Focus search</span>
               <span><kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">Ctrl+Enter</kbd> Complete sale</span>
               <span><kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">Ctrl+P</kbd> Print receipt</span>
-              <span><kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">Esc</kbd> Clear search / close</span>
+              <span><kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs font-mono">Esc</kbd> Clear search &amp; filters / close</span>
             </div>
           </div>
         )}
@@ -360,6 +438,62 @@ export default function POS() {
           )}
         </div>
 
+        {/* Category filters: one pill per category the store actually sells,
+            scrollable sideways so long niche lists never wrap the header. */}
+        {productCategories.length > 0 && (
+          <div
+            className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0"
+            role="group"
+            aria-label={`Filter ${niche.itemNounPlural.toLowerCase()} by category`}
+          >
+            <CategoryPill
+              label="All"
+              count={products.length}
+              active={category === ALL_CATEGORIES}
+              onClick={() => selectCategory(ALL_CATEGORIES)}
+            />
+            {productCategories.map((c) => (
+              <CategoryPill
+                key={c.name}
+                label={c.name}
+                count={c.count}
+                active={category === c.name}
+                // Tapping the selected pill again clears the filter.
+                onClick={() =>
+                  selectCategory(category === c.name ? ALL_CATEGORIES : c.name)
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Result count: matches / total, plus how much is behind "Show more". */}
+        {products.length > 0 && !loading && (
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p
+              className="text-xs text-zinc-500 dark:text-zinc-400"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+                {filteredProducts.length} / {products.length}
+              </span>{' '}
+              {niche.itemNounPlural.toLowerCase()}
+              {category !== ALL_CATEGORIES && ` in ${category}`}
+              {visibleProducts.length < filteredProducts.length &&
+                ` · ${visibleProducts.length} shown`}
+            </p>
+            {isFiltered && (
+              <button
+                onClick={clearFilters}
+                className="shrink-0 text-xs text-emerald-500 hover:underline"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -371,7 +505,7 @@ export default function POS() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-            {filteredProducts.map((p) => {
+            {visibleProducts.map((p) => {
               const outOfStock = niche.trackStock && (p.stock || 0) <= 0;
               return (
                 <button
@@ -397,11 +531,25 @@ export default function POS() {
             })}
             {filteredProducts.length === 0 && (
               <p className="col-span-full text-sm text-zinc-500 py-10 text-center">
-                {debouncedSearch
-                  ? `No ${niche.itemNounPlural.toLowerCase()} found for "${debouncedSearch}".`
-                  : `No ${niche.itemNounPlural.toLowerCase()} yet. Add some from Inventory.`}
+                {emptyMessage}
               </p>
             )}
+          </div>
+        )}
+
+        {/* Next batch of the paged grid */}
+        {remainingCount > 0 && !loading && (
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-sm font-semibold hover:border-emerald-500 hover:text-emerald-500 transition-all"
+            >
+              Show more
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            <span className="text-xs text-zinc-500">
+              {remainingCount} more {niche.itemNounPlural.toLowerCase()}
+            </span>
           </div>
         )}
       </div>
@@ -538,5 +686,35 @@ export default function POS() {
         onCancel={() => setShowVoidConfirm(false)}
       />
     </div>
+  );
+}
+
+/**
+ * One scrollable category pill in the POS filter row. The count lives in its
+ * own span so the label never stretches the pill when a category name is long.
+ */
+function CategoryPill({ label, count, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+        active
+          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+          : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-emerald-500 hover:text-zinc-900 dark:hover:text-white'
+      }`}
+    >
+      <span className="whitespace-nowrap">{label}</span>
+      <span
+        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+          active
+            ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
+        }`}
+      >
+        {count}
+      </span>
+    </button>
   );
 }
