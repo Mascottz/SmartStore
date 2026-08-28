@@ -6,7 +6,7 @@
 // pin all three cards, and the fact that the summary describes the whole
 // catalogue rather than whatever the search box happens to be filtering.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import Inventory from './Inventory';
@@ -127,5 +127,19 @@ describe('Inventory — worth summary', () => {
 
     expect(await screen.findByText(/No products yet/)).toBeTruthy();
     expect(screen.queryByRole('region', { name: /inventory worth/i })).toBeNull();
+  });
+
+  it('offers help on each worth card', async () => {
+    render(<Inventory />);
+    await screen.findByRole('region', { name: /inventory worth/i });
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Help: Stock at cost' }));
+    expect(screen.getByRole('tooltip').textContent).toContain('whole catalogue');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Help: Potential profit' }));
+    expect(screen.getByRole('tooltip').textContent).toContain('margin');
   });
 });

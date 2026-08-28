@@ -12,11 +12,11 @@ backend is configured.
 ## Features
 
 - 🏪 **Multi-niche onboarding** — Supermarket, Boutique, Pharmacy, Restaurant, Salon/Services, Other
-- 🛒 **POS Register** — product grid with category filter tabs and paged results, cart,
-  camera barcode scanning, payment methods, receipt printing
+- 🛒 **POS Register** — product grid with category filter tabs and paged results, inline
+  help tooltips, cart, camera barcode scanning, payment methods, receipt printing
 - 📦 **Inventory** — SKU, categories, cost/sale price, stock levels, low-stock alerts, expiry
   dates (pharmacy), plus the worth of what is on the shelves: stock at cost, retail value
-  and potential profit with margin %
+  and potential profit with margin %, each explained with help tooltips
 - 📊 **Dashboard & Reports** — daily/monthly revenue, gross & net profit, top sellers, payment breakdown
 - 🧾 **Sales History** — searchable receipts, reprint, void with reason (restocks automatically)
 - 🚨 **Void audit trail** — who voided what, when and why

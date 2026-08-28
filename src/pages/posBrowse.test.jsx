@@ -6,7 +6,7 @@
 // 48 tiles with "Show more" for the rest, and a filtered/total counter that
 // follows whichever filters are active.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import POS from './POS';
@@ -184,5 +184,59 @@ describe('POS — pagination', () => {
     expect(
       screen.getByText(/No products yet\. Add some from Inventory\./)
     ).toBeTruthy();
+  });
+});
+
+describe('POS — help tooltips', () => {
+  beforeEach(() => {
+    state.products = [
+      product('Peak Milk 400g', 'Beverages'),
+      product('Eva Water 75cl', 'Beverages'),
+      product('Dettol Soap 110g', 'Toiletries'),
+    ];
+    state.categories = [];
+  });
+
+  it('explains the category pills on focus', async () => {
+    renderPos();
+    await screen.findByText('Peak Milk 400g');
+
+    fireEvent.focus(screen.getByRole('button', { name: /help: products category filters/i }));
+
+    const tip = screen.getByRole('tooltip');
+    expect(tip.textContent).toContain('category pill per shelf');
+    expect(tip.textContent).toContain('category');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('explains the result count without changing its live text', async () => {
+    renderPos();
+    await screen.findByText('Peak Milk 400g');
+
+    expect(screen.getByRole('status').textContent).toBe('3 / 3 products');
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Help: Result count' }));
+
+    expect(screen.getByRole('tooltip').textContent).toContain('first number');
+    expect(screen.getByRole('status').textContent).toBe('3 / 3 products');
+  });
+
+  it('explains the paged grid next to Show more', async () => {
+    state.products = Array.from({ length: 60 }, (_, i) =>
+      product(`Item ${String(i + 1).padStart(2, '0')}`, i % 2 ? 'Beverages' : 'Snacks')
+    );
+    renderPos();
+    await screen.findByText('Item 48');
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Help: Load next batch' }));
+
+    expect(screen.getByRole('tooltip').textContent).toContain('48 items');
+
+    // Once there is nothing left behind the button, the tip goes with it.
+    await userEvent.click(screen.getByRole('button', { name: /show more/i }));
+    await screen.findByText('Item 60');
+    expect(screen.queryByRole('button', { name: 'Help: Load next batch' })).toBeNull();
   });
 });

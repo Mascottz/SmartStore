@@ -13,6 +13,7 @@ import { fmtMoney } from '../lib/format';
 import { printReceipt } from '../lib/printReceipt';
 import { sanitize } from '../lib/validate';
 import ConfirmDialog from '../components/ConfirmDialog';
+import HelpTip from '../components/HelpTip';
 import QuickAddProduct from '../components/QuickAddProduct';
 
 const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS/Card'];
@@ -373,7 +374,14 @@ export default function POS() {
       {/* Product grid */}
       <div className="flex-1">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-          <h1 className="text-2xl font-bold flex-1">POS Register</h1>
+          <div className="flex-1 flex items-center gap-2">
+            <h1 className="text-2xl font-bold">POS Register</h1>
+            <HelpTip
+              label="Help: POS Register"
+              iconClassName="w-8 h-8"
+              text="Tap any item to add it to the current sale. Search by name, SKU or category, scan a barcode, or use the category pills below to narrow the shelf you are selling from."
+            />
+          </div>
           <div className="flex items-center gap-2">
             {niche.hasBarcode && (
               <button
@@ -441,48 +449,65 @@ export default function POS() {
         {/* Category filters: one pill per category the store actually sells,
             scrollable sideways so long niche lists never wrap the header. */}
         {productCategories.length > 0 && (
-          <div
-            className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0"
-            role="group"
-            aria-label={`Filter ${niche.itemNounPlural.toLowerCase()} by category`}
-          >
-            <CategoryPill
-              label="All"
-              count={products.length}
-              active={category === ALL_CATEGORIES}
-              onClick={() => selectCategory(ALL_CATEGORIES)}
-            />
-            {productCategories.map((c) => (
-              <CategoryPill
-                key={c.name}
-                label={c.name}
-                count={c.count}
-                active={category === c.name}
-                // Tapping the selected pill again clears the filter.
-                onClick={() =>
-                  selectCategory(category === c.name ? ALL_CATEGORIES : c.name)
-                }
+          <div className="mb-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                Browse by category
+              </span>
+              <HelpTip
+                label={`Help: ${niche.itemNounPlural.toLowerCase()} category filters`}
+                text="One category pill per shelf your store actually stocks, with how many items are in it. Tap a pill to see only that category, tap it again (or use Clear filters) to go back to everything."
               />
-            ))}
+            </div>
+            <div
+              className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0"
+              role="group"
+              aria-label={`Filter ${niche.itemNounPlural.toLowerCase()} by category`}
+            >
+              <CategoryPill
+                label="All"
+                count={products.length}
+                active={category === ALL_CATEGORIES}
+                onClick={() => selectCategory(ALL_CATEGORIES)}
+              />
+              {productCategories.map((c) => (
+                <CategoryPill
+                  key={c.name}
+                  label={c.name}
+                  count={c.count}
+                  active={category === c.name}
+                  // Tapping the selected pill again clears the filter.
+                  onClick={() =>
+                    selectCategory(category === c.name ? ALL_CATEGORIES : c.name)
+                  }
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {/* Result count: matches / total, plus how much is behind "Show more". */}
         {products.length > 0 && !loading && (
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p
-              className="text-xs text-zinc-500 dark:text-zinc-400"
-              role="status"
-              aria-live="polite"
-            >
-              <span className="font-semibold text-zinc-700 dark:text-zinc-200">
-                {filteredProducts.length} / {products.length}
-              </span>{' '}
-              {niche.itemNounPlural.toLowerCase()}
-              {category !== ALL_CATEGORIES && ` in ${category}`}
-              {visibleProducts.length < filteredProducts.length &&
-                ` · ${visibleProducts.length} shown`}
-            </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p
+                className="text-xs text-zinc-500 dark:text-zinc-400"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+                  {filteredProducts.length} / {products.length}
+                </span>{' '}
+                {niche.itemNounPlural.toLowerCase()}
+                {category !== ALL_CATEGORIES && ` in ${category}`}
+                {visibleProducts.length < filteredProducts.length &&
+                  ` · ${visibleProducts.length} shown`}
+              </p>
+              <HelpTip
+                label="Help: Result count"
+                text={`The first number is how many ${niche.itemNounPlural.toLowerCase()} match the current search and category; the second is how many the store has in total. When the grid is paged it also shows how many are currently on screen.`}
+              />
+            </div>
             {isFiltered && (
               <button
                 onClick={clearFilters}
@@ -540,13 +565,19 @@ export default function POS() {
         {/* Next batch of the paged grid */}
         {remainingCount > 0 && !loading && (
           <div className="mt-4 flex items-center justify-center gap-3">
-            <button
-              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-sm font-semibold hover:border-emerald-500 hover:text-emerald-500 transition-all"
-            >
-              Show more
-              <ChevronDown className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-zinc-200 dark:border-zinc-700 text-sm font-semibold hover:border-emerald-500 hover:text-emerald-500 transition-all"
+              >
+                Show more
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              <HelpTip
+                label="Help: Load next batch"
+                text="The register loads 48 items at a time so a large store still opens instantly. This button brings in the next 48 without changing the search or category filter."
+              />
+            </div>
             <span className="text-xs text-zinc-500">
               {remainingCount} more {niche.itemNounPlural.toLowerCase()}
             </span>
