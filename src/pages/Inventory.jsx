@@ -21,6 +21,7 @@ import { fmtMoney, fmtDate } from '../lib/format';
 import { sanitize, isValidItemName } from '../lib/validate';
 import { downloadCsv } from '../lib/exportCsv';
 import ConfirmDialog from '../components/ConfirmDialog';
+import HelpTip from '../components/HelpTip';
 
 const LOW_STOCK_THRESHOLD = 50;
 
@@ -246,6 +247,7 @@ export default function Inventory() {
             label="Stock at cost"
             value={fmtMoney(valuation.costValue)}
             hint={`${valuation.units.toLocaleString('en-NG')} units on hand`}
+            help="What every unit currently in stock cost you. This always covers the whole catalogue, even when the table below is filtered by search."
           />
           <ValueCard
             icon={Tag}
@@ -253,6 +255,7 @@ export default function Inventory() {
             label="Retail value"
             value={fmtMoney(valuation.retailValue)}
             hint="If every unit sells at list price"
+            help="What the shelves are worth at the till if every unit sells at its current selling price. It stays whole-catalogue while you search the list."
           />
           <ValueCard
             icon={TrendingUp}
@@ -262,6 +265,7 @@ export default function Inventory() {
             hint={valuation.profit >= 0 ? 'Retail value minus cost' : 'Stock is priced below cost'}
             badge={`${valuation.marginPct.toFixed(1)}% margin`}
             badgeTone={valuation.profit >= 0 ? 'positive' : 'negative'}
+            help="Retail value minus cost. The margin badge shows that profit as a percentage of what the stock would sell for — the figure most owners read as profit margin."
           />
         </section>
       )}
@@ -546,6 +550,7 @@ function ValueCard({
   hint,
   badge,
   badgeTone = 'positive',
+  help,
 }) {
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5">
@@ -564,7 +569,16 @@ function ValueCard({
         )}
       </div>
       <p className="text-xl md:text-2xl font-bold truncate">{value}</p>
-      <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300 mt-1">{label}</p>
+      <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300 mt-1">
+        {label}
+        {help && (
+          <HelpTip
+            className="ml-1 -mt-0.5 align-middle"
+            label={`Help: ${label}`}
+            text={help}
+          />
+        )}
+      </p>
       {hint && <p className="text-[11px] text-zinc-500 mt-0.5">{hint}</p>}
     </div>
   );
