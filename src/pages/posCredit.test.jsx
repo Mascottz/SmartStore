@@ -74,7 +74,7 @@ describe('POS credit payment methods', () => {
     await user.click(screen.getByRole('button', { name: 'Complete Sale' }));
     expect(api.sales.create).not.toHaveBeenCalled();
 
-    // Name alone is not enough — the part payment amount is required too.
+    // Name alone is not enough; the part payment amount is required too.
     await user.type(screen.getByLabelText(/Customer name/i), 'Mama Ngozi');
     await user.click(screen.getByRole('button', { name: 'Complete Sale' }));
     expect(api.sales.create).not.toHaveBeenCalled();
@@ -115,7 +115,7 @@ describe('POS credit payment methods', () => {
     expect(api.sales.create).not.toHaveBeenCalled();
   });
 
-  it('sells on credit with only a customer name — no amount collected', async () => {
+  it('sells on credit with only a customer name and no amount collected', async () => {
     const user = userEvent.setup();
     render(<POS />);
     await addMilkToCart(user);

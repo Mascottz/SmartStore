@@ -76,7 +76,7 @@ export default function Login() {
           await refreshMembership();
           navigate('/', { replace: true });
         } else {
-          // Creating a store, not joining one — drop this email's leftover
+          // Creating a store, not joining one; drop this email's leftover
           // join code so it cannot pull the new owner onto the waiting
           // screen. A code queued for somebody else on this device is left
           // alone.

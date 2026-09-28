@@ -45,7 +45,7 @@ function AlreadyHasStore({ storeName }) {
           ) : (
             'This account is already set up with a store.'
           )}{' '}
-          Head to your dashboard to keep going — each account can only run one
+          Head to your dashboard to keep going; each account can only run one
           store.
         </p>
         <button
@@ -82,8 +82,8 @@ export default function Onboarding() {
 
   if (loading) return <SplashScreen />;
 
-  // This account already owns a store — a stale tab, a bookmarked
-  // /onboarding link, or a redirect that landed here. Show an explicit
+  // This account already owns a store (a stale tab, a bookmarked
+  // /onboarding link, or a redirect that landed here). Show an explicit
   // screen with a working way through instead of a splash that only resolves
   // if an automatic navigation happens to fire. (RootRoute only sends users
   // here when they have no store, so this is the rare edge case; a hard

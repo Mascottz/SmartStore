@@ -120,7 +120,7 @@ export default function SalesHistory() {
             <HelpTip
               label="Help: Sales History"
               iconClassName="w-7 h-7"
-              text="Every receipt this store has ever issued. Tap a receipt to expand its line items, reprint the thermal receipt, or void the sale. Voided receipts stay listed — struck through — so the record is never lost."
+              text="Every receipt this store has ever issued. Tap a receipt to expand its line items, reprint the thermal receipt, or void the sale. Voided receipts stay listed, struck through, so the record is never lost."
             />
           </div>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
@@ -257,10 +257,10 @@ export default function SalesHistory() {
                         {fmtMoney(sale.total)}
                         {owesMoney ? (
                           <>
-                            {' '}— <span className="text-amber-600 dark:text-amber-400 font-semibold">{fmtMoney(balance)} outstanding</span>
+                            {'; '}<span className="text-amber-600 dark:text-amber-400 font-semibold">{fmtMoney(balance)} outstanding</span>
                           </>
                         ) : (
-                          ' — settled'
+                          ', settled'
                         )}
                       </p>
                     )}

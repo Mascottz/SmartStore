@@ -24,7 +24,7 @@ const PAGES = {
       ],
       [
         'Sharing & disclosure',
-        'We share data only with the service providers required to run the product — primarily Supabase (database and authentication) and Paystack (payment processing when you choose to pay). We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
+        'We share data only with the service providers required to run the product: primarily Supabase (database and authentication) and Paystack (payment processing when you choose to pay). We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
       ],
       [
         'Where your data lives',

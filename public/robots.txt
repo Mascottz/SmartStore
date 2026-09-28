@@ -1,4 +1,4 @@
-# SmartStore NG — public marketing pages are indexable.
+# SmartStore NG: public marketing pages are indexable.
 # Authenticated app routes must not be crawled.
 
 User-agent: *

@@ -18,7 +18,7 @@
 //     total: 6800,
 //     paymentMethod: 'Cash',
 //     cashier: 'marta@example.com',
-//     cashierRole: 'cashier', // optional — shown as 'marta@example.com (cashier)'
+//     cashierRole: 'cashier', // optional, shown as 'marta@example.com (cashier)'
 //     status: 'completed', // or 'voided'
 //   });
 //   if (!ok) toast.error('Pop-up blocked...');

@@ -2,7 +2,7 @@
 //
 // The Credit Book relies on two invariants pinned here: a credit-type sale
 // always records who owes the money and how much has been paid so far, and a
-// repayment record moves the sale's amountPaid by exactly its amount —
+// repayment record moves the sale's amountPaid by exactly its amount,
 // including when a record is deleted again.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { localAdapter as api } from './local';

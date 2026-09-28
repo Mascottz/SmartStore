@@ -1,7 +1,7 @@
 // src/components/PendingApproval.jsx
 // The "Approval pending" screen. A staff member lands here straight after
-// signup — or after logging in while a join code from a previous, interrupted
-// signup is still stored — and sees the store code the request is waiting on.
+// signup, or after logging in while a join code from a previous, interrupted
+// signup is still stored, and sees the store code the request is waiting on.
 // If the code was wrong they can enter a different one; if they were never
 // joining a store at all, they can clear the request and start their own.
 import { useState } from 'react';
@@ -78,7 +78,7 @@ export default function PendingApproval() {
 
   const startOwnStore = () => {
     dismissJoinRequest();
-    toast('Join request cleared — set up your own store', { icon: '🏪' });
+    toast('Join request cleared; set up your own store', { icon: '🏪' });
     navigate('/onboarding', { replace: true });
   };
 

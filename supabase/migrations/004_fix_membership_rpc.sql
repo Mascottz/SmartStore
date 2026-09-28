@@ -1,4 +1,4 @@
--- SmartStore NG — Fix get_my_membership() RPC
+-- SmartStore NG: Fix get_my_membership() RPC
 -- Hotfix for the 404 (PGRST202) that prevented the dashboard from loading:
 -- AuthContext resolves the signed-in user's store + role through this RPC,
 -- and environments where the function was missing from the schema (or from
@@ -8,7 +8,7 @@
 -- working function, then refreshes the API schema cache.
 --
 -- The function runs as security definer so an authenticated user can read
--- their own membership row — including a pending/rejected approval state —
+-- their own membership row, including a pending/rejected approval state,
 -- without opening store data up through broad RLS policies. The caller is
 -- always resolved server-side via auth.uid(); no arguments are accepted.
 

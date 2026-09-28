@@ -1,4 +1,4 @@
--- SmartStore NG — Idempotent re-assert of the tenant RLS policies
+-- SmartStore NG: Idempotent re-assert of the tenant RLS policies
 --
 -- 001_init.sql creates its policies with a bare `create policy`, so re-running
 -- it aborts on the first statement ("policy \"members read store\" already
@@ -8,7 +8,7 @@
 -- store's rows, and there was no safe way to put it back short of dropping
 -- data. Migrations 003 and 005 each worked around this with a pg_policies
 -- probe inside a DO block; this one re-asserts the tenant policy set the short
--- way instead — `drop policy if exists` followed by `create policy`.
+-- way instead, `drop policy if exists` followed by `create policy`.
 --
 -- Run in order (it is 006) or run on its own, as often as you like: the end
 -- state is always the same shipped definition for every policy, and the

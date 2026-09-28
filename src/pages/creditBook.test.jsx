@@ -64,7 +64,7 @@ beforeEach(() => {
       amountPaid: 0,
       customerName: 'Chidi Okeke',
     }),
-    // Fully paid cash sale — must not show up in the Credit Book.
+    // Fully paid cash sale; must not show up in the Credit Book.
     saleFixture({ id: 's3', receiptNo: 'SM-3', paymentMethod: 'Cash', total: 300, amountPaid: 300, customerName: '' }),
   ];
   state.payments = [

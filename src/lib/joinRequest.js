@@ -1,8 +1,8 @@
 // src/lib/joinRequest.js
 // A staff member types a store join code exactly once, on the signup form.
 // The account is created first and the membership request second, so anything
-// in between — an email confirmation round-trip, a dropped request, a closed
-// tab — leaves a brand new account with no membership at all. That used to
+// in between, an email confirmation round-trip, a dropped request, a closed
+// tab, leaves a brand new account with no membership at all. That used to
 // drop the new staff member into store onboarding instead of the waiting
 // screen, and the code they typed was gone for good.
 //

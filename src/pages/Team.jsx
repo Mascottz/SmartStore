@@ -89,7 +89,7 @@ export default function Team() {
             <Users className="w-4 h-4" /> Invite staff with your join code
             <HelpTip
               label="Help: Join code"
-              text="Share this six-character code with staff you trust — anyone holding it can request access to your store. Tap the code to copy it. Each new member starts as a cashier and needs your approval before their first shift."
+              text="Share this six-character code with staff you trust; anyone holding it can request access to your store. Tap the code to copy it. Each new member starts as a cashier and needs your approval before their first shift."
             />
           </h3>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">

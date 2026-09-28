@@ -106,7 +106,7 @@ export default function Dashboard() {
       icon: TrendingUp,
       accent: 'text-sky-500',
       gated: true,
-      help: 'Every completed sale since the store opened. Owner Mode plan card — on other plans it stays blurred with an upgrade prompt.',
+      help: 'Every completed sale since the store opened. Owner Mode plan card; on other plans it stays blurred with an upgrade prompt.',
     },
     {
       label: 'Total Expenses',
@@ -114,7 +114,7 @@ export default function Dashboard() {
       icon: ShoppingBag,
       accent: 'text-amber-500',
       gated: true,
-      help: 'Everything recorded on the Expenses page. Owner Mode plan card — on other plans it stays blurred with an upgrade prompt.',
+      help: 'Everything recorded on the Expenses page. Owner Mode plan card; on other plans it stays blurred with an upgrade prompt.',
     },
   ];
 
@@ -240,7 +240,7 @@ export default function Dashboard() {
                 <h3 className="font-semibold text-sm">Low Stock ({lowStockItems.length})</h3>
                 <HelpTip
                   label="Help: Low Stock"
-                  text={`Everything with fewer than ${LOW_STOCK_THRESHOLD} units on the shelf. Restock from the Inventory page before these run out — the badge shows how many units are left.`}
+                  text={`Everything with fewer than ${LOW_STOCK_THRESHOLD} units on the shelf. Restock from the Inventory page before these run out; the badge shows how many units are left.`}
                 />
               </div>
               {lowStockItems.length === 0 ? (

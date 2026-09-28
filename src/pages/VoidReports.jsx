@@ -78,7 +78,7 @@ export default function VoidReports() {
                       >
                         <td className="px-5 py-3 font-medium">{v.receiptNo}</td>
                         <td className="px-5 py-3 text-zinc-500">{fmtDateTime(v.createdAt)}</td>
-                        <td className="px-5 py-3 text-zinc-500">{v.voidedBy || '—'}</td>
+                        <td className="px-5 py-3 text-zinc-500">{v.voidedBy || '-'}</td>
                         <td className="px-5 py-3">{v.reason}</td>
                         <td className="px-5 py-3 text-right font-semibold text-red-500">
                           {fmtMoney(v.total)}

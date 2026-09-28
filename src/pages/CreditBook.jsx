@@ -142,7 +142,7 @@ export default function CreditBook() {
             <HelpTip
               label="Help: Credit Book"
               iconClassName="w-7 h-7"
-              text="Every sale where the customer still owes money — partial payments and full credit. Open a record to see every repayment collected, or tap Record payment when the customer comes back to settle. Records stay here even after a debt is fully paid."
+              text="Every sale where the customer still owes money: partial payments and full credit. Open a record to see every repayment collected, or tap Record payment when the customer comes back to settle. Records stay here even after a debt is fully paid."
             />
           </div>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
@@ -179,7 +179,7 @@ export default function CreditBook() {
           label="Collected, last 30 days"
           value={fmtMoney(collected30d)}
           accent="text-emerald-500"
-          help="Repayments recorded against old debts in the last 30 days — money that came in after the original sales."
+          help="Repayments recorded against old debts in the last 30 days, money that came in after the original sales."
         />
       </div>
 
@@ -449,7 +449,7 @@ function RepaymentModal({ sale, cashierEmail, onClose }) {
       toast.success(
         remaining === 0
           ? `${sale.customerName || 'Customer'} has settled ${sale.receiptNo} in full.`
-          : `Payment recorded — ${fmtMoney(remaining)} still owed on ${sale.receiptNo}.`
+          : `Payment recorded; ${fmtMoney(remaining)} still owed on ${sale.receiptNo}.`
       );
       onClose();
     } catch (err) {
@@ -507,7 +507,7 @@ function RepaymentModal({ sale, cashierEmail, onClose }) {
             />
             {Number(amount) > 0 && Number(amount) < balance && (
               <p className="text-[11px] text-zinc-500 mt-1.5">
-                Part payment — {fmtMoney(balance - (Number(amount) || 0))} will remain.
+                Part payment; {fmtMoney(balance - (Number(amount) || 0))} will remain.
               </p>
             )}
           </div>

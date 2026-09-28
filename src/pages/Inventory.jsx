@@ -26,7 +26,7 @@ import HelpTip from '../components/HelpTip';
 
 const LOW_STOCK_THRESHOLD = 50;
 
-// Money with the sign out front — "-₦300" reads better on the profit tile
+// Money with the sign out front; "-₦300" reads better on the profit tile
 // than the "₦-300" fmtMoney would build for a negative number.
 const fmtSignedMoney = (n) => (n < 0 ? `-${fmtMoney(Math.abs(n))}` : fmtMoney(n));
 
@@ -77,7 +77,7 @@ export default function Inventory() {
     });
   }, [products, debouncedSearch, sortBy]);
 
-  // What the shelves are worth right now. Always the whole catalogue — the
+  // What the shelves are worth right now. Always the whole catalogue; the
   // search box filters the table, not the money summary.
   const valuation = useMemo(() => {
     let costValue = 0;
@@ -91,7 +91,7 @@ export default function Inventory() {
     });
     const profit = retailValue - costValue;
     // Gross margin: profit as a percentage of what the stock sells for (not of
-    // what it cost) — the number a shop owner reads as "% margin".
+    // what it cost), the number a shop owner reads as "% margin".
     const marginPct = retailValue > 0 ? (profit / retailValue) * 100 : 0;
     return { costValue, retailValue, profit, marginPct, units };
   }, [products]);
@@ -157,7 +157,7 @@ export default function Inventory() {
       if (editingId) {
         await api.products.update(editingId, payload);
         toast.success(
-          autoSku ? `${niche.itemNoun} updated — SKU ${sku}` : `${niche.itemNoun} updated`
+          autoSku ? `${niche.itemNoun} updated, SKU ${sku}` : `${niche.itemNoun} updated`
         );
       } else {
         await api.products.create(storeId, payload);
@@ -167,7 +167,7 @@ export default function Inventory() {
           });
         }
         toast.success(
-          autoSku ? `${niche.itemNoun} added — SKU ${sku}` : `${niche.itemNoun} added`
+          autoSku ? `${niche.itemNoun} added, SKU ${sku}` : `${niche.itemNoun} added`
         );
       }
       setShowModal(false);
@@ -246,7 +246,7 @@ export default function Inventory() {
       </div>
 
       {/* What the stock on the shelves is worth: what it cost, what it will
-          bring in, and the profit in between. Always the whole catalogue —
+          bring in, and the profit in between. Always the whole catalogue;
           the search box filters the table, not the money. */}
       {niche.trackStock && products.length > 0 && (
         <section
@@ -277,7 +277,7 @@ export default function Inventory() {
             hint={valuation.profit >= 0 ? 'Retail value minus cost' : 'Stock is priced below cost'}
             badge={`${valuation.marginPct.toFixed(1)}% margin`}
             badgeTone={valuation.profit >= 0 ? 'positive' : 'negative'}
-            help="Retail value minus cost. The margin badge shows that profit as a percentage of what the stock would sell for — the figure most owners read as profit margin."
+            help="Retail value minus cost. The margin badge shows that profit as a percentage of what the stock would sell for, the figure most owners read as profit margin."
           />
         </section>
       )}
@@ -345,7 +345,7 @@ export default function Inventory() {
                     className="border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
                   >
                     <td className="px-5 py-3 font-medium">{p.name}</td>
-                    <td className="px-5 py-3 text-zinc-500">{p.sku || '—'}</td>
+                    <td className="px-5 py-3 text-zinc-500">{p.sku || '-'}</td>
                     <td className="px-5 py-3">
                       <span className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
                         {p.category || 'General'}
@@ -452,7 +452,7 @@ export default function Inventory() {
                   label={niche.hasBarcode ? 'SKU / Barcode' : 'Code (optional)'}
                   help={
                     niche.hasBarcode
-                      ? 'Scan or type the printed barcode if the item has one. Leave it blank and SmartStore generates a readable code from the name, like PEA-MIL-400G-A7F3 — it can be searched at the POS straight away.'
+                      ? 'Scan or type the printed barcode if the item has one. Leave it blank and SmartStore generates a readable code from the name, like PEA-MIL-400G-A7F3; it can be searched at the POS straight away.'
                       : 'Leave it blank and SmartStore generates a readable code from the name, like PEA-MIL-400G-A7F3. Type your own only if you already use codes elsewhere.'
                   }
                 >

@@ -83,7 +83,7 @@ export async function loginOrCreateDemo() {
         cashierEmail: DEMO_EMAIL,
         trackStock: true,
       });
-      // backdate (local adapter only – direct localStorage tweak)
+      // backdate (local adapter only; direct localStorage tweak)
       backdate('smartstore-db', 'sales', sale.id, new Date(now - s.daysAgo * day));
     }
 
@@ -117,7 +117,7 @@ export async function loginOrCreateDemo() {
     };
 
     // Mama Ngozi took ₦15,800 of goods, paid ₦10,000 and has already brought
-    // ₦5,000 back — the Credit Book shows her with ₦800 left to pay.
+    // ₦5,000 back; the Credit Book shows her with ₦800 left to pay.
     const partial = await creditSale(3, [0, 0, 5, 7, 7], 'Partial', 'Mama Ngozi', 10000);
     const repayment = await api.creditPayments.add(store.id, {
       saleId: partial.sale.id,

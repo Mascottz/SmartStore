@@ -16,7 +16,7 @@ const SHORT_WORD = 3;
 // Random hex characters appended so two products with near-identical names
 // ("Peak Milk 400g" vs "Peak Milk 450g") still get different codes.
 const SUFFIX_LEN = 4;
-// Matches the SKU input's maxLength and the backends' clamp — the generated
+// Matches the SKU input's maxLength and the backends' clamp; the generated
 // code always fits without being cut off mid-way.
 export const SKU_MAX_LEN = 50;
 
@@ -68,7 +68,7 @@ export function skuPrefix(name) {
 
 /**
  * A full SKU for a product saved without one: the name prefix, a hyphen and
- * four random hex characters — "Peak Milk 400g" → "PEA-MIL-400G-A7F3".
+ * four random hex characters; "Peak Milk 400g" → "PEA-MIL-400G-A7F3".
  *
  * `existingSkus` (optional list of the store's current codes) is avoided, so
  * re-running a CSV import or double-clicking save never hands two products
@@ -85,7 +85,7 @@ export function generateSku(name, existingSkus = []) {
 
   // A handful of retries settles any collision; past that the tail space is
   // exhausted in practice (16^4 codes per name) and the last candidate is
-  // returned — the backends don't enforce SKU uniqueness, so this degrades
+  // returned; the backends don't enforce SKU uniqueness, so this degrades
   // politely instead of throwing in the middle of a sale.
   const MAX_ATTEMPTS = 64;
   let sku = '';

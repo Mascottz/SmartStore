@@ -1,4 +1,4 @@
--- SmartStore NG — Super Admin RLS
+-- SmartStore NG: Super Admin RLS
 -- Lets a signed-in user with app_metadata.role = 'super_admin' read (and
 -- when needed, delete) every tenant row from the client. Regular members
 -- continue to see only their own store through the existing policies.

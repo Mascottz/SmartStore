@@ -1,15 +1,15 @@
--- SmartStore NG — Partial payments & credit (the Credit Book)
+-- SmartStore NG: Partial payments & credit (the Credit Book)
 --
 -- Adds two payment methods alongside Cash / Transfer / POS/Card:
---   Partial — customer pays part of the bill now and owes the rest;
---   Credit  — customer takes the goods and pays nothing yet.
+--   Partial: customer pays part of the bill now and owes the rest;
+--   Credit:  customer takes the goods and pays nothing yet.
 -- Both track who owes the money (sales.customer_name) and how much has been
 -- handed over so far (sales.amount_paid), so the outstanding balance is
 -- always `total - amount_paid`. Every repayment a customer makes later is
 -- appended to the credit_payments ledger by the record_credit_payment RPC,
 -- which also moves the sale's amount_paid in the same transaction.
 --
--- Run after 001–006. Fully idempotent: the statements use
+-- Run after 001 through 006. Fully idempotent: the statements use
 -- `add column if not exists`, `create ... if not exists`,
 -- `drop policy if exists` / `create policy` and `create or replace function`,
 -- so the file can be re-run as often as needed.

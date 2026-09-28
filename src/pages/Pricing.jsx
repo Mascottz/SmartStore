@@ -61,7 +61,7 @@ export default function Pricing() {
           setPaying(false);
           try {
             await upgradeToOwner();
-            toast.success('Payment confirmed — welcome to Owner Mode');
+            toast.success('Payment confirmed; welcome to Owner Mode');
             navigate('/');
           } catch (e) {
             toast.error(e.message || 'Payment received, but the upgrade could not be applied.');

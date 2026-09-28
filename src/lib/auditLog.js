@@ -4,7 +4,7 @@
 // Super-admin actions that mutate tenant data (approve / reject a user,
 // delete a user, delete a store, upgrade a store to Owner Mode) are recorded
 // here so there is a writable history of what an administrator did, when,
-// and to whom — independent of the tenant tables themselves.
+// and to whom, independent of the tenant tables themselves.
 //
 // The log is capped at MAX_ENTRIES (500); oldest entries fall off first.
 // New entries are prepended, so the list renders newest-first.
@@ -22,7 +22,7 @@ const uid = () => {
 };
 
 /**
- * Read the whole audit log (newest first). Never throws — degrades to `[]`.
+ * Read the whole audit log (newest first). Never throws; degrades to `[]`.
  */
 export function getAuditLog() {
   if (typeof localStorage === 'undefined') return [];

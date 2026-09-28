@@ -82,7 +82,7 @@ export function AuthProvider({ children }) {
         setRole(membership.role);
         setMembershipStatus(membership.approvalStatus || 'approved');
         const status = membership.approvalStatus || 'approved';
-        // In and approved — the stored code has nothing left to do. Reconcile
+        // In and approved; the stored code has nothing left to do. Reconcile
         // here (not only at sign-in) so approval while the waiting screen is
         // open clears the request too.
         if (status === 'approved' && isJoinRequestFor(readJoinRequest(), u)) {
@@ -239,7 +239,7 @@ export function AuthProvider({ children }) {
     await api.stores.update(store.id, { plan: 'owner' });
   }, [store]);
 
-  // A stored code only counts for the account that typed it — shops share
+  // A stored code only counts for the account that typed it; shops share
   // tablets, and someone else's queued request must not lock this user out of
   // their own store.
   const myPendingJoin = useMemo(
@@ -248,7 +248,7 @@ export function AuthProvider({ children }) {
   );
 
   // An account that asked to join a store but has no membership row yet is
-  // still waiting on that store — it must not be treated as a new owner.
+  // still waiting on that store; it must not be treated as a new owner.
   const approvalStatus = membershipStatus ?? (myPendingJoin ? 'pending' : null);
 
   const value = useMemo(() => {

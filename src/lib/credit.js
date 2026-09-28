@@ -1,8 +1,8 @@
 // src/lib/credit.js
 // Shared rules for partial payments and credit ("sell now, pay later") sales.
 //
-// Every sale carries `amountPaid` — what the customer has handed over so far
-// (counting any repayments recorded later) — and, for credit-type sales, a
+// Every sale carries `amountPaid`, what the customer has handed over so far
+// (counting any repayments recorded later), and, for credit-type sales, a
 // `customerName` so the shop knows who owes what. The outstanding balance is
 // always derived as total - amountPaid; the individual repayments live in the
 // credit_payments records so the ledger is never lost.
@@ -46,7 +46,7 @@ export function validateCreditSale({ paymentMethod, total, amountPaid, customerN
   }
   const totalNum = Number(total) || 0;
   if (paid >= totalNum) {
-    throw new Error('That covers the whole bill — use Cash, Transfer or POS/Card instead.');
+    throw new Error('That covers the whole bill; use Cash, Transfer or POS/Card instead.');
   }
   return { amountPaid: paid, customerName: name };
 }

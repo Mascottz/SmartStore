@@ -531,7 +531,7 @@ export const localAdapter = {
       if (!Number.isFinite(value) || value <= 0) {
         throw new Error('Enter a valid payment amount.');
       }
-      // Sales recorded before the credit feature have no amountPaid — they
+      // Sales recorded before the credit feature have no amountPaid; they
       // were settled at the till, so treat them as paid in full.
       const paidSoFar =
         sale.amountPaid == null ? Number(sale.total) || 0 : Number(sale.amountPaid) || 0;

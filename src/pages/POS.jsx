@@ -24,7 +24,7 @@ import QuickAddProduct from '../components/QuickAddProduct';
 // How many tiles the grid renders per batch. 48 fills the 4-column grid
 // (xl:grid-cols-4) six times over, so "Show more" always adds whole rows.
 const PAGE_SIZE = 48;
-// Sentinel value for the category filter — "everything", not a real category.
+// Sentinel value for the category filter, "everything", not a real category.
 const ALL_CATEGORIES = 'All';
 
 /**
@@ -61,7 +61,7 @@ export default function POS() {
   const [lastSale, setLastSale] = useState(null);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  // Barcode scanned by a customer that has no matching product yet — opens
+  // Barcode scanned by a customer that has no matching product yet; opens
   // the quick-add modal so it can be created and sold in one go.
   const [quickAddBarcode, setQuickAddBarcode] = useState(null);
 
@@ -73,7 +73,7 @@ export default function POS() {
   // without re-creating the camera scanner or re-binding the key listener.
   const quickAddOpenRef = useRef(false);
   quickAddOpenRef.current = quickAddBarcode !== null;
-  // { codes: [...], at } — briefly ignore rescans of a barcode that was just
+  // { codes: [...], at }; briefly ignore rescans of a barcode that was just
   // created, so a camera still pointed at the box doesn't double-add it.
   const justCreatedRef = useRef(null);
 
@@ -94,7 +94,7 @@ export default function POS() {
   }, [products]);
 
   // The selected category can disappear when the last product in it is renamed
-  // or deleted — fall back to "All" instead of an empty grid.
+  // or deleted; fall back to "All" instead of an empty grid.
   useEffect(() => {
     if (
       category !== ALL_CATEGORIES &&
@@ -174,7 +174,7 @@ export default function POS() {
 
   // Unknown barcodes (camera or USB) open the quick-add modal.
   const openQuickAdd = useCallback((code) => {
-    if (quickAddOpenRef.current) return; // already quick-adding — ignore
+    if (quickAddOpenRef.current) return; // already quick-adding, ignore
     setQuickAddBarcode(code);
   }, []);
 
@@ -182,7 +182,7 @@ export default function POS() {
   // unknown barcode → quick-add modal.
   const handleScanResult = useCallback(
     (code) => {
-      // A camera still pointed at the box keeps decoding it — skip the
+      // A camera still pointed at the box keeps decoding it; skip the
       // rescans of a barcode that was just quick-added for a few seconds.
       const just = justCreatedRef.current;
       if (
@@ -364,7 +364,7 @@ export default function POS() {
       setCreditCustomer('');
       toast.success(
         creditSelected
-          ? `Sale recorded on ${paymentMethod.toLowerCase()} for ${credit.customerName} — ${fmtMoney(
+          ? `Sale recorded on ${paymentMethod.toLowerCase()} for ${credit.customerName}; ${fmtMoney(
               totalAmount - credit.amountPaid
             )} outstanding.`
           : `Sale completed via ${paymentMethod}.`

@@ -1,6 +1,6 @@
 # SmartStore NG
 
-A multi-tenant **POS & store management app for every kind of business** —
+A multi-tenant **POS & store management app for every kind of business**:
 supermarkets, boutiques, pharmacies, restaurants, salons and more. You pick
 your niche during onboarding and the app adapts (terminology, default
 categories, expiry tracking, barcode scanning…).
@@ -11,26 +11,26 @@ backend is configured.
 
 ## Features
 
-- 🏪 **Multi-niche onboarding** — Supermarket, Boutique, Pharmacy, Restaurant, Salon/Services, Other
-- 🛒 **POS Register** — product grid with category filter tabs and paged results, inline
+- 🏪 **Multi-niche onboarding**: Supermarket, Boutique, Pharmacy, Restaurant, Salon/Services, Other
+- 🛒 **POS Register**: product grid with category filter tabs and paged results, inline
   help tooltips, cart, camera barcode scanning, payment methods, receipt printing
-- 📒 **Partial payments & credit** — sell with the customer paying part now (Partial) or
+- 📒 **Partial payments & credit**: sell with the customer paying part now (Partial) or
   nothing yet (Credit); the sale keeps who owes what, receipts print the balance due,
   and the **Credit Book** page tracks every open debt with its full repayment history,
   settlement progress and CSV export
-- 📦 **Inventory** — SKU, categories, cost/sale price, stock levels, low-stock alerts, expiry
+- 📦 **Inventory**: SKU, categories, cost/sale price, stock levels, low-stock alerts, expiry
   dates (pharmacy), plus the worth of what is on the shelves: stock at cost, retail value
   and potential profit with margin %, each explained with help tooltips. A blank SKU is
-  auto-generated from the product name — "Peak Milk 400g" becomes `PEA-MIL-400G-A7F3`
-- 📊 **Dashboard & Reports** — daily/monthly revenue, gross & net profit, top sellers, payment breakdown
-- 🧾 **Sales History** — searchable receipts, reprint, void with reason (restocks automatically)
-- 🚨 **Void audit trail** — who voided what, when and why
-- 💸 **Expenses + expense analytics** — category & monthly breakdowns
-- 👥 **Team** — staff join with a store code; roles: owner / admin / manager / cashier
-- ❓ **Contextual help tooltips** — the "?" icons across Dashboard, POS, Inventory,
+  auto-generated from the product name; "Peak Milk 400g" becomes `PEA-MIL-400G-A7F3`
+- 📊 **Dashboard & Reports**: daily/monthly revenue, gross & net profit, top sellers, payment breakdown
+- 🧾 **Sales History**: searchable receipts, reprint, void with reason (restocks automatically)
+- 🚨 **Void audit trail**: who voided what, when and why
+- 💸 **Expenses + expense analytics**: category & monthly breakdowns
+- 👥 **Team**: staff join with a store code; roles: owner / admin / manager / cashier
+- ❓ **Contextual help tooltips**: the "?" icons across Dashboard, POS, Inventory,
   Sales History, Reports, Expenses and Team explain each number and control in place
-- ✅ **Access approvals** — new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
-- 🛡️ **System admin dashboard** — platform metrics, stores, users and global approval controls
+- ✅ **Access approvals**: new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
+- 🛡️ **System admin dashboard**: platform metrics, stores, users and global approval controls
 - 👑 **Owner Mode plan gating**, 🌙 light/dark theme
 
 ## Running locally (demo mode)
@@ -52,15 +52,15 @@ npm run lint
 npm run build
 ```
 
-With no env vars set, the app runs entirely on localStorage — click
+With no env vars set, the app runs entirely on localStorage; click
 **“Try the demo store”** on the login screen for a pre-seeded store.
 
 ## Going live with Supabase
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run the SQL files in `supabase/migrations/` in numeric order in the SQL editor
-   (the `004`+ fixes are written to be idempotent — `drop policy if exists` /
-   `create or replace` — so they can be re-run on a database that only
+   (the `004`+ fixes are written to be idempotent, `drop policy if exists` /
+   `create or replace`, so they can be re-run on a database that only
    half-applied an earlier migration)
 3. Create a `.env` file:
 
@@ -69,7 +69,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-4. `npm run dev` — the app automatically switches to the Supabase backend
+4. `npm run dev`; the app automatically switches to the Supabase backend
    (multi-tenant with row-level security; checkout and voiding run as
    transactional Postgres functions).
 
