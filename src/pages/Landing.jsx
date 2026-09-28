@@ -2,6 +2,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BarChart3,
+  BookUser,
   Check,
   ChevronRight,
   Package,
@@ -20,6 +21,7 @@ const features = [
   ['Inventory', 'Know what is in stock, what is moving, and what needs attention.', Package],
   ['Reports', 'Turn daily sales into clear decisions with simple reports.', BarChart3],
   ['Sales History', 'Find every receipt and transaction whenever you need it.', Receipt],
+  ['Credit Book', 'Sell on credit or part payment; every repayment is recorded until the debt is settled.', BookUser],
   ['Void Audit', 'Keep a transparent record of voided transactions.', ShieldCheck],
   ['Team', 'Give staff the right access while keeping control.', Users],
   ['Expenses', 'Track spending and see the real health of your business.', Wallet],
@@ -58,7 +60,7 @@ const steps = [
 const testimonials = [
   ['Amaka, Lagos', 'SmartStore gives me the numbers I need without making me become an accountant.'],
   ['Tunde, Abuja', 'My team can serve customers faster, and I can check the business from anywhere.'],
-  ['Chioma, Port Harcourt', 'It is simple enough for a busy shop and powerful enough to grow with us.'],
+  ['Chioma, Port Harcourt', 'My regulars buy on credit every week and the Credit Book keeps every kobo accounted for.'],
 ];
 
 export default function Landing() {
@@ -120,7 +122,7 @@ export default function Landing() {
                 The smarter way to <span className="text-emerald-600">manage your shop.</span>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-zinc-600">
-                One calm, organized workspace for sales, inventory, people, and profit. SmartStore NG
+                One calm, organized workspace for sales, credit, inventory, people, and profit. SmartStore NG
                 helps you run today and grow tomorrow.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -177,7 +179,7 @@ export default function Landing() {
             title="Tools that keep business moving."
             text="Less guesswork. Fewer spreadsheets. More time focused on your customers."
           />
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {features.map(([title, text, Icon]) => (
               <div
                 key={title}
@@ -359,7 +361,7 @@ function DashboardPreview() {
   ];
   const recentSales = [
     ['Peak Milk 900g', '\u20A66,800'],
-    ['Golden Penny Spaghetti', '\u20A63,600'],
+    ['Golden Penny Spaghetti', '\u20A63,600', 'Part paid'],
     ['Cola 50cl, pack of 12', '\u20A64,200'],
   ];
 
@@ -385,11 +387,11 @@ function DashboardPreview() {
         </div>
         <div className="absolute -right-2 bottom-24 z-10 hidden w-56 items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-3.5 shadow-xl xl:flex [transform:rotateY(-12deg)]">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-            <Package className="h-4 w-4" aria-hidden="true" />
+            <BookUser className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="min-w-0">
-            <span className="block text-xs font-semibold text-zinc-900">Low stock alert</span>
-            <span className="block truncate text-[11px] text-zinc-500">Rice 5kg &middot; 4 left</span>
+            <span className="block text-xs font-semibold text-zinc-900">Repayment recorded</span>
+            <span className="block truncate text-[11px] text-zinc-500">Mama Ngozi &middot; {'\u20A6'}800 left</span>
           </span>
         </div>
 
@@ -449,10 +451,15 @@ function DashboardPreview() {
                 <span className="text-[11px] font-medium text-emerald-700">View all</span>
               </div>
               <div className="mt-2 divide-y divide-zinc-100">
-                {recentSales.map(([name, amount]) => (
+                {recentSales.map(([name, amount, chip]) => (
                   <div key={name} className="flex items-center gap-2.5 py-2">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate text-xs text-zinc-700">{name}</span>
+                    {chip && (
+                      <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
+                        {chip}
+                      </span>
+                    )}
                     <span className="text-xs font-semibold text-zinc-900">{amount}</span>
                   </div>
                 ))}
