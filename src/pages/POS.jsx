@@ -12,11 +12,14 @@ import { api } from '../lib/backend';
 import { fmtMoney } from '../lib/format';
 import { printReceipt } from '../lib/printReceipt';
 import { sanitize } from '../lib/validate';
+import {
+  PAYMENT_METHODS,
+  isCreditMethod,
+  validateCreditSale,
+} from '../lib/credit';
 import ConfirmDialog from '../components/ConfirmDialog';
 import HelpTip from '../components/HelpTip';
 import QuickAddProduct from '../components/QuickAddProduct';
-
-const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS/Card'];
 
 // How many tiles the grid renders per batch. 48 fills the 4-column grid
 // (xl:grid-cols-4) six times over, so "Show more" always adds whole rows.
@@ -49,6 +52,10 @@ export default function POS() {
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  // Extra fields collected for Partial / Credit sales: how much the customer
+  // pays right now (Partial only) and who owes the balance.
+  const [amountPaidNow, setAmountPaidNow] = useState('');
+  const [creditCustomer, setCreditCustomer] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [lastSale, setLastSale] = useState(null);
@@ -282,16 +289,42 @@ export default function POS() {
 
   const voidTransaction = () => {
     setCart([]);
+    setAmountPaidNow('');
+    setCreditCustomer('');
     setShowVoidConfirm(false);
     toast.success('Transaction voided');
   };
 
   const totalAmount = cart.reduce((sum, item) => sum + item.salePrice * item.qty, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  const creditSelected = isCreditMethod(paymentMethod);
+  // What the customer would still owe if the sale completed right now.
+  const previewBalance = creditSelected
+    ? Math.max(
+        0,
+        totalAmount - (paymentMethod === 'Partial' ? Number(amountPaidNow) || 0 : 0)
+      )
+    : 0;
 
   const completeSale = async () => {
     if (cart.length === 0) return toast.error('Cart is empty');
     if (!storeId) return toast.error('Store not ready yet. Try again in a second.');
+
+    // Partial / Credit need a customer name (and a part-payment amount) so the
+    // outstanding balance can be followed up in the Credit Book.
+    let credit = { amountPaid: totalAmount, customerName: '' };
+    if (creditSelected) {
+      try {
+        credit = validateCreditSale({
+          paymentMethod,
+          total: totalAmount,
+          amountPaid: amountPaidNow,
+          customerName: creditCustomer,
+        });
+      } catch (err) {
+        return toast.error(err.message);
+      }
+    }
 
     const receiptNo = 'SM-' + Date.now().toString().slice(-8);
     setIsCompleting(true);
@@ -311,6 +344,8 @@ export default function POS() {
         receiptNo,
         cashierEmail: user?.email || '',
         trackStock: niche.trackStock,
+        amountPaid: creditSelected ? credit.amountPaid : undefined,
+        customerName: creditSelected ? credit.customerName : '',
       });
 
       setLastSale({
@@ -318,12 +353,22 @@ export default function POS() {
         receiptNo,
         createdAt: new Date(),
         paymentMethod,
+        amountPaid: creditSelected ? credit.amountPaid : totalAmount,
+        customerName: credit.customerName,
         items,
         total: totalAmount,
       });
       setCart([]);
       setSearchTerm('');
-      toast.success(`Sale completed via ${paymentMethod}.`);
+      setAmountPaidNow('');
+      setCreditCustomer('');
+      toast.success(
+        creditSelected
+          ? `Sale recorded on ${paymentMethod.toLowerCase()} for ${credit.customerName} — ${fmtMoney(
+              totalAmount - credit.amountPaid
+            )} outstanding.`
+          : `Sale completed via ${paymentMethod}.`
+      );
 
       if (!firstSaleCompleted) {
         try {
@@ -349,7 +394,15 @@ export default function POS() {
   const printLastReceipt = () => {
     if (!lastSale) return toast.error('No completed sale to print yet.');
 
-    const { receiptNo, createdAt, items, total, paymentMethod: method } = lastSale;
+    const {
+      receiptNo,
+      createdAt,
+      items,
+      total,
+      paymentMethod: method,
+      amountPaid,
+      customerName,
+    } = lastSale;
     const printed = printReceipt({
       storeName: storeName || 'SmartStore NG',
       receiptNo,
@@ -357,6 +410,8 @@ export default function POS() {
       items,
       total,
       paymentMethod: method,
+      amountPaid,
+      customerName,
       cashier: user?.email || '',
       cashierRole: role || '',
     });
@@ -649,15 +704,21 @@ export default function POS() {
 
           {/* Payment method */}
           <div className="mt-5">
-            <p className="text-xs font-medium text-zinc-500 mb-2">Payment method</p>
-            <div className="flex gap-2" role="radiogroup" aria-label="Payment method">
+            <div className="flex items-center gap-1 mb-2">
+              <p className="text-xs font-medium text-zinc-500">Payment method</p>
+              <HelpTip
+                label="Help: Payment method"
+                text="Cash, Transfer and POS/Card settle the bill on the spot. Partial means the customer pays part now and owes the rest; Credit means they pay nothing now. Both are saved with the customer's name and tracked in the Credit Book until they finish paying."
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment method">
               {PAYMENT_METHODS.map((m) => (
                 <button
                   key={m}
                   role="radio"
                   aria-checked={paymentMethod === m}
                   onClick={() => setPaymentMethod(m)}
-                  className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                  className={`px-2 py-2 rounded-xl text-xs font-semibold border transition-all ${
                     paymentMethod === m
                       ? 'border-emerald-500 bg-emerald-500/10 text-emerald-500'
                       : 'border-zinc-200 dark:border-zinc-700 text-zinc-500'
@@ -667,6 +728,57 @@ export default function POS() {
                 </button>
               ))}
             </div>
+
+            {/* Credit details: who owes the balance, and (for Partial) how
+                much they are paying right now. */}
+            {creditSelected && (
+              <div className="mt-3 space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
+                <div>
+                  <label
+                    htmlFor="credit-customer"
+                    className="block text-xs font-medium text-zinc-500 mb-1.5"
+                  >
+                    Customer name *
+                  </label>
+                  <input
+                    id="credit-customer"
+                    type="text"
+                    value={creditCustomer}
+                    onChange={(e) => setCreditCustomer(e.target.value)}
+                    placeholder="e.g. Mama Ngozi"
+                    maxLength={100}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-emerald-500 text-sm"
+                  />
+                </div>
+                {paymentMethod === 'Partial' && (
+                  <div>
+                    <label
+                      htmlFor="credit-amount-now"
+                      className="block text-xs font-medium text-zinc-500 mb-1.5"
+                    >
+                      Amount paid now (₦) *
+                    </label>
+                    <input
+                      id="credit-amount-now"
+                      type="number"
+                      min="0"
+                      value={amountPaidNow}
+                      onChange={(e) => setAmountPaidNow(e.target.value)}
+                      placeholder={`Less than ${fmtMoney(totalAmount)}`}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-emerald-500 text-sm"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-500">
+                    {paymentMethod === 'Partial' ? 'Balance after this payment' : 'Goes on credit'}
+                  </span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400">
+                    {fmtMoney(previewBalance)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Total */}

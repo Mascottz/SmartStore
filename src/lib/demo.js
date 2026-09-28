@@ -87,6 +87,50 @@ export async function loginOrCreateDemo() {
       backdate('smartstore-db', 'sales', sale.id, new Date(now - s.daysAgo * day));
     }
 
+    // A couple of credit sales so the Credit Book has live records to show:
+    // one partial payment with a repayment already collected, one full credit.
+    const creditSale = async (daysAgo, picks, method, customerName, amountPaid) => {
+      const counts = {};
+      picks.forEach((i) => (counts[i] = (counts[i] || 0) + 1));
+      const items = Object.entries(counts).map(([i, qty]) => {
+        const p = created[Number(i)];
+        return {
+          productId: p.id,
+          name: p.name,
+          qty,
+          price: p.salePrice,
+          lineTotal: p.salePrice * qty,
+        };
+      });
+      const total = items.reduce((sum, i) => sum + i.lineTotal, 0);
+      const sale = await api.sales.create(store.id, {
+        items,
+        paymentMethod: method,
+        receiptNo: 'SM-' + String(now - daysAgo * day).slice(-8),
+        cashierEmail: DEMO_EMAIL,
+        trackStock: true,
+        amountPaid: method === 'Credit' ? 0 : amountPaid,
+        customerName,
+      });
+      backdate('smartstore-db', 'sales', sale.id, new Date(now - daysAgo * day));
+      return { sale, total };
+    };
+
+    // Mama Ngozi took ₦15,800 of goods, paid ₦10,000 and has already brought
+    // ₦5,000 back — the Credit Book shows her with ₦800 left to pay.
+    const partial = await creditSale(3, [0, 0, 5, 7, 7], 'Partial', 'Mama Ngozi', 10000);
+    const repayment = await api.creditPayments.add(store.id, {
+      saleId: partial.sale.id,
+      amount: 5000,
+      method: 'Cash',
+      note: 'Brought part of the balance',
+      receivedBy: DEMO_EMAIL,
+    });
+    backdate('smartstore-db', 'creditPayments', repayment.id, new Date(now - 1 * day));
+
+    // Chidi Okeke took goods on full credit yesterday and hasn't paid yet.
+    await creditSale(1, [3, 4], 'Credit', 'Chidi Okeke');
+
     const expenses = [
       { title: 'Generator fuel', amount: 15000, category: 'Utilities', daysAgo: 1 },
       { title: 'Shop rent (monthly)', amount: 120000, category: 'Rent', daysAgo: 10 },

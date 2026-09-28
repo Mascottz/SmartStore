@@ -47,9 +47,25 @@ const mapSale = (s) =>
     paymentMethod: s.payment_method,
     cashierEmail: s.cashier_email || '',
     status: s.status,
+    amountPaid: s.amount_paid == null ? Number(s.total || 0) : Number(s.amount_paid),
+    customerName: s.customer_name || '',
     items: s.items || [],
     total: Number(s.total || 0),
     createdAt: s.created_at,
+  };
+
+const mapCreditPayment = (p) =>
+  p && {
+    id: p.id,
+    storeId: p.store_id,
+    saleId: p.sale_id,
+    receiptNo: p.receipt_no || '',
+    customerName: p.customer_name || '',
+    amount: Number(p.amount || 0),
+    method: p.method || 'Cash',
+    note: p.note || '',
+    receivedBy: p.received_by || '',
+    createdAt: p.created_at,
   };
 
 const mapExpense = (e) =>
@@ -288,7 +304,7 @@ export const supabaseAdapter = {
       ensure(error);
       return data.map(mapSale);
     },
-    async create(storeId, { items, paymentMethod, receiptNo, cashierEmail, trackStock }) {
+    async create(storeId, { items, paymentMethod, receiptNo, cashierEmail, trackStock, amountPaid, customerName }) {
       const { data, error } = await supabase.rpc('create_sale', {
         p_store_id: storeId,
         p_items: items,
@@ -296,6 +312,8 @@ export const supabaseAdapter = {
         p_receipt_no: receiptNo,
         p_cashier_email: cashierEmail || '',
         p_track_stock: Boolean(trackStock),
+        p_amount_paid: amountPaid == null ? null : Number(amountPaid),
+        p_customer_name: customerName ? clamp(sanitize(customerName), 100) : '',
       });
       ensure(error);
       return mapSale(data);
@@ -309,6 +327,39 @@ export const supabaseAdapter = {
       });
       ensure(error);
       return mapSale(data);
+    },
+  },
+
+  // Repayments against partial / credit sales. Writes go through security
+  // definer RPCs so a cashier can record a payment without holding direct
+  // write access to the sales table (see migration 007).
+  creditPayments: {
+    async list(storeId) {
+      const { data, error } = await supabase
+        .from('credit_payments')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false });
+      ensure(error);
+      return data.map(mapCreditPayment);
+    },
+    async add(storeId, { saleId, amount, method, note, receivedBy }) {
+      const { data, error } = await supabase.rpc('record_credit_payment', {
+        p_sale_id: saleId,
+        p_amount: Number(amount),
+        p_method: method || 'Cash',
+        p_note: clamp(sanitize(note || ''), 500),
+        p_received_by: clamp(sanitize(receivedBy || ''), 200),
+      });
+      ensure(error);
+      return mapCreditPayment(data);
+    },
+    async remove(id) {
+      const { error } = await supabase.rpc('delete_credit_payment', {
+        p_payment_id: id,
+      });
+      ensure(error);
+      return id;
     },
   },
 
