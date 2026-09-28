@@ -18,7 +18,7 @@
 //     total: 6800,
 //     paymentMethod: 'Cash',
 //     cashier: 'marta@example.com',
-//     cashierRole: 'cashier', // optional — shown as 'marta@example.com (cashier)'
+//     cashierRole: 'cashier', // optional, shown as 'marta@example.com (cashier)'
 //     status: 'completed', // or 'voided'
 //   });
 //   if (!ok) toast.error('Pop-up blocked...');
@@ -79,11 +79,18 @@ export function printReceipt(sale = {}, options = {}) {
     items: suppliedItems = [],
     total = 0,
     paymentMethod = '',
+    amountPaid,
+    customerName = '',
     cashier = '',
     cashierRole = '',
     status = 'completed',
   } = sale;
   const items = Array.isArray(suppliedItems) ? suppliedItems : [];
+
+  // Credit-type sales print the money still owed below the total. A sale
+  // without an amountPaid (older records) is treated as fully paid.
+  const paidAmount = amountPaid == null ? Number(total) || 0 : Number(amountPaid) || 0;
+  const balanceDue = Math.max(0, (Number(total) || 0) - paidAmount);
 
   const date = createdAt instanceof Date ? createdAt : new Date(createdAt);
   const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
@@ -246,6 +253,7 @@ export function printReceipt(sale = {}, options = {}) {
         <tr><th scope="row" class="k">Receipt:</th><td>${escapeHtml(receiptNo)}</td></tr>
         <tr><th scope="row" class="k">Date:</th><td>${escapeHtml(validDate.toLocaleString('en-NG'))}</td></tr>
         ${paymentMethod ? `<tr><th scope="row" class="k">Payment:</th><td>${escapeHtml(paymentMethod)}</td></tr>` : ''}
+        ${customerName ? `<tr><th scope="row" class="k">Customer:</th><td>${escapeHtml(customerName)}</td></tr>` : ''}
         ${cashier ? `<tr><th scope="row" class="k">Served by:</th><td>${escapeHtml(servedBy)}</td></tr>` : ''}
       </tbody>
     </table>
@@ -268,6 +276,16 @@ export function printReceipt(sale = {}, options = {}) {
         <tr><td>TOTAL</td><td class="amt">${escapeHtml(money(total))}</td></tr>
       </tbody>
     </table>
+    ${balanceDue > 0 ? `
+    <table class="summary">
+      <tbody>
+        <tr><td>Paid</td><td class="amt">${escapeHtml(money(paidAmount))}</td></tr>
+        <tr>
+          <td><strong>BALANCE DUE</strong></td>
+          <td class="amt"><strong>${escapeHtml(money(balanceDue))}</strong></td>
+        </tr>
+      </tbody>
+    </table>` : ''}
     <table class="summary">
       <tbody>
         <tr>

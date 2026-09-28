@@ -1,4 +1,4 @@
--- SmartStore NG — membership approval queue and system-admin RPCs
+-- SmartStore NG: membership approval queue and system-admin RPCs
 -- Existing members stay approved. New staff who join with a code must be
 -- approved by their store owner before tenant data becomes accessible.
 

@@ -82,6 +82,7 @@ function load() {
     products: [],
     sales: [],
     expenses: [],
+    creditPayments: [],
     voidLogs: [],
   };
 }
@@ -395,7 +396,7 @@ export const localAdapter = {
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     },
 
-    async create(storeId, { items, paymentMethod, receiptNo, cashierEmail, trackStock }) {
+    async create(storeId, { items, paymentMethod, receiptNo, cashierEmail, trackStock, amountPaid, customerName }) {
       if (!Array.isArray(items) || items.length === 0) {
         throw new Error('Cart is empty.');
       }
@@ -428,10 +429,34 @@ export const localAdapter = {
         }
       }
 
-      const allowedMethods = ['Cash', 'Transfer', 'POS/Card'];
+      const allowedMethods = ['Cash', 'Transfer', 'POS/Card', 'Partial', 'Credit'];
       const method = allowedMethods.includes(paymentMethod)
         ? paymentMethod
         : 'Cash';
+
+      const total = items.reduce((sum, i) => sum + (Number(i.lineTotal) || 0), 0);
+
+      // Partial / Credit sales leave money outstanding against a named
+      // customer; everything else is paid in full at the till.
+      let paid = total;
+      let customer = '';
+      if (method === 'Partial' || method === 'Credit') {
+        customer = clamp(sanitize(customerName || ''), 100);
+        if (!customer) {
+          throw new Error("Enter the customer's name so the debt can be tracked.");
+        }
+        if (method === 'Credit') {
+          paid = 0;
+        } else {
+          paid = Number(amountPaid);
+          if (!Number.isFinite(paid) || paid <= 0) {
+            throw new Error('Enter how much the customer is paying now.');
+          }
+          if (paid >= total) {
+            throw new Error('Amount paid must be less than the sale total for a partial payment.');
+          }
+        }
+      }
 
       const sale = {
         id: uid(),
@@ -440,6 +465,8 @@ export const localAdapter = {
         paymentMethod: method,
         cashierEmail: clamp(sanitize(cashierEmail || ''), 200),
         status: 'completed',
+        amountPaid: paid,
+        customerName: customer,
         items: items.map((i) => ({
           productId: i.productId,
           name: clamp(sanitize(i.name), 200),
@@ -447,7 +474,7 @@ export const localAdapter = {
           price: Math.max(0, Number(i.price) || 0),
           lineTotal: Math.max(0, Number(i.lineTotal) || 0),
         })),
-        total: items.reduce((sum, i) => sum + (Number(i.lineTotal) || 0), 0),
+        total,
         createdAt: new Date().toISOString(),
       };
       db.sales.push(sale);
@@ -480,6 +507,72 @@ export const localAdapter = {
       });
       save(db);
       return sale;
+    },
+  },
+
+  // Repayments against partial / credit sales. Each record is appended to the
+  // ledger and the sale's amountPaid moves with it, so a sale's outstanding
+  // balance is always total - amountPaid and the full history survives.
+  creditPayments: {
+    async list(storeId) {
+      const db = load();
+      return (db.creditPayments || [])
+        .filter((p) => p.storeId === storeId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    },
+
+    async add(storeId, { saleId, amount, method, note, receivedBy }) {
+      const db = load();
+      const sale = db.sales.find((s) => s.id === saleId && s.storeId === storeId);
+      if (!sale) throw new Error('Sale not found');
+      if (sale.status === 'voided') throw new Error('This sale was voided.');
+
+      const value = Number(amount);
+      if (!Number.isFinite(value) || value <= 0) {
+        throw new Error('Enter a valid payment amount.');
+      }
+      // Sales recorded before the credit feature have no amountPaid; they
+      // were settled at the till, so treat them as paid in full.
+      const paidSoFar =
+        sale.amountPaid == null ? Number(sale.total) || 0 : Number(sale.amountPaid) || 0;
+      const balance = Math.max(0, (Number(sale.total) || 0) - paidSoFar);
+      if (balance <= 0) throw new Error('This debt is already settled.');
+      if (value > balance) {
+        throw new Error(`Payment is more than the outstanding balance of ${balance}.`);
+      }
+
+      const allowedMethods = ['Cash', 'Transfer', 'POS/Card'];
+      const payment = {
+        id: uid(),
+        storeId,
+        saleId: sale.id,
+        receiptNo: sale.receiptNo,
+        customerName: sale.customerName || '',
+        amount: value,
+        method: allowedMethods.includes(method) ? method : 'Cash',
+        note: clamp(sanitize(note || ''), 500),
+        receivedBy: clamp(sanitize(receivedBy || ''), 200),
+        createdAt: new Date().toISOString(),
+      };
+      db.creditPayments = db.creditPayments || [];
+      db.creditPayments.push(payment);
+      sale.amountPaid = paidSoFar + value;
+      save(db);
+      return payment;
+    },
+
+    async remove(id) {
+      const db = load();
+      const payment = (db.creditPayments || []).find((p) => p.id === id);
+      if (!payment) throw new Error('Payment record not found');
+      db.creditPayments = db.creditPayments.filter((p) => p.id !== id);
+      // Reverse the repayment on the sale so the balance opens up again.
+      const sale = db.sales.find((s) => s.id === payment.saleId);
+      if (sale) {
+        sale.amountPaid = Math.max(0, (Number(sale.amountPaid) || 0) - payment.amount);
+      }
+      save(db);
+      return payment;
     },
   },
 
@@ -660,6 +753,7 @@ export const localAdapter = {
       db.products = db.products.filter((item) => item.storeId !== storeId);
       db.sales = db.sales.filter((item) => item.storeId !== storeId);
       db.expenses = db.expenses.filter((item) => item.storeId !== storeId);
+      db.creditPayments = (db.creditPayments || []).filter((item) => item.storeId !== storeId);
       db.voidLogs = db.voidLogs.filter((item) => item.storeId !== storeId);
       save(db);
       return storeId;

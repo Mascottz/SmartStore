@@ -56,7 +56,7 @@ describe('staff join-on-login flow', () => {
     const { joinCode, storeId } = await seedStore();
 
     // Account exists, but the join request never made it out (interrupted
-    // signup, dropped request, closed tab) — only the code survived.
+    // signup, dropped request, closed tab), only the code survived.
     const staff = await api.auth.signUp({ email: 'tunde@shop.com', password: 'secret1' });
     saveJoinRequest({ code: joinCode, email: 'tunde@shop.com' });
     await api.auth.signOut();

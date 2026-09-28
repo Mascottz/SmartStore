@@ -13,6 +13,7 @@ import {
   Settings,
   Moon,
   Sun,
+  BookUser,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api, isDemoBackend } from '../lib/backend';
@@ -49,6 +50,7 @@ export default function Sidebar() {
     },
     { name: 'POS Register', icon: ShoppingCart, path: '/pos' },
     { name: 'Sales History', icon: Receipt, path: '/sales' },
+    { name: 'Credit Book', icon: BookUser, path: '/credit' },
     { name: 'Reports', icon: BarChart3, path: '/reports', minRole: 'manager' },
     {
       name: 'Void Report',

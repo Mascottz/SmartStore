@@ -10,6 +10,7 @@ import { fmtMoney, fmtDateTime } from '../lib/format';
 import { printReceipt } from '../lib/printReceipt';
 import { sanitize } from '../lib/validate';
 import { downloadCsv } from '../lib/exportCsv';
+import { saleBalance } from '../lib/credit';
 import HelpTip from '../components/HelpTip';
 
 export default function SalesHistory() {
@@ -84,6 +85,8 @@ export default function SalesHistory() {
       items: sale.items,
       total: sale.total,
       paymentMethod: sale.paymentMethod,
+      amountPaid: sale.amountPaid,
+      customerName: sale.customerName || '',
       cashier: cashierEmail,
       cashierRole: roleByEmail.get(cashierEmail.toLowerCase()) || '',
       status: sale.status,
@@ -92,13 +95,16 @@ export default function SalesHistory() {
   };
 
   const handleExport = () => {
-    const headers = ['Receipt', 'Date', 'Payment', 'Items', 'Total', 'Status'];
+    const headers = ['Receipt', 'Date', 'Payment', 'Customer', 'Items', 'Total', 'Paid', 'Balance', 'Status'];
     const rows = filtered.map((s) => [
       s.receiptNo,
       fmtDateTime(s.createdAt),
       s.paymentMethod,
+      s.customerName || '',
       s.items.length,
       s.total,
+      s.amountPaid ?? s.total,
+      saleBalance(s),
       s.status,
     ]);
     downloadCsv(`${store?.name || 'sales'}-export`, headers, rows);
@@ -114,7 +120,7 @@ export default function SalesHistory() {
             <HelpTip
               label="Help: Sales History"
               iconClassName="w-7 h-7"
-              text="Every receipt this store has ever issued. Tap a receipt to expand its line items, reprint the thermal receipt, or void the sale. Voided receipts stay listed — struck through — so the record is never lost."
+              text="Every receipt this store has ever issued. Tap a receipt to expand its line items, reprint the thermal receipt, or void the sale. Voided receipts stay listed, struck through, so the record is never lost."
             />
           </div>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
@@ -181,6 +187,8 @@ export default function SalesHistory() {
         ) : (
           filtered.map((sale) => {
             const expanded = expandedId === sale.id;
+            const balance = saleBalance(sale);
+            const owesMoney = balance > 0 && sale.status === 'completed';
             return (
               <div
                 key={sale.id}
@@ -192,7 +200,7 @@ export default function SalesHistory() {
                   aria-expanded={expanded}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-sm">{sale.receiptNo}</p>
                       <span
                         className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase ${
@@ -203,10 +211,16 @@ export default function SalesHistory() {
                       >
                         {sale.status}
                       </span>
+                      {owesMoney && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                          Owes {fmtMoney(balance)}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-zinc-500 mt-0.5">
                       {fmtDateTime(sale.createdAt)} &middot; {sale.paymentMethod} &middot;{' '}
                       {sale.items.length} item{sale.items.length !== 1 ? 's' : ''}
+                      {sale.customerName && <> &middot; {sale.customerName}</>}
                       {sale.cashierEmail && <> &middot; {sale.cashierEmail}</>}
                     </p>
                   </div>
@@ -237,6 +251,19 @@ export default function SalesHistory() {
                         ))}
                       </tbody>
                     </table>
+                    {sale.customerName && (
+                      <p className="text-xs text-zinc-500 mt-2">
+                        {sale.customerName} paid {fmtMoney(Number(sale.amountPaid ?? sale.total))} of{' '}
+                        {fmtMoney(sale.total)}
+                        {owesMoney ? (
+                          <>
+                            {'; '}<span className="text-amber-600 dark:text-amber-400 font-semibold">{fmtMoney(balance)} outstanding</span>
+                          </>
+                        ) : (
+                          ', settled'
+                        )}
+                      </p>
+                    )}
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => printThermalReceipt(sale)}

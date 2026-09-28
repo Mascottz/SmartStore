@@ -46,7 +46,7 @@ export default function QuickAddProduct({
     costPrice: '',
     salePrice: '',
     // The item the cashier is scanning is physically in hand, so start with
-    // one unit — required for the stock-tracked sale to go through.
+    // one unit, required for the stock-tracked sale to go through.
     stock: niche.trackStock ? '1' : '',
     expiryDate: '',
   });
@@ -82,7 +82,7 @@ export default function QuickAddProduct({
       : 0;
     if (niche.trackStock && stock < 1) {
       return toast.error(
-        'Stock must be at least 1 — the item is being added to the sale.'
+        'Stock must be at least 1; the item is being added to the sale.'
       );
     }
 
@@ -151,7 +151,7 @@ export default function QuickAddProduct({
           <span className="font-mono font-semibold text-zinc-900 dark:text-white break-all">
             {barcode}
           </span>{' '}
-          isn&rsquo;t in your inventory yet. Save it below — the{' '}
+          isn&rsquo;t in your inventory yet. Save it below; the{' '}
           {niche.itemNoun.toLowerCase()} is added to inventory and to the
           current sale.
         </p>

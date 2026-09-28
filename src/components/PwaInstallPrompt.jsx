@@ -16,7 +16,7 @@ export default function PwaInstallPrompt() {
     try {
       if (localStorage.getItem(DISMISS_KEY) === '1') return;
     } catch {
-      // private mode — still show the banner
+      // private mode; still show the banner
     }
 
     const onBeforeInstall = (event) => {

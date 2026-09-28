@@ -1,4 +1,4 @@
--- SmartStore NG — Admin upgrade to Owner Mode without Paystack
+-- SmartStore NG: Admin upgrade to Owner Mode without Paystack
 -- Allows Super Admin to upgrade any store to the owner plan directly.
 -- Adds an RLS policy so super_admin can update stores, plus a dedicated
 -- security-definer RPC that enforces the super_admin check server-side.

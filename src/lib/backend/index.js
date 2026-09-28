@@ -20,13 +20,16 @@ export function notifyChange(topic = '*') {
 }
 
 // Wrap all mutating namespaces so every successful write fires an event.
-function withNotify(ns, topic, mutatingKeys) {
+// `extraTopics` is for writes that also change other collections (a credit
+// repayment moves the sale's amountPaid, for example).
+function withNotify(ns, topic, mutatingKeys, extraTopics = []) {
   const wrapped = {};
   for (const key of Object.keys(ns)) {
     if (mutatingKeys.includes(key)) {
       wrapped[key] = async (...args) => {
         const result = await ns[key](...args);
         notifyChange(topic);
+        extraTopics.forEach((t) => notifyChange(t));
         return result;
       };
     } else {
@@ -43,6 +46,8 @@ export const api = {
   categories: withNotify(backend.categories, 'categories', ['add', 'remove']),
   products: withNotify(backend.products, 'products', ['create', 'update', 'remove']),
   sales: withNotify(backend.sales, 'sales', ['create', 'void']),
+  // Repayments also change the sale's amountPaid, so notify both topics.
+  creditPayments: withNotify(backend.creditPayments, 'creditPayments', ['add', 'remove'], ['sales']),
   expenses: withNotify(backend.expenses, 'expenses', ['create', 'remove']),
   voidLogs: backend.voidLogs,
   team: withNotify(backend.team, 'team', [

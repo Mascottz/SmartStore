@@ -158,7 +158,7 @@ export default function Reports() {
           </select>
           <HelpTip
             label="Help: Report period"
-            text="Every number and chart on this page is recalculated for the selected window — the last 7, 30 or 90 days counting back from today."
+            text="Every number and chart on this page is recalculated for the selected window, the last 7, 30 or 90 days counting back from today."
           />
         </div>
       </div>
@@ -183,7 +183,7 @@ export default function Reports() {
               label="Gross Profit"
               value={fmtMoney(grossProfit)}
               accent="text-sky-500"
-              help="Revenue minus the cost of the goods that were sold — what the trading itself earned before running costs."
+              help="Revenue minus the cost of the goods that were sold; what the trading itself earned before running costs."
             />
             <Kpi
               label="Net Profit (after expenses)"
@@ -234,7 +234,7 @@ export default function Reports() {
                 Payment methods
                 <HelpTip
                   label="Help: Payment methods"
-                  text="How customers paid in the period — cash, transfer or card — as a share of the money taken in."
+                  text="How customers paid in the period, cash, transfer or card, as a share of the money taken in."
                 />
               </h3>
               {paymentData.length === 0 ? (

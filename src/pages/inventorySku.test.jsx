@@ -1,4 +1,4 @@
-// Auto-SKU on save: a blank code field in the Add modal must not stay blank —
+// Auto-SKU on save: a blank code field in the Add modal must not stay blank;
 // the product goes in with a readable code built from its own name
 // ("Peak Milk 400g" → "PEA-MIL-400G-XXXX"). A code the cashier typed is kept
 // exactly as typed, and the generated one never matches a SKU the store
@@ -51,12 +51,12 @@ async function saveProduct(fields) {
   for (const [label, value] of Object.entries(fields)) {
     if (value === '') continue; // leave the field untouched
     // The SKU label also carries a HelpTip button whose accessible name ends
-    // in the same words — `selector` keeps the query on the input itself.
+    // in the same words; `selector` keeps the query on the input itself.
     const input = screen.getByLabelText(label, { selector: 'input' });
     await userEvent.type(input, value);
   }
 
-  // The header button is still in the tree behind the modal — pick the one
+  // The header button is still in the tree behind the modal; pick the one
   // that lives inside the dialog.
   const save = screen
     .getAllByRole('button', { name: /^Add Product$/ })
@@ -67,7 +67,7 @@ async function saveProduct(fields) {
   return api.products.create.mock.calls[0][1].sku;
 }
 
-describe('Inventory — auto-generated SKU', () => {
+describe('Inventory: auto-generated SKU', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     state.products = [];

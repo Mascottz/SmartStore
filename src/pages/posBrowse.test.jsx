@@ -61,7 +61,7 @@ function renderPos() {
 const pills = () =>
   screen.getAllByRole('button').filter((b) => b.closest('[aria-label*="by category"]'));
 
-describe('POS — category filters', () => {
+describe('POS: category filters', () => {
   beforeEach(() => {
     state.products = [
       product('Peak Milk 400g', 'Beverages'),
@@ -117,7 +117,7 @@ describe('POS — category filters', () => {
     expect(screen.getByText('Eva Water 75cl')).toBeTruthy();
     expect(screen.queryByText('Peak Milk 400g')).toBeNull();
 
-    // Nothing matches inside this category — the message says so, and the
+    // Nothing matches inside this category; the message says so, and the
     // clear-filters shortcut gets the store back.
     await userEvent.clear(screen.getByLabelText(/search products/i));
     await userEvent.type(screen.getByLabelText(/search products/i), 'rice');
@@ -130,7 +130,7 @@ describe('POS — category filters', () => {
   });
 });
 
-describe('POS — pagination', () => {
+describe('POS: pagination', () => {
   beforeEach(() => {
     state.products = Array.from({ length: 60 }, (_, i) =>
       product(`Item ${String(i + 1).padStart(2, '0')}`, i % 2 ? 'Beverages' : 'Snacks')
@@ -187,7 +187,7 @@ describe('POS — pagination', () => {
   });
 });
 
-describe('POS — help tooltips', () => {
+describe('POS: help tooltips', () => {
   beforeEach(() => {
     state.products = [
       product('Peak Milk 400g', 'Beverages'),

@@ -1,7 +1,7 @@
 // Inventory worth summary: cost value, retail value, potential profit + margin.
 //
 // The page used to squeeze one number ("Stock value") into the subtitle, and it
-// only ever showed what the stock *cost*. Owners want the other half too — what
+// only ever showed what the stock *cost*. Owners want the other half too: what
 // it is worth at the till, and the profit sitting on the shelves. These tests
 // pin all three cards, and the fact that the summary describes the whole
 // catalogue rather than whatever the search box happens to be filtering.
@@ -60,7 +60,7 @@ const twoLines = () => [
 
 const summary = () => screen.getByRole('region', { name: /inventory worth/i });
 
-describe('Inventory — worth summary', () => {
+describe('Inventory: worth summary', () => {
   beforeEach(() => {
     authState.niche = supermarket;
     state.products = twoLines();

@@ -20,6 +20,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const POS = lazy(() => import('./pages/POS'));
 const SalesHistory = lazy(() => import('./pages/SalesHistory'));
+const CreditBook = lazy(() => import('./pages/CreditBook'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Expenses = lazy(() => import('./pages/Expenses'));
 const ExpensesReport = lazy(() => import('./pages/ExpensesReport'));
@@ -165,6 +166,7 @@ function AppInner() {
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/pos" element={<POS />} />
           <Route path="/sales" element={<SalesHistory />} />
+          <Route path="/credit" element={<CreditBook />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/reports/voids" element={<VoidReports />} />
           <Route path="/reports/expenses" element={<ExpensesReport />} />

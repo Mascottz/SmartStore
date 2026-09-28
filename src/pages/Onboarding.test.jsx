@@ -40,7 +40,7 @@ function renderOnboarding() {
   );
 }
 
-describe('Onboarding — already has a store', () => {
+describe('Onboarding: already has a store', () => {
   beforeEach(() => {
     Object.assign(authState, {
       user: { id: 'u1', email: 'ada@shop.com' },

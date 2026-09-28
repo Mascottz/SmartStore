@@ -439,7 +439,7 @@ export default function SuperAdmin() {
               <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${background}`}>
                 <Icon className={`h-4.5 w-4.5 ${colour}`} />
               </div>
-              <p className="mt-4 text-2xl font-bold">{loading ? '—' : value}</p>
+              <p className="mt-4 text-2xl font-bold">{loading ? '-' : value}</p>
               <p className="mt-0.5 text-xs text-zinc-500">{label}</p>
             </div>
           ))}
@@ -694,8 +694,8 @@ function UsersPanel({
               users.map((user) => (
                 <tr key={user.id} className="border-b border-zinc-800/70 last:border-0">
                   <td className="px-5 py-4 font-medium">{user.email}</td>
-                  <td className="px-5 py-4 text-zinc-400">{user.storeName || '—'}</td>
-                  <td className="px-5 py-4 capitalize text-zinc-400">{user.role || '—'}</td>
+                  <td className="px-5 py-4 text-zinc-400">{user.storeName || '-'}</td>
+                  <td className="px-5 py-4 capitalize text-zinc-400">{user.role || '-'}</td>
                   <td className="px-5 py-4">
                     <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${STATUS_STYLES[user.approvalStatus] || STATUS_STYLES.unassigned}`}>
                       {user.approvalStatus}
@@ -851,7 +851,7 @@ function StoresPanel({ stores, loading, busyId, deleteStore, onUpgrade }) {
 
 function SystemRecordsPanel({ tab, records = [], loading }) {
   const fields = tab === 'sales' ? ['receiptNo', 'total', 'status', 'createdAt'] : tab === 'products' ? ['name', 'stock', 'salePrice', 'storeId'] : ['title', 'amount', 'category', 'date'];
-  return <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-zinc-800 text-left text-xs uppercase text-zinc-500">{fields.map((field) => <th key={field} className="px-5 py-3">{field.replace(/([A-Z])/g, ' $1')}</th>)}</tr></thead><tbody>{loading ? <tr><td colSpan={fields.length}><LoadingRows count={4} /></td></tr> : records.length === 0 ? <tr><td colSpan={fields.length} className="px-5 py-12 text-center text-zinc-500">No {tab} recorded yet.</td></tr> : records.map((record) => <tr key={record.id} className="border-b border-zinc-800/70 last:border-0">{fields.map((field) => <td key={field} className="px-5 py-4 text-zinc-300">{String(record[field] ?? '—')}</td>)}</tr>)}</tbody></table></div></section>;
+  return <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-zinc-800 text-left text-xs uppercase text-zinc-500">{fields.map((field) => <th key={field} className="px-5 py-3">{field.replace(/([A-Z])/g, ' $1')}</th>)}</tr></thead><tbody>{loading ? <tr><td colSpan={fields.length}><LoadingRows count={4} /></td></tr> : records.length === 0 ? <tr><td colSpan={fields.length} className="px-5 py-12 text-center text-zinc-500">No {tab} recorded yet.</td></tr> : records.map((record) => <tr key={record.id} className="border-b border-zinc-800/70 last:border-0">{fields.map((field) => <td key={field} className="px-5 py-4 text-zinc-300">{String(record[field] ?? '-')}</td>)}</tr>)}</tbody></table></div></section>;
 }
 
 const AUDIT_ACTION_STYLES = {
@@ -915,9 +915,9 @@ function AuditLogPanel({ entries, loading, onClear }) {
                         {label}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-zinc-300">{entry.actor || '—'}</td>
-                    <td className="px-5 py-4 text-zinc-300">{entry.target || '—'}</td>
-                    <td className="px-5 py-4 text-zinc-500">{entry.details || '—'}</td>
+                    <td className="px-5 py-4 text-zinc-300">{entry.actor || '-'}</td>
+                    <td className="px-5 py-4 text-zinc-300">{entry.target || '-'}</td>
+                    <td className="px-5 py-4 text-zinc-500">{entry.details || '-'}</td>
                   </tr>
                 );
               })

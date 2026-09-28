@@ -1,4 +1,4 @@
--- SmartStore NG — Supabase schema
+-- SmartStore NG: Supabase schema
 -- Run this in the Supabase SQL editor (or `supabase db push`) once,
 -- then set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.
 

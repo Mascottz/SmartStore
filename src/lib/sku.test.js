@@ -27,7 +27,7 @@ describe('skuPrefix', () => {
   });
 
   it('caps the code at three words and three letters per word', () => {
-    // "1kg" is the fourth word — dropped, not squeezed in.
+    // "1kg" is the fourth word, dropped, not squeezed in.
     expect(skuPrefix('Golden Penny Semovita 1kg')).toBe('GOL-PEN-SEM');
     expect(skuPrefix('Indomie Chicken 70g')).toBe('IND-CHI-70G');
   });

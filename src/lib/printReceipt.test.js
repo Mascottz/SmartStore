@@ -69,7 +69,7 @@ describe('printReceipt', () => {
   it('keeps a 10-second fallback that closes the window when afterprint never fires', () => {
     printReceipt(sale);
     // print() blocks while the dialog is open, so a short fallback cannot
-    // close the popup out from under a user who is still choosing a printer —
+    // close the popup out from under a user who is still choosing a printer;
     // it only fires once the dialog has gone away and afterprint was missed.
     expect(written).toMatch(/setTimeout\(function\s*\(\)\s*\{\s*window\.close\(\);\s*\},\s*10000\)/);
   });

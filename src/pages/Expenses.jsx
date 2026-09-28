@@ -113,7 +113,7 @@ export default function Expenses() {
             <HelpTip
               label="Help: Expenses"
               iconClassName="w-7 h-7"
-              text="The shop's running costs — rent, fuel, salaries, restocking and the like. Recorded expenses feed the Net Profit figure on the Reports page, so log them as you go."
+              text="The shop's running costs: rent, fuel, salaries, restocking and the like. Recorded expenses feed the Net Profit figure on the Reports page, so log them as you go."
             />
           </div>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
@@ -184,7 +184,7 @@ export default function Expenses() {
                     </td>
                     <td className="px-5 py-3 text-zinc-500">{fmtDate(e.date)}</td>
                     <td className="px-5 py-3 text-zinc-500 max-w-[200px] truncate">
-                      {e.note || '—'}
+                      {e.note || '-'}
                     </td>
                     <td className="px-5 py-3 text-right font-semibold text-amber-600 dark:text-amber-400">
                       {fmtMoney(e.amount)}
