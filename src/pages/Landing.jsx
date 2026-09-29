@@ -409,6 +409,16 @@ export default function Landing() {
               <li><Link to="/contact" className="hover:text-emerald-600">Contact Us</Link></li>
               <li><Link to="/help" className="hover:text-emerald-600">Help Center</Link></li>
               <li>
+                <a href="mailto:info@mastechinnovations.com.ng" className="hover:text-emerald-600">
+                  Email Support
+                </a>
+              </li>
+              <li>
+                <a href="tel:+2349138825300" className="hover:text-emerald-600">
+                  +234 913 882 5300
+                </a>
+              </li>
+              <li>
                 <a href="mailto:business@smartstoreng.shop" className="hover:text-emerald-600">
                   Business Inquiries
                 </a>
@@ -426,7 +436,11 @@ export default function Landing() {
         <div className="border-t border-zinc-100">
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-5 text-xs sm:flex-row lg:px-8">
             <span>&copy; {new Date().getFullYear()} SmartStore NG. All rights reserved.</span>
-            <span>Lagos, Nigeria</span>
+            <span>
+              Powered by{' '}
+              <span className="font-semibold text-zinc-700">MASTECH INNOVATIONS</span>
+              {' '}&middot; Lagos, Nigeria
+            </span>
           </div>
         </div>
       </footer>

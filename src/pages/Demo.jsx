@@ -123,6 +123,23 @@ export default function Demo() {
           ))}
         </div>
       </main>
+
+      <footer className="border-t border-zinc-100">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-5 py-6 text-xs text-zinc-500 sm:flex-row lg:px-8">
+          <span>
+            Powered by{' '}
+            <span className="font-semibold text-zinc-700">MASTECH INNOVATIONS</span>
+          </span>
+          <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <a href="mailto:info@mastechinnovations.com.ng" className="hover:text-emerald-600">
+              info@mastechinnovations.com.ng
+            </a>
+            <a href="tel:+2349138825300" className="hover:text-emerald-600">
+              +234 913 882 5300
+            </a>
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

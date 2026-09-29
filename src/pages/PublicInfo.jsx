@@ -137,16 +137,16 @@ const PAGES = {
     updated: '24 August 2026',
     body: [
       [
-        'Support',
-        'Email hello@smartstoreng.shop for product questions, account access, or help recovering a store.',
+        'Email support',
+        'For product questions, account access, or help recovering a store, email info@mastechinnovations.com.ng or call +2349138825300. We reply during Nigerian business hours.',
       ],
       [
         'Business inquiries',
         'Partnerships, wholesale, and press: business@smartstoreng.shop.',
       ],
       [
-        'Nigeria',
-        'SmartStore NG is built for shops across Nigeria. We are based in Lagos.',
+        'Powered by MASTECH INNOVATIONS',
+        'SmartStore NG is a product of MASTECH INNOVATIONS, based in Lagos, Nigeria.',
       ],
     ],
   },
@@ -187,6 +187,18 @@ export default function PublicInfo({ page }) {
           </Link>
         </p>
       </main>
+
+      <footer className="border-t border-zinc-100">
+        <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-2 px-5 py-6 text-xs text-zinc-500 sm:flex-row">
+          <span>
+            Powered by{' '}
+            <span className="font-semibold text-zinc-700">MASTECH INNOVATIONS</span>
+          </span>
+          <a href="mailto:info@mastechinnovations.com.ng" className="hover:text-emerald-600">
+            info@mastechinnovations.com.ng
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
