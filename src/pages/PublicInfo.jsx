@@ -56,7 +56,7 @@ const PAGES = {
       ],
       [
         'Contact us',
-        'For privacy requests or to exercise any of your rights, email hello@smartstoreng.shop or write to SmartStore NG, Lagos, Nigeria.',
+        'For privacy requests or to exercise any of your rights, email hello@smartstoreng.shop or write to SmartStore NG, Abuja, Nigeria.',
       ],
     ],
   },
@@ -102,7 +102,7 @@ const PAGES = {
       ],
       [
         'Governing law & jurisdiction',
-        'These Terms are governed by the laws of the Federal Republic of Nigeria, including the Nigeria Data Protection Act 2023 (NDPA) and the Nigeria Data Protection Regulation (NDPR) where applicable. You agree that any dispute arising out of or relating to these Terms shall be subject to the exclusive jurisdiction of the courts of Nigeria sitting in Lagos State.',
+        'These Terms are governed by the laws of the Federal Republic of Nigeria, including the Nigeria Data Protection Act 2023 (NDPA) and the Nigeria Data Protection Regulation (NDPR) where applicable. You agree that any dispute arising out of or relating to these Terms shall be subject to the exclusive jurisdiction of the courts of Nigeria sitting in the Federal Capital Territory, Abuja.',
       ],
       [
         'Changes to these terms',
@@ -110,7 +110,7 @@ const PAGES = {
       ],
       [
         'Contact us',
-        'Questions about these Terms? Email hello@smartstoreng.shop or write to SmartStore NG, Lagos, Nigeria.',
+        'Questions about these Terms? Email hello@smartstoreng.shop or write to SmartStore NG, Abuja, Nigeria.',
       ],
     ],
   },
@@ -154,7 +154,7 @@ const PAGES = {
       ],
       [
         'Powered by MASTECH INNOVATIONS',
-        'SmartStore NG is a product of MASTECH INNOVATIONS, based in Lagos, Nigeria.',
+        'SmartStore NG is a product of MASTECH INNOVATIONS, based in Abuja, Nigeria.',
       ],
     ],
   },
