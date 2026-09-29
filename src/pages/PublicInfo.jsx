@@ -24,11 +24,11 @@ const PAGES = {
       ],
       [
         'Sharing & disclosure',
-        'We share data only with the service providers required to run the product: primarily Supabase (database and authentication) and Paystack (payment processing when you choose to pay). We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
+        'We share data only with the service providers required to run the product: primarily Supabase (database and authentication), Paystack (payment processing when you choose to pay), and Google Gemini when you choose to use the optional AI assistant. The assistant sends limited store context such as aggregate figures and product labels so it can answer your question; it does not send passwords, account emails, customer names, or raw receipt history. We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
       ],
       [
         'Where your data lives',
-        'With the live backend enabled, data is stored in a Supabase (Postgres) project with row-level security. In demo mode, data stays in your browser (localStorage) and is not transmitted to any server.',
+        'With the live backend enabled, data is stored in a Supabase (Postgres) project with row-level security. In demo mode, data stays in your browser (localStorage) and is not transmitted to any server unless you choose to use the AI assistant, in which case the limited context described above is sent to the configured Gemini endpoint.',
       ],
       [
         'Data retention',
@@ -81,6 +81,10 @@ const PAGES = {
         'Shop Mode is free. Owner Mode unlocks full reports and expense analytics and may carry a subscription fee. When you subscribe, payment is processed through Paystack (an independent third party); we do not store your card details. Fees are non-refundable except where law requires. We may offer demo billing in the app until a live payment provider is connected.',
       ],
       [
+        'AI assistant',
+        'SmartStore AI is available across the app to signed-in users and can answer questions, explain records, and guide you to features. AI responses may be incomplete or inaccurate, so check important numbers in the relevant SmartStore screen. The assistant respects your account permissions and does not replace your responsibility for sales, stock, staff, or financial decisions.',
+      ],
+      [
         'Acceptable use',
         'Do not use the service to store or sell unlawful goods, to attack or disrupt the platform, to access another shop’s data, or to impersonate others. We may suspend or terminate accounts that break these terms.',
       ],
@@ -121,6 +125,10 @@ const PAGES = {
       [
         'Take a sale',
         'Open POS, tap items or scan a barcode (camera or USB scanner), pick Cash, Transfer, or POS/Card, then complete the sale. Print an 80mm thermal receipt from POS or Sales History.',
+      ],
+      [
+        'Use SmartStore AI',
+        'Open Ask AI from anywhere inside the app. Ask about sales, stock, best sellers, credit, expenses, reports, team, settings, or how to use a feature. It is available in both Shop Mode and Owner Mode, works with local insights offline, and follows the permissions of your role.',
       ],
       [
         'Install the app',
