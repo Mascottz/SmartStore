@@ -1,6 +1,6 @@
 // src/App.jsx
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { Routes, Route, Outlet, Navigate, useNavigationType } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import Login from './components/Login';
@@ -12,6 +12,7 @@ import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineBanner from './components/OfflineBanner';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
+import { isInstalledPwa } from './lib/pwa';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Lazy-load pages so the initial bundle stays small
@@ -52,6 +53,34 @@ function ShellLayout() {
 
 function RootRoute() {
   const { user, approvalStatus, store } = useAuth();
+  // 'POP' is how the router reports a *fresh open* of the site (typed URL,
+  // bookmark, link from another app, installed-PWA launch, page reload).
+  // In-app navigations are 'PUSH' / 'REPLACE' and keep the app routing below.
+  const navigationType = useNavigationType();
+
+  // Installed app launch (home-screen icon, desktop window): never the
+  // marketing page. Sign-in comes first — onboarding is only ever reached
+  // after an explicit login, never as a launch destination. A signed-in
+  // owner with a ready store goes straight to work.
+  if (isInstalledPwa() && navigationType === 'POP') {
+    if (approvalStatus === 'pending' || approvalStatus === 'rejected') {
+      return <PendingApproval />;
+    }
+    if (user && store) return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/login" replace />;
+  }
+
+  // Browser fresh open: the landing page, even for visitors with a saved
+  // session. They reach the app through the page's "Open App" call to
+  // action (an in-app navigation), so nothing is lost — the direct
+  // /dashboard, /pos, ... links keep working as before too.
+  if (navigationType === 'POP') {
+    return (
+      <Suspense fallback={<SplashScreen />}>
+        <Landing />
+      </Suspense>
+    );
+  }
 
   // Approval takes precedence over every other authenticated route. In
   // particular, a pending staff member must not be sent to onboarding just

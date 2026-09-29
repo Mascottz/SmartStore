@@ -67,16 +67,16 @@ describe('Onboarding: already has a store', () => {
     expect(screen.queryByLabelText(/what is your business called/i)).toBe(null);
   });
 
-  it('sends the user to the root route so RootRoute picks the destination', async () => {
+  it('sends the user straight to the dashboard', async () => {
     authState.store = { id: 's1', name: "Marta's Mart" };
     const user = userEvent.setup();
 
     renderOnboarding();
     await user.click(screen.getByRole('button', { name: /go to dashboard/i }));
 
-    // RootRoute is the single place that decides where an authenticated user
-    // lands, so the button goes to '/' rather than straight to /dashboard.
-    expect(window.location.href).toBe('/');
+    // '/' is the marketing landing page on a fresh open now, so the exit
+    // button targets /dashboard directly.
+    expect(window.location.href).toBe('/dashboard');
   });
 
   it('shows the screen when the backend rejects creation as a duplicate store', async () => {
