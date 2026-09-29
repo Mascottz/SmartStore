@@ -2,7 +2,7 @@
 // Route-level enforcement of the two-way owner app.
 //
 // MainAppGate    wraps the standard (transactional) app shell. An owner who is
-//                in monitoring mode can never open it — even by typing /pos —
+//                in monitoring mode can never open it, even by typing /pos,
 //                and is redirected to the matching monitoring screen instead.
 //                Staff and free-plan owners pass straight through, untouched.
 // MonitoringGate wraps the /m monitoring app. It only exists for owners in

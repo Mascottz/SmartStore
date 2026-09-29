@@ -4,7 +4,7 @@
 // that matter (cost, margin, expiry). Search sticks to the top while the
 // list scrolls. Add/edit opens as a bottom sheet on phones.
 //
-// This mirrors the full Inventory page minus nothing — monitoring mode keeps
+// This mirrors the full Inventory page minus nothing; monitoring mode keeps
 // stock management, it just never sells.
 import { useMemo, useState } from 'react';
 import {
@@ -247,7 +247,7 @@ export default function MobileInventory() {
         </p>
       </div>
 
-      {/* Shelf worth summary — the whole catalogue, not the filtered list */}
+      {/* Shelf worth summary: the whole catalogue, not the filtered list */}
       {niche.trackStock && products.length > 0 && (
         <section
           aria-label="Inventory worth summary"
@@ -324,7 +324,7 @@ export default function MobileInventory() {
 
         <div className="flex items-center justify-between mt-2">
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-            <Chip active={sortBy === 'name'} onClick={() => setSortBy('name')}>A–Z</Chip>
+            <Chip active={sortBy === 'name'} onClick={() => setSortBy('name')}>A-Z</Chip>
             {niche.trackStock && (
               <Chip active={sortBy === 'stock'} onClick={() => setSortBy('stock')}>
                 Lowest stock

@@ -17,7 +17,7 @@ export function isFreePlanStore({ plan, storeIsDemo }) {
 
 /**
  * Count the APPROVED members (excluding `exceptId`) holding a role. Pending
- * and rejected requests never count towards the limit — the gate is approval,
+ * and rejected requests never count towards the limit; the gate is approval,
  * not the request itself.
  */
 export function countApprovedInRole(members, role, exceptId) {

@@ -68,7 +68,7 @@ export default function AdminApprovals() {
 
   const updateStatus = async (member, status) => {
     // Shop Mode teams: approving a second cashier/manager (or any admin)
-    // is not allowed — surface it here with the upgrade hint.
+    // is not allowed; surface it here with the upgrade hint.
     if (status === 'approved') {
       const limitError = checkTeamChange({
         plan,

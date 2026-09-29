@@ -73,7 +73,7 @@ function RootRoute() {
   const navigationType = useNavigationType();
 
   // Installed app launch (home-screen icon, desktop window): never the
-  // marketing page. Sign-in comes first — onboarding is only ever reached
+  // marketing page. Sign-in comes first; onboarding is only ever reached
   // after an explicit login, never as a launch destination. A signed-in
   // owner with a ready store goes straight to work.
   if (isInstalledPwa() && navigationType === 'POP') {
@@ -90,7 +90,7 @@ function RootRoute() {
 
   // Browser fresh open: the landing page, even for visitors with a saved
   // session. They reach the app through the page's "Open App" call to
-  // action (an in-app navigation), so nothing is lost — the direct
+  // action (an in-app navigation), so nothing is lost; the direct
   // /dashboard, /pos, ... links keep working as before too.
   if (navigationType === 'POP') {
     return (
@@ -213,7 +213,7 @@ function AppInner() {
         />
 
         {/* Main app: requires auth AND a store. Owners in monitoring mode are
-            redirected to the /m app — the POS and checkout stay out of reach. */}
+            redirected to the /m app; the POS and checkout stay out of reach. */}
         <Route
           element={
             <ProtectedRoute>

@@ -641,7 +641,7 @@ export const localAdapter = {
       const m = db.members.find((x) => x.id === memberId);
       if (!m) throw new Error('Member not found');
       if (m.role === 'owner') throw new Error('Cannot change the owner role.');
-      // Shop Mode team limits (one cashier, one manager, no admins) — the
+      // Shop Mode team limits (one cashier, one manager, no admins): the
       // local mirror of the Postgres trigger in 008_owner_modes.sql.
       const store = db.stores.find((s) => s.id === m.storeId);
       const limitError = checkTeamChange({
