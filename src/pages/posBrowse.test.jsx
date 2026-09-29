@@ -138,6 +138,28 @@ describe('POS: pagination', () => {
     state.categories = [];
   });
 
+  it('keeps the current sale reachable above a large catalogue', async () => {
+    renderPos();
+    await screen.findByText('Item 48');
+
+    // This launcher is viewport-fixed below desktop widths; unlike the old
+    // inline cart, it does not sit underneath all 48 rendered product tiles.
+    const emptySale = screen.getByRole('button', {
+      name: /view current sale, 0 items/i,
+    });
+    expect(emptySale.className).toContain('w-full');
+
+    await userEvent.click(screen.getByRole('button', { name: /Item 01,/i }));
+    const activeSale = screen.getByRole('button', {
+      name: /view current sale, 1 item,/i,
+    });
+    expect(activeSale.textContent).toContain('View sale');
+
+    await userEvent.click(activeSale);
+    expect(screen.getByRole('dialog', { name: /current sale/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /complete sale/i })).toBeTruthy();
+  });
+
   it('renders 48 tiles and offers the rest behind Show more', async () => {
     renderPos();
     await waitFor(() => expect(screen.getByText('Item 01')).toBeTruthy());
