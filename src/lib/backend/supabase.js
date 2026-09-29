@@ -108,6 +108,34 @@ function ensure(error) {
   if (error) throw new Error(error.message);
 }
 
+// Auth error codes/statuses that mean "this token no longer maps to a real,
+// usable account" -- the account was deleted (directly in Supabase, or via
+// the super-admin "Delete user" action), banned, or the session was revoked
+// server-side. A token like that must never keep acting as a valid session:
+// that is what let a deleted account quietly land back in onboarding
+// ("looks like you already have a store... actually no, set one up") instead
+// of the login screen. It is distinct from a network hiccup, which should
+// NOT sign the user out.
+const REVOKED_ACCOUNT_ERROR_CODES = new Set([
+  'user_not_found',
+  'session_not_found',
+  'session_expired',
+  'refresh_token_not_found',
+  'refresh_token_already_used',
+  'bad_jwt',
+]);
+
+export function isRevokedAccountError(error) {
+  if (!error) return false;
+  if (REVOKED_ACCOUNT_ERROR_CODES.has(error.code)) return true;
+  // Older/self-hosted GoTrue versions don't always set `code`; fall back to
+  // the status + message shape they use instead.
+  return (
+    (error.status === 403 || error.status === 404) &&
+    /does not exist|not found/i.test(error.message || '')
+  );
+}
+
 export const supabaseAdapter = {
   kind: 'supabase',
 
@@ -135,8 +163,28 @@ export const supabaseAdapter = {
       await supabase.auth.signOut();
     },
     async getUser() {
-      const { data } = await supabase.auth.getSession();
-      const u = data?.session?.user;
+      // getSession() only reads (and, if near expiry, refreshes) the local
+      // token -- it never checks whether the account behind it still
+      // exists. Keep it as the fast path/fallback, but also ask the Auth
+      // server to actually resolve the current user so a token for an
+      // account that was deleted server-side gets caught here instead of
+      // silently continuing to "work" for the rest of its lifetime.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const cached = sessionData?.session?.user;
+      if (!cached) return null;
+
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        if (isRevokedAccountError(error)) {
+          await supabase.auth.signOut();
+          return null;
+        }
+        // Some other failure verifying the session (offline, a timed-out
+        // request, ...): trust the cached, already-refreshed-if-needed
+        // session rather than forcing a sign-out over a network blip.
+        return { id: cached.id, email: cached.email };
+      }
+      const u = data?.user;
       return u ? { id: u.id, email: u.email } : null;
     },
     onChange(cb) {
@@ -491,10 +539,16 @@ export const supabaseAdapter = {
       return this.updateApproval(memberId, 'rejected');
     },
     async deleteUser(userId) {
-      const { error } = await supabase
-        .from('store_members')
-        .delete()
-        .eq('user_id', userId);
+      // Removing only the membership row left the actual Supabase Auth
+      // account (email, password, sessions) fully intact, so a "deleted"
+      // user could still sign back in at any time -- not what "Delete
+      // {email}? This cannot be undone" promises. The RPC removes the
+      // membership *and* the auth.users row (Supabase cascades identities,
+      // sessions and refresh tokens off of it), so the account is really
+      // gone and the email is immediately free for a new signup.
+      const { error } = await supabase.rpc('admin_delete_user_account', {
+        p_user_id: userId,
+      });
       ensure(error);
       return { userId };
     },

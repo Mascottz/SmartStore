@@ -22,6 +22,12 @@ import {
 
 const AuthContext = createContext(null);
 
+// Short backoff between retries of a failed membership lookup. Mobile
+// connections drop packets for a moment all the time; retrying inside the
+// same call is the difference between "just works" and bouncing an owner
+// who already has a store back into onboarding because one request blipped.
+const MEMBERSHIP_RETRY_DELAYS_MS = [400, 1200];
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
@@ -40,6 +46,10 @@ export function AuthProvider({ children }) {
   const refreshSeq = useRef(0);
   // Prevents two overlapping auto-join attempts from racing.
   const joiningRef = useRef(false);
+  // Which account the currently-loaded store/role belongs to, so a stale
+  // network failure never leaks one account's store into another's screen
+  // (e.g. a fast sign-out/sign-in on a shared shop tablet).
+  const loadedForUserRef = useRef(null);
 
   // THEME: light | dark
   const [theme, setTheme] = useState(() => {
@@ -68,41 +78,67 @@ export function AuthProvider({ children }) {
     const u = target ?? (await api.auth.getUser());
     if (!u) {
       if (seq !== refreshSeq.current) return null;
+      loadedForUserRef.current = null;
       setRole(null);
       setStore(null);
       setMembershipStatus(null);
       return null;
     }
 
-    try {
-      const membership = await api.stores.getMyMembership(u.id);
-      if (seq !== refreshSeq.current) return membership || null;
-      if (membership) {
-        setStore(membership.store);
-        setRole(membership.role);
-        setMembershipStatus(membership.approvalStatus || 'approved');
-        const status = membership.approvalStatus || 'approved';
-        // In and approved; the stored code has nothing left to do. Reconcile
-        // here (not only at sign-in) so approval while the waiting screen is
-        // open clears the request too.
-        if (status === 'approved' && isJoinRequestFor(readJoinRequest(), u)) {
-          clearJoinRequest();
-          setPendingJoin(null);
-        }
-      } else {
-        setStore(null);
-        setRole(null);
-        setMembershipStatus(null);
-      }
-      return membership || null;
-    } catch (e) {
-      if (seq !== refreshSeq.current) return null;
+    // A different account than whatever is currently loaded: clear right
+    // away rather than risk showing one account's store while this fetch
+    // (and its retries) are still in flight.
+    if (loadedForUserRef.current !== u.id) {
       setStore(null);
       setRole(null);
       setMembershipStatus(null);
-      console.error('membership load failed', e);
-      return null;
     }
+
+    let lastError = null;
+    for (let attempt = 0; attempt <= MEMBERSHIP_RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        const membership = await api.stores.getMyMembership(u.id);
+        if (seq !== refreshSeq.current) return membership || null;
+        loadedForUserRef.current = u.id;
+        if (membership) {
+          setStore(membership.store);
+          setRole(membership.role);
+          setMembershipStatus(membership.approvalStatus || 'approved');
+          const status = membership.approvalStatus || 'approved';
+          // In and approved; the stored code has nothing left to do. Reconcile
+          // here (not only at sign-in) so approval while the waiting screen is
+          // open clears the request too.
+          if (status === 'approved' && isJoinRequestFor(readJoinRequest(), u)) {
+            clearJoinRequest();
+            setPendingJoin(null);
+          }
+        } else {
+          setStore(null);
+          setRole(null);
+          setMembershipStatus(null);
+        }
+        return membership || null;
+      } catch (e) {
+        lastError = e;
+        if (seq !== refreshSeq.current) return null;
+        if (attempt < MEMBERSHIP_RETRY_DELAYS_MS.length) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, MEMBERSHIP_RETRY_DELAYS_MS[attempt])
+          );
+        }
+      }
+    }
+
+    // Every attempt failed: a genuine connectivity problem, not "no store".
+    // Do not wipe a store we already knew about just because this refresh
+    // couldn't reach the server -- that would incorrectly kick a real owner
+    // into onboarding (and, from there, into a "you already have a store"
+    // rejection) purely because of a flaky connection. Leave existing state
+    // untouched; the next successful refresh (retry button, tab focus,
+    // realtime event) will reconcile it.
+    if (seq !== refreshSeq.current) return null;
+    console.error('membership load failed after retries', lastError);
+    return null;
   }, []);
 
   /** Send (or re-send) a join request for a code. */
