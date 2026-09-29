@@ -607,7 +607,7 @@ export default function Landing() {
             <span>
               Powered by{' '}
               <span className="font-semibold text-zinc-700">MASTECH INNOVATIONS</span>
-              {' '}&middot; Lagos, Nigeria
+              {' '}&middot; Abuja, Nigeria
             </span>
           </div>
         </div>
