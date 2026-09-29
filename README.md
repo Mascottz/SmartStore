@@ -28,15 +28,27 @@ backend is configured.
 - 🧾 **Sales History**: searchable receipts, reprint, void with reason (restocks automatically)
 - 🚨 **Void audit trail**: who voided what, when and why
 - 💸 **Expenses + expense analytics**: category & monthly breakdowns
-- 👥 **Team**: staff join with a store code; roles: owner / admin / manager / cashier
+- 👥 **Team**: staff join with a store code; roles: owner / admin / manager / cashier.
+  **Shop Mode (free) teams are capped at the owner plus one cashier and one manager** —
+  enforced in the UI, the local demo backend and a Postgres trigger
+- 📱 **Two-way owner app (Owner Mode plan)**: owners open SmartStore in
+  **Monitoring mode** (a mobile-first app at `/m` — dashboard, inventory cards with
+  stock badges, sales, credit book, reports; strictly no POS/checkout) or
+  **Transactional mode** (the full app with the register). The device picks the
+  default — phones open Monitoring, the counter computer opens Transactional — and the
+  owner can switch anytime; the choice is remembered per account. Free-plan owners and
+  staff roles always get the standard app, untouched
 - ❓ **Contextual help tooltips**: the "?" icons across Dashboard, POS, Inventory,
   Sales History, Reports, Expenses and Team explain each number and control in place
 - ✅ **Access approvals**: new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
 - 🛡️ **System admin dashboard**: platform metrics, stores, users and global approval controls
 - 👑 **Owner Mode plan gating**: upgrade monthly (₦5,000) or yearly (₦50,000, two months
-  free) via Paystack, with plan-tagged checkout references
-- 🎬 **Public demo & marketing site**: a landing page with a Point of Sale showcase and a
-  one-click `/demo` page that seeds a fully populated store, no sign-up needed
+  free) via Paystack, with plan-tagged checkout references and the paid billing cycle
+  stored on the store
+- 🎬 **Public demo & marketing site**: a landing page with a Point of Sale showcase, an
+  Owner Modes section (benefits & restrictions of free vs Owner Mode) and a one-click
+  `/demo` page that seeds a fully populated store (as a yearly Owner Mode subscriber),
+  no sign-up needed
 - 🌙 light/dark theme
 
 ## Running locally (demo mode)
@@ -54,7 +66,10 @@ npm test    # vitest + jsdom: POS category/pagination behaviour, POS partial &
             # inventory worth summary + auto-SKU, help tooltips, monthly/yearly
             # pricing plans + Paystack references, public demo page flow, staff
             # join-on-login flow, join-code storage, receipt popup
-            # close/timeout, onboarding duplicate-store screen
+            # close/timeout, onboarding duplicate-store screen, the two-way
+            # owner modes (monitoring/transactional + device detection + free
+            # plan untouched, end-to-end through the real app), the mobile
+            # inventory page, and Shop Mode team limits
 npm run lint
 npm run build
 ```
@@ -90,7 +105,17 @@ server-side role.
 
 | Role | Access |
 |---|---|
-| Owner | Everything + settings, team, billing |
-| Admin | Everything except owner settings |
+| Owner | Everything + settings, team, billing. On the Owner Mode plan: two-way app (Monitoring ⬌ Transactional); on Shop Mode: the standard app |
+| Admin | Everything except owner settings (Owner Mode plan only — Shop Mode teams stop at one cashier and one manager) |
 | Manager | Inventory, reports, expenses, voids |
 | Cashier | POS + sales history |
+
+**Plans at a glance** — Shop Mode (free): POS, inventory, sales history, team
+of three (owner + 1 cashier + 1 manager), no full reports. Owner Mode
+(₦5,000/month or ₦50,000/year): everything, unlimited team, and the two-way
+owner app with device detection. The demo store behaves as a yearly Owner Mode
+subscriber so both modes can be tried.
+
+Going live with Supabase: run migrations `001`–`008` in order. `008` adds the
+`stores.billing_cycle` column and the database trigger that enforces the
+Shop Mode team limits server-side.

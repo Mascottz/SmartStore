@@ -1,25 +1,33 @@
 // src/pages/Pricing.jsx
 import { useMemo, useState } from 'react';
-import { Check, Crown, CreditCard, Loader2 } from 'lucide-react';
+import { Check, Crown, CreditCard, Loader2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { initializePayment, isPaystackConfigured, makeReference } from '../lib/paystack';
 
+// Shop Mode (free) — what you get, and where it stops. The team restriction
+// is enforced in the app (Team page, approvals) and in the database.
 const FREE_FEATURES = [
   'POS Register & receipts',
   'Inventory management',
   'Sales history',
-  'Up to 3 team members',
+  'Team: you + 1 cashier + 1 manager',
+];
+
+const FREE_LIMITATIONS = [
+  'No admin role, no extra staff',
+  'No full profit reports or expense analytics',
+  'No two-way owner app (Monitoring / Transactional)',
 ];
 
 const OWNER_FEATURES = [
   'Everything in Shop Mode',
+  'Two-way owner app: Monitoring & Transactional',
+  'Device detection: monitoring on your phone, full register at the counter',
   'Full sales & profit reports',
-  'Expense analytics',
-  'Void audit trail',
-  'Monthly revenue dashboard',
-  'Unlimited team members',
+  'Expense analytics & void audit trail',
+  'Unlimited team members, every role',
 ];
 
 // Paystack amounts are in Naira; the helper converts to kobo internally.
@@ -52,7 +60,7 @@ export default function Pricing() {
     // No Paystack key configured => demo upgrade (unlock Owner Mode locally).
     if (!paystackEnabled) {
       try {
-        await upgradeToOwner();
+        await upgradeToOwner(billing);
         toast.success('Welcome to Owner Mode');
         navigate('/');
       } catch (e) {
@@ -76,7 +84,8 @@ export default function Pricing() {
         onSuccess: async () => {
           setPaying(false);
           try {
-            await upgradeToOwner();
+            // Remember which cycle was paid for (monthly / yearly).
+            await upgradeToOwner(billing);
             toast.success('Payment confirmed; welcome to Owner Mode');
             navigate('/');
           } catch (e) {
@@ -157,6 +166,11 @@ export default function Pricing() {
             {FREE_FEATURES.map((f) => (
               <li key={f} className="flex items-center gap-2 text-sm">
                 <Check className="w-4 h-4 text-emerald-500 shrink-0" /> {f}
+              </li>
+            ))}
+            {FREE_LIMITATIONS.map((f) => (
+              <li key={f} className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                <X className="w-4 h-4 text-zinc-400 shrink-0" /> {f}
               </li>
             ))}
           </ul>

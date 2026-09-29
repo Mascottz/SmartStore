@@ -234,10 +234,20 @@ export function AuthProvider({ children }) {
     };
   }, [refreshMembership, autoJoinFromStorage]);
 
-  const upgradeToOwner = useCallback(async () => {
-    if (!store) return;
-    await api.stores.update(store.id, { plan: 'owner' });
-  }, [store]);
+  const upgradeToOwner = useCallback(
+    async (billingCycle) => {
+      if (!store) return;
+      // Remember which cycle was paid for (monthly/yearly) alongside the
+      // plan itself. No cycle (e.g. a super-admin upgrade) leaves the field
+      // untouched rather than clearing an existing value.
+      const patch = { plan: 'owner' };
+      if (billingCycle === 'yearly' || billingCycle === 'monthly') {
+        patch.billingCycle = billingCycle;
+      }
+      await api.stores.update(store.id, patch);
+    },
+    [store]
+  );
 
   // A stored code only counts for the account that typed it; shops share
   // tablets, and someone else's queued request must not lock this user out of
@@ -264,6 +274,7 @@ export function AuthProvider({ children }) {
       storeName: store?.name || '',
       storeType: store?.type || '',
       storeIsDemo: Boolean(store?.isDemo),
+      billingCycle: store?.billingCycle || null,
       plan: store?.plan || 'free',
       niche,
       onboardingCompleted: Boolean(store?.onboarding?.completed),

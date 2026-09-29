@@ -19,6 +19,7 @@ const mapStore = (s) =>
     name: s.name,
     type: s.type,
     plan: s.plan,
+    billingCycle: s.billing_cycle || null,
     isDemo: s.is_demo,
     joinCode: s.join_code,
     onboarding: s.onboarding || {},
@@ -180,6 +181,7 @@ export const supabaseAdapter = {
       if (patch.name !== undefined) row.name = clamp(sanitize(patch.name), 100);
       if (patch.type !== undefined) row.type = sanitize(patch.type);
       if (patch.plan !== undefined) row.plan = patch.plan;
+      if (patch.billingCycle !== undefined) row.billing_cycle = patch.billingCycle;
       if (patch.onboarding !== undefined) {
         const { data: existing } = await supabase
           .from('stores')

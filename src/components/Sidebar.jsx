@@ -14,10 +14,13 @@ import {
   Moon,
   Sun,
   BookUser,
+  Eye,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { api, isDemoBackend } from '../lib/backend';
 import { useAuth } from '../context/AuthContext';
+import { useOwnerExperience } from '../context/OwnerExperienceContext';
 import logo from '/logo-smartstore.png';
 
 export default function Sidebar() {
@@ -33,6 +36,7 @@ export default function Sidebar() {
     toggleTheme,
     upgradeToOwner,
   } = useAuth();
+  const { ownerHasModes, setMode } = useOwnerExperience();
 
   const rank = { owner: 3, admin: 3, manager: 2, cashier: 1 };
   const userRank = rank[role] || 1;
@@ -77,6 +81,14 @@ export default function Sidebar() {
   const handleSignOut = async () => {
     await api.auth.signOut();
     navigate('/login');
+  };
+
+  // Two-way owner app: jump from the full (transactional) app into the
+  // strictly-monitoring mobile app. Only for Owner Mode subscribers.
+  const switchToMonitoring = () => {
+    setMode('monitoring');
+    toast.success('Monitoring mode — the shop on your phone');
+    navigate('/m', { replace: true });
   };
 
   return (
@@ -153,6 +165,33 @@ export default function Sidebar() {
               </button>
             );
           })}
+
+        {/* Two-way mode switch for Owner Mode subscribers */}
+        {ownerHasModes && (
+          <div className="mt-4 p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">
+              Owner app modes
+            </p>
+            <div className="flex items-center gap-1 p-1 rounded-full bg-zinc-100 dark:bg-zinc-800">
+              <span
+                aria-current="true"
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-full bg-white dark:bg-zinc-900 text-[11px] font-bold shadow-sm"
+              >
+                <ShoppingCart className="w-3.5 h-3.5 text-emerald-500" /> Transactional
+              </span>
+              <button
+                onClick={switchToMonitoring}
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-full text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                title="Open the monitoring app (no POS, mobile-first)"
+              >
+                <Eye className="w-3.5 h-3.5" /> Monitoring
+              </button>
+            </div>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2">
+              Monitoring is the shop on your phone — strictly watching, no selling.
+            </p>
+          </div>
+        )}
 
         {isOwner && (
           <button

@@ -5,7 +5,10 @@ import {
   BarChart3,
   BookUser,
   Check,
+  Eye,
   Minus,
+  Monitor,
+  MonitorSmartphone,
   Package,
   PlayCircle,
   Plus,
@@ -13,6 +16,7 @@ import {
   Search,
   ShieldCheck,
   ShoppingCart,
+  Smartphone,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -97,6 +101,7 @@ export default function Landing() {
           <div className="hidden items-center gap-7 text-sm font-medium text-zinc-600 md:flex">
             <a href="#features" className="transition-colors hover:text-emerald-600">Features</a>
             <a href="#pos" className="transition-colors hover:text-emerald-600">Point of Sale</a>
+            <a href="#owner-mode" className="transition-colors hover:text-emerald-600">Owner Modes</a>
             <a href="#how-it-works" className="transition-colors hover:text-emerald-600">How it works</a>
             <a href="#pricing" className="transition-colors hover:text-emerald-600">Pricing</a>
             <Link to="/demo" className="transition-colors hover:text-emerald-600">Live demo</Link>
@@ -247,6 +252,97 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Owner Mode: the two-way app */}
+        <section id="owner-mode" className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
+          <SectionHeading
+            eyebrow="For owners on the move"
+            title="Two ways to open your shop. Both yours."
+            text="Owner Mode subscribers get a two-way app: a strictly Monitoring experience on your phone, and the full Transactional register at the counter. SmartStore detects your device and opens the right one — and you can switch anytime."
+          />
+          <div className="mt-12 grid gap-5 md:grid-cols-2">
+            <div className="rounded-3xl border border-zinc-200 bg-white p-7">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Smartphone className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <h3 className="mt-5 font-semibold text-zinc-900">Monitoring mode</h3>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                The whole shop on your phone — strictly watching, never selling.
+              </p>
+              <ul className="mt-5 space-y-3">
+                {[
+                  "Today's revenue, receipts and the 7-day trend",
+                  'Live inventory with low-stock and expiry alerts',
+                  'Who owes what, with the full repayment history',
+                  'Profit reports, expenses and the void audit trail',
+                  'Approve staff and manage your team remotely',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-600">
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                No POS. No checkout. Ever.
+              </p>
+            </div>
+            <div className="rounded-3xl border border-zinc-200 bg-white p-7">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Monitor className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <h3 className="mt-5 font-semibold text-zinc-900">Transactional mode</h3>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                The complete app at the counter — register included.
+              </p>
+              <ul className="mt-5 space-y-3">
+                {[
+                  'The full POS register, receipts and credit sales',
+                  'Inventory, expenses and team management',
+                  'Everything in monitoring mode, plus selling',
+                  'Opens by default on the shop computer',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                <MonitorSmartphone className="h-3.5 w-3.5" aria-hidden="true" />
+                Device detection picks the mode; your switch is remembered.
+              </p>
+            </div>
+          </div>
+
+          {/* Free vs Owner: benefits and restrictions at a glance */}
+          <div className="mt-12 overflow-hidden rounded-3xl border border-zinc-200 bg-white">
+            <div className="grid grid-cols-[1fr,auto,auto] items-center gap-3 border-b border-zinc-100 bg-zinc-50/70 px-5 py-4 text-xs font-bold uppercase tracking-wider text-zinc-500 sm:grid-cols-[1fr,10rem,10rem] sm:px-7">
+              <span className="text-left">Compare plans</span>
+              <span className="text-center">Shop Mode</span>
+              <span className="text-center text-emerald-700">Owner Mode</span>
+            </div>
+            {[
+              ['POS register & receipts', true, true],
+              ['Inventory & sales history', true, true],
+              ['Team', 'You + 1 cashier + 1 manager', 'Unlimited, every role'],
+              ['Admin role', false, true],
+              ['Full profit reports & expense analytics', false, true],
+              ['Owner monitoring app on your phone', false, true],
+              ['Two-way modes with device detection', false, true],
+            ].map(([label, free, owner]) => (
+              <div
+                key={label}
+                className="grid grid-cols-[1fr,auto,auto] items-center gap-3 border-b border-zinc-100 px-5 py-3.5 text-sm last:border-b-0 sm:grid-cols-[1fr,10rem,10rem] sm:px-7"
+              >
+                <span className="text-zinc-700">{label}</span>
+                <CompareCell value={free} />
+                <CompareCell value={owner} highlight />
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* How it works */}
         <section id="how-it-works" className="border-y border-zinc-100 bg-zinc-50/70">
           <div className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
@@ -337,7 +433,12 @@ export default function Landing() {
                 price={'\u20A60'}
                 period="/month"
                 text="The essentials for running your shop today."
-                items={['POS and sales history', 'Inventory basics', 'Team access']}
+                items={['POS and sales history', 'Inventory basics', 'Team: you + 1 cashier + 1 manager']}
+                excluded={[
+                  'No admin role or extra staff',
+                  'No full profit reports or expense analytics',
+                  'No two-way owner app',
+                ]}
                 cta="Start free"
               />
               <PriceCard
@@ -351,7 +452,12 @@ export default function Landing() {
                     : `Or ${OWNER_YEARLY} a year and save ${OWNER_YEARLY_SAVINGS}`
                 }
                 text="The complete view for owners who want to grow."
-                items={['Everything in Shop Mode', 'Full reports and expenses', 'Remote oversight and approvals']}
+                items={[
+                  'Everything in Shop Mode',
+                  'Two-way owner app: Monitoring & Transactional',
+                  'Full reports, expenses & void audit',
+                  'Unlimited team, every role',
+                ]}
                 cta="Choose Owner Mode"
               />
             </div>
@@ -681,7 +787,36 @@ function SectionHeading({ eyebrow, title, text }) {
   );
 }
 
-function PriceCard({ title, price, period, note, text, items, cta, featured }) {
+function CompareCell({ value, highlight = false }) {
+  if (value === true) {
+    return (
+      <span className="flex items-center justify-center">
+        <Check
+          className={`h-4 w-4 ${highlight ? 'text-emerald-600' : 'text-zinc-400'}`}
+          aria-label="Included"
+        />
+      </span>
+    );
+  }
+  if (value === false) {
+    return (
+      <span className="flex items-center justify-center">
+        <Minus className="h-4 w-4 text-zinc-300" aria-label="Not included" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`text-center text-xs font-medium ${
+        highlight ? 'text-emerald-700' : 'text-zinc-500'
+      }`}
+    >
+      {value}
+    </span>
+  );
+}
+
+function PriceCard({ title, price, period, note, text, items, excluded = [], cta, featured }) {
   const navigate = useNavigate();
   return (
     <div
@@ -709,6 +844,12 @@ function PriceCard({ title, price, period, note, text, items, cta, featured }) {
         {items.map((item) => (
           <li key={item} className="flex items-center gap-2 text-sm text-zinc-700">
             <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+            {item}
+          </li>
+        ))}
+        {excluded.map((item) => (
+          <li key={item} className="flex items-center gap-2 text-sm text-zinc-500">
+            <Minus className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
             {item}
           </li>
         ))}
