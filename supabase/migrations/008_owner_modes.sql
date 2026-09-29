@@ -7,7 +7,7 @@
 -- 2. A trigger on store_members enforces the Shop Mode (free plan) team
 --    allowance at the database: one approved cashier, one approved manager,
 --    no admins. The owner's own row is exempt. Pending and rejected members
---    never count — approval is the gate, not the request.
+--    never count; approval is the gate, not the request.
 --    The client (Team page, User Approvals) and the local demo adapter
 --    enforce the same rule for a friendly message; this trigger is the
 --    actual boundary.

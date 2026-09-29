@@ -15,7 +15,7 @@ export default function MobileMore() {
 
   const switchToTransactional = () => {
     setMode('transactional');
-    toast.success('Transactional mode — full app with POS register');
+    toast.success('Transactional mode: full app with POS register');
     navigate('/dashboard', { replace: true });
   };
 

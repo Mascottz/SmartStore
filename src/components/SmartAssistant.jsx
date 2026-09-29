@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   Bot,
+  Crown,
+  Lock,
   LoaderCircle,
   MessageCircle,
   Send,
@@ -12,7 +14,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
-import { askAssistant, buildAssistantContext } from '../lib/assistant';
+import { askAssistant, buildAssistantContext, canUseAssistant } from '../lib/assistant';
 
 const SUGGESTIONS = [
   { label: 'How are sales today?', value: 'How are sales today?' },
@@ -22,14 +24,45 @@ const SUGGESTIONS = [
   { label: 'How much credit is open?', value: 'How much credit is open?' },
 ];
 
+// What a Shop Mode store is buying when it upgrades.
+const LOCKED_HIGHLIGHTS = [
+  'Ask about today\u2019s sales, profit and best sellers in plain language',
+  'Spot what needs restocking and who still owes you money',
+  'Get step-by-step help with any screen, then jump straight to it',
+];
+
 const welcomeMessage = (storeName) => ({
   id: 'welcome',
   from: 'assistant',
-  text: `Hi! I’m your SmartStore assistant. I can help you with any part of ${storeName || 'your store'} — from ringing up a sale to managing stock, credit, expenses, reports and your team.`,
+  text: `Hi! I\u2019m your SmartStore assistant. I can help you with any part of ${storeName || 'your store'}, from ringing up a sale to managing stock, credit, expenses, reports and your team.`,
   mode: 'insights',
 });
 
+// Shared launcher/panel geometry, so the locked teaser sits exactly where the
+// real assistant does.
+const PANEL_CLASS =
+  'fixed bottom-24 right-3 z-[60] flex w-[calc(100vw-1.5rem)] max-w-[24rem] origin-bottom-right flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-950/20 transition-all dark:border-zinc-700 dark:bg-zinc-900 sm:bottom-6 sm:right-6';
+const LAUNCHER_CLASS =
+  'fixed bottom-24 right-4 z-[61] flex items-center gap-2 rounded-full border border-emerald-400/40 bg-zinc-900 px-3.5 py-3 text-white shadow-xl shadow-zinc-950/20 transition-all hover:-translate-y-0.5 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 sm:bottom-6 sm:right-6';
+
+/**
+ * SmartStore AI entry point.
+ *
+ * Owner Mode stores get the assistant; Shop Mode (free) stores get a locked
+ * teaser that explains the feature and links to the upgrade. Signed-out
+ * visitors and accounts without a store get nothing at all.
+ */
 export default function SmartAssistant() {
+  const { storeId, plan, storeIsDemo } = useAuth();
+
+  // Only a single unobtrusive entry point inside the app, never on the
+  // public landing/login screens.
+  if (!storeId) return null;
+  if (!canUseAssistant({ plan, storeIsDemo })) return <AssistantUpgradePrompt />;
+  return <AssistantPanel />;
+}
+
+function AssistantPanel() {
   const navigate = useNavigate();
   const location = useLocation();
   const { storeId, storeName, niche, role } = useAuth();
@@ -88,11 +121,6 @@ export default function SmartAssistant() {
     inputRef.current?.focus();
     setHasNewReply(false);
   }, [messages, isOpen]);
-
-  // Only show a single unobtrusive entry point on the app, not on the public
-  // landing/login screens. The mobile monitor has its own layout but shares
-  // this component.
-  if (!storeId) return null;
 
   const submitQuestion = async (value = question) => {
     const clean = String(value || '').trim();
@@ -157,7 +185,7 @@ export default function SmartAssistant() {
 
       <section
         aria-label="SmartStore AI assistant"
-        className={`fixed bottom-24 right-3 z-[60] flex w-[calc(100vw-1.5rem)] max-w-[24rem] origin-bottom-right flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-950/20 transition-all dark:border-zinc-700 dark:bg-zinc-900 sm:bottom-6 sm:right-6 ${
+        className={`${PANEL_CLASS} ${
           isOpen
             ? 'pointer-events-auto max-h-[min(72vh,42rem)] scale-100 opacity-100'
             : 'pointer-events-none max-h-0 scale-95 opacity-0'
@@ -260,7 +288,7 @@ export default function SmartAssistant() {
           setIsOpen((open) => !open);
           setHasNewReply(false);
         }}
-        className={`fixed bottom-24 right-4 z-[61] flex items-center gap-2 rounded-full border border-emerald-400/40 bg-zinc-900 px-3.5 py-3 text-white shadow-xl shadow-zinc-950/20 transition-all hover:-translate-y-0.5 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 sm:bottom-6 sm:right-6 ${
+        className={`${LAUNCHER_CLASS} ${
           isOpen ? 'pointer-events-none scale-90 opacity-0' : 'scale-100 opacity-100'
         }`}
         aria-label="Open SmartStore AI assistant"
@@ -269,6 +297,125 @@ export default function SmartAssistant() {
         <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-black">
           <MessageCircle className="h-4 w-4" />
           {hasNewReply && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-zinc-900 dark:ring-white" />}
+        </span>
+        <span className="text-sm font-semibold">Ask AI</span>
+      </button>
+    </>
+  );
+}
+
+/**
+ * Shop Mode (free) stores: the assistant itself never mounts, so no store
+ * data is loaded and no question can be asked. What is left is a short,
+ * honest explanation of the feature and a route to the upgrade.
+ */
+function AssistantUpgradePrompt() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+
+  // The monitoring app keeps its own /m routes; everywhere else is the
+  // standard app. Free stores only ever see the standard app today, but the
+  // mapping keeps the link correct either way.
+  const pricingRoute = location.pathname.startsWith('/m') ? '/m/pricing' : '/pricing';
+
+  const close = () => setIsOpen(false);
+
+  return (
+    <>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[59] bg-zinc-950/20 backdrop-blur-[1px] sm:hidden"
+          onClick={close}
+          aria-hidden="true"
+        />
+      )}
+
+      <section
+        aria-label="SmartStore AI is an Owner Mode feature"
+        className={`${PANEL_CLASS} ${
+          isOpen
+            ? 'pointer-events-auto max-h-[min(72vh,42rem)] scale-100 opacity-100'
+            : 'pointer-events-none max-h-0 scale-95 opacity-0'
+        }`}
+      >
+        <div className="bg-gradient-to-br from-zinc-800 via-zinc-800 to-zinc-900 px-5 pb-5 pt-4 text-white">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
+                <Sparkles className="h-5 w-5 text-emerald-400" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-bold tracking-tight">SmartStore AI</h2>
+                <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-emerald-300">
+                  <Lock className="h-3 w-3" aria-hidden="true" />
+                  Owner Mode feature
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={close}
+              className="rounded-xl p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Close SmartStore AI"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-4 px-5 py-5">
+          <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+            Your shop co-pilot comes with Owner Mode. Upgrade and every member of your
+            team can ask it questions about the store, within their own permissions.
+          </p>
+          <ul className="space-y-2.5">
+            {LOCKED_HIGHLIGHTS.map((item) => (
+              <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700 dark:text-zinc-300">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <p className="rounded-2xl bg-zinc-100 px-3.5 py-3 text-[11px] leading-5 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            Shop Mode keeps everything you use today: the POS register, inventory,
+            sales history and a team of three.
+          </p>
+        </div>
+
+        <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              navigate(pricingRoute);
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-black transition-colors hover:bg-emerald-400"
+          >
+            <Crown className="h-4 w-4" aria-hidden="true" />
+            Upgrade to Owner Mode
+          </button>
+          <button
+            type="button"
+            onClick={close}
+            className="mt-1.5 w-full rounded-2xl px-4 py-2 text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200"
+          >
+            Not now
+          </button>
+        </div>
+      </section>
+
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        className={`${LAUNCHER_CLASS} ${
+          isOpen ? 'pointer-events-none scale-90 opacity-0' : 'scale-100 opacity-100'
+        }`}
+        aria-label="SmartStore AI, an Owner Mode feature"
+        aria-expanded={isOpen}
+      >
+        <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+          <Lock className="h-3.5 w-3.5" />
         </span>
         <span className="text-sm font-semibold">Ask AI</span>
       </button>

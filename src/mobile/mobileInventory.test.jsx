@@ -1,5 +1,5 @@
 // The monitoring app's Inventory page: cards instead of a squeezed table.
-// These tests pin the mobile behaviours that matter on a phone — colour-coded
+// These tests pin the mobile behaviours that matter on a phone: colour-coded
 // stock badges, chip filters that actually filter, tap-to-expand details and
 // the add-item bottom sheet.
 import { beforeEach, describe, expect, it, vi } from 'vitest';

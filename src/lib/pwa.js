@@ -1,12 +1,12 @@
 // src/lib/pwa.js
-// Is the app running as an *installed* PWA — launched from a home-screen
-// icon, the desktop, or the OS app list — rather than in a plain browser tab?
+// Is the app running as an *installed* PWA (launched from a home-screen
+// icon, the desktop, or the OS app list) rather than in a plain browser tab?
 //
 // The launch destination depends on it: an installed launch must skip the
 // marketing landing page and open on the sign-in screen instead, while a
 // normal browser open always starts at the landing page. The display mode
 // cannot change for a document once it is loaded (only a reload in a
-// different context changes it), so a plain function is enough — no hook,
+// different context changes it), so a plain function is enough; no hook,
 // no listeners.
 
 export function isInstalledPwa() {

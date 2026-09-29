@@ -2,8 +2,28 @@
 // small, aggregate store snapshot to the optional server endpoint; customer
 // names, email addresses and raw receipts never leave the app.
 import { api } from './backend';
+import { hasOwnerModePlan } from './ownerExperience';
 
 const DEFAULT_ENDPOINT = '/api/assistant';
+
+/**
+ * SmartStore AI is an Owner Mode feature.
+ *
+ * The gate is the store's plan, not the staff role: once a store subscribes,
+ * every approved member of that store (owner, admin, manager, cashier) can
+ * ask the assistant, and each person's existing permissions still apply.
+ * Shop Mode (free) stores get the upgrade prompt instead. Demo stores behave
+ * as yearly subscribers, so the public demo keeps the assistant.
+ *
+ * The same rule is enforced server-side in api/assistant.js, so the paid
+ * endpoint cannot be reached by a free store calling it directly.
+ *
+ * @param {{ plan?: string, storeIsDemo?: boolean }} store
+ * @returns {boolean}
+ */
+export function canUseAssistant({ plan, storeIsDemo } = {}) {
+  return hasOwnerModePlan({ plan, storeIsDemo });
+}
 
 const money = (value) =>
   `₦${Number(value || 0).toLocaleString('en-NG', {
@@ -174,7 +194,7 @@ function localReply(question, context) {
     }
     if (!catalogue.lowStockCount) {
       return {
-        answer: 'Your stock looks healthy right now — nothing is below the 50-unit low-stock threshold.',
+        answer: 'Your stock looks healthy right now; nothing is below the 50-unit low-stock threshold.',
         action: { label: 'Open inventory', route: '/inventory' },
       };
     }

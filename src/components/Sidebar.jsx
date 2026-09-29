@@ -92,7 +92,7 @@ export default function Sidebar() {
   // strictly-monitoring mobile app. Only for Owner Mode subscribers.
   const switchToMonitoring = () => {
     setMode('monitoring');
-    toast.success('Monitoring mode — the shop on your phone');
+    toast.success('Monitoring mode: the shop on your phone');
     navigate('/m', { replace: true });
   };
 
@@ -197,7 +197,7 @@ export default function Sidebar() {
               </button>
             </div>
             <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2">
-              Monitoring is the shop on your phone — strictly watching, no selling.
+              Monitoring is the shop on your phone; strictly watching, no selling.
             </p>
           </div>
         )}

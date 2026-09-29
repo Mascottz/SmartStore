@@ -118,7 +118,7 @@ describe('checkTeamChange', () => {
   });
 
   it('pending and rejected members never count towards the limit', () => {
-    // No approved cashier exists yet — only a pending request and a rejected
+    // No approved cashier exists yet; only a pending request and a rejected
     // one, neither of which occupies the slot. Approving is fine.
     const members = [
       member('o', 'owner'),

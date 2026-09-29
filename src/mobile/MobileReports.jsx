@@ -249,7 +249,7 @@ export default function MobileReports() {
             How customers paid
             <HelpTip
               label="Help: Payment methods"
-              text="Revenue in the period split by payment method — Cash, Transfer, POS/Card, Partial and Credit."
+              text="Revenue in the period split by payment method: Cash, Transfer, POS/Card, Partial and Credit."
             />
           </h2>
           <div className="space-y-2.5">

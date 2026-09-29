@@ -1,7 +1,7 @@
 // src/mobile/MobileDashboard.jsx
 // The monitoring home: a phone-first snapshot of the shop. Today's money,
 // the week and month so far, who owes what, what is running low and the most
-// recent receipts. No POS, no checkout — just the picture.
+// recent receipts. No POS, no checkout; just the picture.
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {

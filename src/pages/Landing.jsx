@@ -5,6 +5,7 @@ import {
   BarChart3,
   BookUser,
   Check,
+  Crown,
   Eye,
   Minus,
   Monitor,
@@ -24,11 +25,17 @@ import {
 import { useAuth } from '../context/AuthContext';
 import logo from '/logo-smartstore.png';
 
+// [title, description, icon, ownerOnly]
 const features = [
   ['POS Register', 'Ring up sales quickly with a clean, reliable register.', ShoppingCart],
   ['Inventory', 'Know what is in stock, what is moving, and what needs attention.', Package],
   ['Reports', 'Turn daily sales into clear decisions with simple reports.', BarChart3],
-  ['SmartStore AI', 'Ask questions in plain language, understand any area of the app, and jump straight to the right next step.', Sparkles],
+  [
+    'SmartStore AI',
+    'Ask questions in plain language, get answers from your live store data, and jump straight to the right screen.',
+    Sparkles,
+    true,
+  ],
   ['Sales History', 'Find every receipt and transaction whenever you need it.', Receipt],
   ['Credit Book', 'Sell on credit or part payment; every repayment is recorded until the debt is settled.', BookUser],
   ['Void Audit', 'Keep a transparent record of voided transactions.', ShieldCheck],
@@ -146,8 +153,9 @@ export default function Landing() {
                 The smarter way to <span className="text-emerald-600">manage your shop.</span>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-zinc-600">
-                One calm, organized workspace for sales, credit, inventory, people, and profit. SmartStore NG
-                helps you run today and grow tomorrow — with an AI co-pilot that can guide you through every part of the app.
+                One calm, organized workspace for sales, credit, inventory, people, and profit.
+                SmartStore NG helps you run today and grow tomorrow; upgrade to Owner Mode and
+                SmartStore AI guides you through every part of the app.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <button
@@ -205,28 +213,58 @@ export default function Landing() {
             text="Less guesswork. Fewer spreadsheets. More time focused on your customers."
           />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(([title, text, Icon]) => (
+            {features.map(([title, text, Icon, ownerOnly]) => (
               <div
                 key={title}
-                className="rounded-2xl border border-zinc-200 bg-white p-6 transition-all hover:border-emerald-300 hover:shadow-[0_12px_32px_-16px_rgba(5,150,105,0.25)]"
+                className={`rounded-2xl border bg-white p-6 transition-all hover:shadow-[0_12px_32px_-16px_rgba(5,150,105,0.25)] ${
+                  ownerOnly
+                    ? 'border-emerald-300 ring-1 ring-emerald-100'
+                    : 'border-zinc-200 hover:border-emerald-300'
+                }`}
               >
-                <div className="mb-7 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                  <Icon className="h-5 w-5" aria-hidden="true" />
+                <div className="mb-7 flex items-start justify-between gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  {ownerOnly && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+                      <Crown className="h-3 w-3" aria-hidden="true" />
+                      Owner Mode
+                    </span>
+                  )}
                 </div>
                 <h3 className="font-semibold text-zinc-900">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">{text}</p>
               </div>
             ))}
           </div>
-          <div className="mt-8 flex items-start gap-4 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-6 sm:items-center">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
-              <Sparkles className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <p className="font-semibold text-zinc-900">Your AI co-pilot is not locked to Owner Mode.</p>
-              <p className="mt-1 text-sm leading-6 text-zinc-600">
-                SmartStore AI is available to every signed-in role in Shop Mode and Owner Mode. Ask it about any SmartStore area — POS, inventory, sales, credit, expenses, reports, team or settings — and it will respect that user&apos;s permissions while pointing to the right next step.
-              </p>
+          <div className="mt-8 overflow-hidden rounded-3xl border border-emerald-200 bg-emerald-50/70 p-6">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
+                  <Sparkles className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-900">
+                    SmartStore AI comes with Owner Mode.
+                  </p>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-600">
+                    Upgrade and your whole team can ask about any part of the shop: POS,
+                    inventory, sales, credit, expenses, reports, team or settings. The
+                    assistant answers from your live store data, respects each
+                    person&apos;s permissions, and points to the right next step. Shop
+                    Mode keeps the register, inventory and sales history, without the
+                    co-pilot.
+                  </p>
+                </div>
+              </div>
+              <a
+                href="#pricing"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500"
+              >
+                <Crown className="h-4 w-4" aria-hidden="true" />
+                See Owner Mode pricing
+              </a>
             </div>
           </div>
         </section>
@@ -275,7 +313,7 @@ export default function Landing() {
           <SectionHeading
             eyebrow="For owners on the move"
             title="Two ways to open your shop. Both yours."
-            text="Owner Mode subscribers get a two-way app: a strictly Monitoring experience on your phone, and the full Transactional register at the counter. SmartStore detects your device and opens the right one — and you can switch anytime."
+            text="Owner Mode subscribers get a two-way app: a strictly Monitoring experience on your phone, and the full Transactional register at the counter. SmartStore detects your device and opens the right one, and you can switch anytime. SmartStore AI rides along in both modes."
           />
           <div className="mt-12 grid gap-5 md:grid-cols-2">
             <div className="rounded-3xl border border-zinc-200 bg-white p-7">
@@ -284,7 +322,7 @@ export default function Landing() {
               </div>
               <h3 className="mt-5 font-semibold text-zinc-900">Monitoring mode</h3>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                The whole shop on your phone — strictly watching, never selling.
+                The whole shop on your phone; strictly watching, never selling.
               </p>
               <ul className="mt-5 space-y-3">
                 {[
@@ -293,6 +331,7 @@ export default function Landing() {
                   'Who owes what, with the full repayment history',
                   'Profit reports, expenses and the void audit trail',
                   'Approve staff and manage your team remotely',
+                  'SmartStore AI in your pocket, answering from live data',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
@@ -311,13 +350,14 @@ export default function Landing() {
               </div>
               <h3 className="mt-5 font-semibold text-zinc-900">Transactional mode</h3>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                The complete app at the counter — register included.
+                The complete app at the counter, register included.
               </p>
               <ul className="mt-5 space-y-3">
                 {[
                   'The full POS register, receipts and credit sales',
                   'Inventory, expenses and team management',
                   'Everything in monitoring mode, plus selling',
+                  'SmartStore AI on every screen, for you and your staff',
                   'Opens by default on the shop computer',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700">
@@ -342,8 +382,8 @@ export default function Landing() {
             </div>
             {[
               ['POS register & receipts', true, true],
-              ['SmartStore AI co-pilot', true, true],
               ['Inventory & sales history', true, true],
+              ['SmartStore AI co-pilot', false, true],
               ['Team', 'You + 1 cashier + 1 manager', 'Unlimited, every role'],
               ['Admin role', false, true],
               ['Full profit reports & expense analytics', false, true],
@@ -454,6 +494,7 @@ export default function Landing() {
                 text="The essentials for running your shop today."
                 items={['POS and sales history', 'Inventory basics', 'Team: you + 1 cashier + 1 manager']}
                 excluded={[
+                  'No SmartStore AI co-pilot',
                   'No admin role or extra staff',
                   'No full profit reports or expense analytics',
                   'No two-way owner app',
@@ -473,6 +514,7 @@ export default function Landing() {
                 text="The complete view for owners who want to grow."
                 items={[
                   'Everything in Shop Mode',
+                  'SmartStore AI co-pilot for your whole team',
                   'Two-way owner app: Monitoring & Transactional',
                   'Full reports, expenses & void audit',
                   'Unlimited team, every role',

@@ -4,14 +4,14 @@
 //
 //   standard       the app as it has always been (staff roles, and any store
 //                  that is not on the Owner Mode plan)
-//   monitoring     the mobile-first, strictly-monitoring owner app at /m —
+//   monitoring     the mobile-first, strictly-monitoring owner app at /m:
 //                  no POS register, no checkout, everything else mirrored
 //   transactional  the full app including the POS register
 //
 // Which one an owner gets is decided here, in one place:
 //
 //   1. role must be 'owner' and the store must be on the Owner Mode plan
-//      (demo stores count) — otherwise 'standard', untouched.
+//      (demo stores count); otherwise 'standard', untouched.
 //   2. a manually chosen mode (the toggle) always wins, remembered per
 //      account on this device.
 //   3. with no stored choice the DEVICE decides, freshly, every session:
@@ -100,7 +100,7 @@ export function resolveOwnerExperience({
 }
 
 // Where the main (transactional) app routes send an owner who is in
-// monitoring mode — deep links land on the closest monitoring screen.
+// monitoring mode; deep links land on the closest monitoring screen.
 const MAIN_TO_MOBILE = {
   '/dashboard': '/m',
   '/inventory': '/m/inventory',
