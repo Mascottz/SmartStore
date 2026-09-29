@@ -642,7 +642,12 @@ export default function POS() {
 
       {/* Cart */}
       <div className="w-full lg:w-96 shrink-0">
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 lg:sticky lg:top-6">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl lg:sticky lg:top-6 flex flex-col overflow-hidden lg:max-h-[calc(100vh-3rem)]">
+          {/* Scrollable body. Capping the card to the viewport and letting the
+              header, cart lines and payment details scroll in here keeps the
+              total and Complete Sale button (the pinned footer below) on screen
+              no matter how many lines the cart grows to. */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold">
               Current Sale{itemCount > 0 && (
@@ -666,7 +671,7 @@ export default function POS() {
               Tap {niche.itemNounPlural.toLowerCase()} to add them to the sale.
             </p>
           ) : (
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-3 pr-1">
               {cart.map((item) => (
                 <div key={item.id} className="flex items-center gap-2">
                   <div className="flex-1 min-w-0">
@@ -780,28 +785,32 @@ export default function POS() {
               </div>
             )}
           </div>
-
-          {/* Total */}
-          <div className="mt-5 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-            <span className="text-sm text-zinc-500">Total</span>
-            <span className="text-2xl font-bold">{fmtMoney(totalAmount)}</span>
           </div>
 
-          <button
-            onClick={completeSale}
-            disabled={isCompleting || cart.length === 0}
-            className="w-full mt-4 px-4 py-3.5 rounded-2xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 disabled:opacity-40 active:scale-[0.99] transition-all"
-          >
-            {isCompleting ? 'Completing...' : 'Complete Sale'}
-          </button>
+          {/* Pinned footer: the running total and the sale actions stay put at
+              the bottom of the card so they never scroll out of reach. */}
+          <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-500">Total</span>
+              <span className="text-2xl font-bold">{fmtMoney(totalAmount)}</span>
+            </div>
 
-          <button
-            onClick={printLastReceipt}
-            disabled={!lastSale}
-            className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-600 dark:text-zinc-300 hover:border-emerald-500 disabled:opacity-40 transition-all"
-          >
-            <Printer className="w-4 h-4" /> Print last receipt
-          </button>
+            <button
+              onClick={completeSale}
+              disabled={isCompleting || cart.length === 0}
+              className="w-full mt-4 px-4 py-3.5 rounded-2xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 disabled:opacity-40 active:scale-[0.99] transition-all"
+            >
+              {isCompleting ? 'Completing...' : 'Complete Sale'}
+            </button>
+
+            <button
+              onClick={printLastReceipt}
+              disabled={!lastSale}
+              className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-600 dark:text-zinc-300 hover:border-emerald-500 disabled:opacity-40 transition-all"
+            >
+              <Printer className="w-4 h-4" /> Print last receipt
+            </button>
+          </div>
         </div>
       </div>
 
