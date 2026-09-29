@@ -275,10 +275,14 @@ export default function SuperAdmin() {
     if (!window.confirm(`Delete ${user.email}? This cannot be undone.`)) return;
     try {
       if (isSupabaseConfigured && supabase) {
-        const { error } = await supabase
-          .from('store_members')
-          .delete()
-          .eq('user_id', user.userId);
+        // Deleting only the store_members row leaves the actual Supabase
+        // Auth account (email, password, sessions) untouched, so the
+        // account could still sign back in -- not what this confirmation
+        // promises. The RPC removes the membership and the auth.users row
+        // together, so the account is really gone.
+        const { error } = await supabase.rpc('admin_delete_user_account', {
+          p_user_id: user.userId,
+        });
         if (error) throw new Error(error.message);
       } else {
         await api.admin.deleteUser(user.userId);

@@ -121,6 +121,10 @@ of three (owner + 1 cashier + 1 manager), no full reports. Owner Mode
 owner app with device detection. The demo store behaves as a yearly Owner Mode
 subscriber so both modes can be tried.
 
-Going live with Supabase: run migrations `001`–`008` in order. `008` adds the
+Going live with Supabase: run migrations `001`–`009` in order. `008` adds the
 `stores.billing_cycle` column and the database trigger that enforces the
-Shop Mode team limits server-side.
+Shop Mode team limits server-side. `009` adds `admin_delete_user_account`,
+which the Super Admin console's "Delete user" button now uses so it fully
+removes the Supabase Auth account (not just the store membership) — run it
+on any project provisioned before this change, or deleted accounts can keep
+signing back in.
