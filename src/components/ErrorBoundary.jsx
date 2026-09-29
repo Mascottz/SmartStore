@@ -43,7 +43,9 @@ export default class ErrorBoundary extends Component {
               <button
                 onClick={() => {
                   this.handleReset();
-                  window.location.href = '/';
+                  // Straight to /dashboard: '/' is the marketing landing
+                  // page on a fresh open in a browser tab.
+                  window.location.href = '/dashboard';
                 }}
                 className="px-5 py-2.5 rounded-2xl border border-zinc-700 text-zinc-300 text-sm font-medium hover:text-white"
               >

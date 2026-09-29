@@ -1,7 +1,7 @@
 // src/components/Login.jsx
 import { useState } from 'react';
-import { ArrowRight, UserPlus, PlayCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowRight, UserPlus, PlayCircle, Store, LogOut } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api, isDemoBackend } from '../lib/backend';
 import { loginOrCreateDemo } from '../lib/demo';
@@ -9,7 +9,57 @@ import { useAuth } from '../context/AuthContext';
 import { clearJoinRequestFor } from '../lib/joinRequest';
 import { sanitize, isValidEmail, isValidPassword, isValidJoinCode } from '../lib/validate';
 import { isSuperAdminEmail } from '../lib/superAdmin';
+import PendingApproval from './PendingApproval';
+import SplashScreen from './SplashScreen';
 import logo from '/logo-smartstore.png';
+
+/**
+ * Shown when an already signed-in visitor lands on /login (from the landing
+ * page's "Open App" call to action, or from an installed-app launch on an
+ * account whose store setup is still pending): a clear way forward instead
+ * of a password form for an account they are already inside.
+ */
+function AlreadySignedIn({ email, onSwitchAccount, switching }) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-zinc-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-zinc-800 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 flex items-center justify-center">
+              <Store className="w-8 h-8 text-emerald-400" aria-hidden="true" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">You&apos;re signed in</h1>
+          <p className="text-zinc-400 text-sm mb-1">
+            Signed in as{' '}
+            <span className="text-zinc-200 font-medium break-all">{email}</span>
+          </p>
+          <p className="text-zinc-500 text-sm mb-6">
+            Your store setup is waiting for you.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/onboarding')}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-emerald-500 text-black font-semibold hover:bg-emerald-400 transition-all"
+          >
+            Continue store setup <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onSwitchAccount}
+            disabled={switching}
+            className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-zinc-700 text-zinc-400 text-sm font-medium hover:border-emerald-500 hover:text-emerald-400 disabled:opacity-50 transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            {switching ? 'Signing out...' : 'Use a different account'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,9 +68,17 @@ export default function Login() {
   const [signupType, setSignupType] = useState('owner'); // 'owner' | 'staff'
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [loading, setLoading] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   const navigate = useNavigate();
-  const { refreshMembership, joinStore } = useAuth();
+  const {
+    refreshMembership,
+    joinStore,
+    user,
+    store,
+    approvalStatus,
+    loading: authLoading,
+  } = useAuth();
   const isSuperAdmin = isSuperAdminEmail(email);
 
   const handleSubmit = async (e) => {
@@ -107,6 +165,45 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  // "Use a different account" on the already-signed-in card: sign out and
+  // fall back to the regular form below.
+  const handleSwitchAccount = async () => {
+    setSwitching(true);
+    try {
+      await api.auth.signOut();
+      setMode('login');
+      setEmail('');
+      setPassword('');
+      setJoinCode('');
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || 'Could not sign out. Please try again.');
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  // A signed-in visitor can arrive here from the landing page's "Open App"
+  // button or from an installed-app launch. Route them onward instead of
+  // showing a password form for an account they are already inside. The
+  // submit state guards this so a sign-in in flight is never hijacked: the
+  // submit handler does its own navigating once membership has loaded.
+  if (!authLoading && !loading && user) {
+    if (approvalStatus === 'pending' || approvalStatus === 'rejected') {
+      return <PendingApproval />;
+    }
+    if (store) return <Navigate to="/dashboard" replace />;
+    return (
+      <AlreadySignedIn
+        email={user.email}
+        onSwitchAccount={handleSwitchAccount}
+        switching={switching}
+      />
+    );
+  }
+
+  if (authLoading) return <SplashScreen />;
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">

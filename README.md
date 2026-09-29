@@ -37,6 +37,10 @@ backend is configured.
   free) via Paystack, with plan-tagged checkout references
 - 🎬 **Public demo & marketing site**: a landing page with a Point of Sale showcase and a
   one-click `/demo` page that seeds a fully populated store, no sign-up needed
+- 🚀 **Launch routing**: a fresh open in a browser tab always shows the landing page
+  (signed-in visitors get an "Open App" call to action); an installed-PWA launch skips
+  the marketing page and opens on `/login` first — never `/onboarding` — or straight to
+  the dashboard for a signed-in owner whose store is ready
 - 🌙 light/dark theme
 
 ## Running locally (demo mode)
@@ -54,7 +58,8 @@ npm test    # vitest + jsdom: POS category/pagination behaviour, POS partial &
             # inventory worth summary + auto-SKU, help tooltips, monthly/yearly
             # pricing plans + Paystack references, public demo page flow, staff
             # join-on-login flow, join-code storage, receipt popup
-            # close/timeout, onboarding duplicate-store screen
+            # close/timeout, onboarding duplicate-store screen, launch routing
+            # (landing page in browsers, login-first in the installed app)
 npm run lint
 npm run build
 ```
