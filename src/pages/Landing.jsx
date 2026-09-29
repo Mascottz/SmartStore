@@ -432,7 +432,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className="mt-8 grid gap-5 md:grid-cols-2">
+            <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
               <PriceCard
                 title="Shop Mode"
                 price={'\u20A60'}
