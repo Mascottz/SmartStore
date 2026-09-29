@@ -1,10 +1,9 @@
 // src/pages/Demo.jsx
-// Public quick-demo page. On the local backend, one click seeds (or reuses)
-// the demo store and drops the visitor straight into a fully populated
-// dashboard, so they can try SmartStore without creating an account. When a
-// real backend (Supabase) is configured the seeded demo is local-only and
-// cannot be entered, so the page only showcases the features and the primary
-// CTA routes to real signup instead.
+// Public quick-demo page. One click seeds (or reuses) the demo store and drops
+// the visitor straight into a fully populated dashboard, so they can try
+// SmartStore without creating an account. On deployments configured with a
+// real backend (Supabase), the demo runs in a browser-only sandbox so the
+// demo account never hits Supabase Auth.
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -17,11 +16,10 @@ import {
   PlayCircle,
   Receipt,
   ShoppingCart,
-  UserPlus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { loginOrCreateDemo } from '../lib/demo';
-import { isDemoBackend } from '../lib/backend';
+import { bootDemoSandbox, isDemoBackend } from '../lib/backend';
 import { useAuth } from '../context/AuthContext';
 import logo from '/logo-smartstore.png';
 
@@ -40,14 +38,19 @@ export default function Demo() {
   const enterDemo = async () => {
     setLoading(true);
     try {
-      await loginOrCreateDemo();
-      await refreshMembership();
-      toast.success('Welcome to the demo store');
-      navigate('/dashboard', { replace: true });
+      if (isDemoBackend) {
+        await loginOrCreateDemo();
+        await refreshMembership();
+        toast.success('Welcome to the demo store');
+        navigate('/dashboard', { replace: true });
+      } else {
+        await loginOrCreateDemo({ localOnly: true });
+        toast.success('Welcome to the demo store');
+        bootDemoSandbox('/dashboard');
+      }
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Could not start the demo. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -75,62 +78,41 @@ export default function Demo() {
         <div className="mx-auto max-w-2xl text-center">
           <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-            {isDemoBackend ? 'No sign up needed' : 'Free to start'}
+            No sign up needed
           </p>
           <h1 className="text-4xl font-bold leading-[1.08] tracking-tight text-zinc-950 sm:text-5xl">
-            Try the full app with a{' '}
-            <span className="text-emerald-600">
-              {isDemoBackend ? 'demo store.' : 'store of your own.'}
-            </span>
+            Try the full app with a <span className="text-emerald-600">demo store.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-zinc-600">
-            {isDemoBackend ? (
-              <>
-                We have set up Demo Supermart with products, past sales, expenses and a live Credit
-                Book. Jump in and explore every feature in seconds.
-              </>
-            ) : (
-              <>
-                Take a tour of the features below, then create your account to explore with your own
-                data.
-              </>
-            )}
+            We have set up Demo Supermart with products, past sales, expenses and a live Credit Book.
+            Jump in and explore every feature in seconds.
           </p>
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <button
-              onClick={isDemoBackend ? enterDemo : () => navigate('/login')}
+              onClick={enterDemo}
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-7 py-3.5 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 disabled:opacity-60 sm:w-auto"
             >
-              {loading && isDemoBackend ? (
+              {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Setting up your
-                  demo...
-                </>
-              ) : isDemoBackend ? (
-                <>
-                  <PlayCircle className="h-4 w-4" aria-hidden="true" /> Enter the demo store
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Setting up your demo...
                 </>
               ) : (
                 <>
-                  <UserPlus className="h-4 w-4" aria-hidden="true" /> Create your free store
+                  <PlayCircle className="h-4 w-4" aria-hidden="true" /> Enter the demo store
                 </>
               )}
             </button>
-            {isDemoBackend && (
-              <button
-                onClick={() => navigate('/login')}
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-7 py-3.5 font-semibold text-zinc-700 transition-colors hover:border-emerald-300 hover:text-emerald-700 sm:w-auto"
-              >
-                Create my own store <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </button>
-            )}
+            <button
+              onClick={() => navigate('/login')}
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-7 py-3.5 font-semibold text-zinc-700 transition-colors hover:border-emerald-300 hover:text-emerald-700 sm:w-auto"
+            >
+              Create my own store <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
           <p className="mt-5 flex items-center justify-center gap-2 text-sm text-zinc-500">
             <Receipt className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-            {isDemoBackend
-              ? 'Nothing you do in the demo affects a real business.'
-              : 'No card required. Set up in minutes.'}
+            Nothing you do in the demo affects a real business.
           </p>
         </div>
 

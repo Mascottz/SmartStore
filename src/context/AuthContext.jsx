@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { api, subscribe } from '../lib/backend';
+import { api, exitDemoSandbox, isDemoSandbox, subscribe } from '../lib/backend';
 import { getNiche } from '../config/niches';
 import {
   canAutoJoin,
@@ -210,11 +210,17 @@ export function AuthProvider({ children }) {
     (async () => {
       const u = await api.auth.getUser();
       if (!mounted) return;
+      if (!u && isDemoSandbox()) {
+        exitDemoSandbox();
+      }
       await loadSession(u);
       if (mounted) setLoading(false);
     })();
 
     const unsubAuth = api.auth.onChange(async (u) => {
+      if (!u && isDemoSandbox()) {
+        exitDemoSandbox();
+      }
       await loadSession(u);
       if (mounted) setLoading(false);
     });
