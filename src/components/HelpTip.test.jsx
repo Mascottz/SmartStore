@@ -1,6 +1,6 @@
 // HelpTip: the small "?" button used to explain the newer POS and inventory
 // surfaces without covering the page in always-visible copy.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import HelpTip from './HelpTip';
@@ -54,5 +54,37 @@ describe('HelpTip', () => {
 
     fireEvent.pointerDown(container.querySelector('button:not([aria-label])'));
     expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('moves above a trigger near the bottom and renders outside clipping containers', () => {
+    const originalRect = HTMLElement.prototype.getBoundingClientRect;
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function getRect() {
+        if (this.getAttribute('role') === 'tooltip') {
+          return { top: 0, bottom: 100, left: 0, right: 256, width: 256, height: 100 };
+        }
+        return { top: 700, bottom: 724, left: 700, right: 724, width: 24, height: 24 };
+      });
+
+    try {
+      render(
+        <div style={{ overflow: 'hidden' }}>
+          <HelpTip label="Help: Bottom tip" text="This should remain fully reachable." />
+        </div>
+      );
+      fireEvent.focus(screen.getByRole('button', { name: 'Help: Bottom tip' }));
+
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip.getAttribute('data-placement')).toBe('top');
+      expect(tooltip.parentElement).toBe(document.body);
+      expect(tooltip.className).toContain('overflow-y-auto');
+      expect(tooltip.style.top).toBe('592px');
+    } finally {
+      rectSpy.mockRestore();
+      // Keep the original reference explicit: this test documents that the
+      // geometry mock is scoped to this test only.
+      expect(HTMLElement.prototype.getBoundingClientRect).toBe(originalRect);
+    }
   });
 });
