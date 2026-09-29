@@ -3,6 +3,7 @@
 // are not configured, so the whole app works as an offline demo.
 import { sanitize, clamp } from '../validate';
 import { isSuperAdminEmail } from '../superAdmin';
+import { checkTeamChange } from '../teamLimits';
 
 const DB_KEY = 'smartstore-db';
 const SESSION_KEY = 'smartstore-session';
@@ -635,6 +636,17 @@ export const localAdapter = {
       const m = db.members.find((x) => x.id === memberId);
       if (!m) throw new Error('Member not found');
       if (m.role === 'owner') throw new Error('Cannot change the owner role.');
+      // Shop Mode team limits (one cashier, one manager, no admins) — the
+      // local mirror of the Postgres trigger in 008_owner_modes.sql.
+      const store = db.stores.find((s) => s.id === m.storeId);
+      const limitError = checkTeamChange({
+        plan: store?.plan,
+        storeIsDemo: store?.isDemo,
+        members: db.members.filter((x) => x.storeId === m.storeId),
+        member: m,
+        nextRole: role,
+      });
+      if (limitError) throw limitError;
       m.role = role;
       save(db);
       return m;
@@ -647,6 +659,17 @@ export const localAdapter = {
       const m = db.members.find((x) => x.id === memberId);
       if (!m) throw new Error('Member not found');
       if (m.role === 'owner') throw new Error('The store owner is always approved.');
+      if (status === 'approved') {
+        const store = db.stores.find((s) => s.id === m.storeId);
+        const limitError = checkTeamChange({
+          plan: store?.plan,
+          storeIsDemo: store?.isDemo,
+          members: db.members.filter((x) => x.storeId === m.storeId),
+          member: m,
+          nextStatus: 'approved',
+        });
+        if (limitError) throw limitError;
+      }
       m.approvalStatus = status;
       save(db);
       return { ...m, approvalStatus: status };

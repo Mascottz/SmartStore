@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import {
   Check,
   Clock3,
+  Crown,
   Search,
   ShieldAlert,
   UserCheck,
@@ -14,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { fmtDate } from '../lib/format';
+import { checkTeamChange, isFreePlanStore } from '../lib/teamLimits';
 
 const STATUS_STYLES = {
   pending: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
@@ -22,7 +24,7 @@ const STATUS_STYLES = {
 };
 
 export default function AdminApprovals() {
-  const { storeId, storeName, role } = useAuth();
+  const { storeId, storeName, role, plan, storeIsDemo } = useAuth();
   const [filter, setFilter] = useState('pending');
   const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState(null);
@@ -65,6 +67,18 @@ export default function AdminApprovals() {
   }, [requests, filter, query]);
 
   const updateStatus = async (member, status) => {
+    // Shop Mode teams: approving a second cashier/manager (or any admin)
+    // is not allowed — surface it here with the upgrade hint.
+    if (status === 'approved') {
+      const limitError = checkTeamChange({
+        plan,
+        storeIsDemo,
+        members,
+        member,
+        nextStatus: 'approved',
+      });
+      if (limitError) return toast.error(limitError.message);
+    }
     setBusyId(member.id);
     try {
       await api.team.updateApproval(member.id, status);
@@ -112,6 +126,19 @@ export default function AdminApprovals() {
           </span>
         )}
       </div>
+
+      {/* Shop Mode heads-up before an approval hits the team limit */}
+      {isFreePlanStore({ plan, storeIsDemo }) && counts.pending > 0 && (
+        <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3">
+          <Crown className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            <span className="font-semibold text-amber-600 dark:text-amber-400">
+              Shop Mode allows one cashier and one manager.
+            </span>{' '}
+            Approving beyond that (or an admin) needs Owner Mode.
+          </p>
+        </div>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[

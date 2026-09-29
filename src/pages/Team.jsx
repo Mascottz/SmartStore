@@ -1,11 +1,12 @@
 // src/pages/Team.jsx
 import { useState } from 'react';
-import { Copy, Shield, Trash2, Users } from 'lucide-react';
+import { Copy, Crown, Shield, Trash2, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { fmtDate } from '../lib/format';
+import { checkTeamChange, isFreePlanStore, freeTeamSummary } from '../lib/teamLimits';
 import ConfirmDialog from '../components/ConfirmDialog';
 import HelpTip from '../components/HelpTip';
 
@@ -19,7 +20,7 @@ const ROLE_STYLES = {
 };
 
 export default function Team() {
-  const { storeId, store, user, role } = useAuth();
+  const { storeId, store, user, role, plan } = useAuth();
   const [busyId, setBusyId] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
 
@@ -27,6 +28,8 @@ export default function Team() {
     () => (storeId ? api.team.list(storeId) : []),
     [storeId]
   );
+
+  const freePlan = isFreePlanStore({ plan, storeIsDemo: store?.isDemo });
 
   const isOwner = role === 'owner';
 
@@ -41,6 +44,15 @@ export default function Team() {
 
   const changeRole = async (member, newRole) => {
     if (member.role === 'owner') return toast.error('Cannot change the owner role.');
+    // Shop Mode teams: one cashier, one manager, no admins.
+    const limitError = checkTeamChange({
+      plan,
+      storeIsDemo: store?.isDemo,
+      members,
+      member,
+      nextRole: newRole,
+    });
+    if (limitError) return toast.error(limitError.message);
     setBusyId(member.id);
     try {
       await api.team.updateRole(member.id, newRole);
@@ -106,6 +118,19 @@ export default function Team() {
           <Copy className="w-4 h-4 text-emerald-500" />
         </button>
       </div>
+
+      {/* Shop Mode team limit */}
+      {freePlan && (
+        <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3">
+          <Crown className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-600 dark:text-amber-400">
+              Shop Mode team limit
+            </p>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{freeTeamSummary()}</p>
+          </div>
+        </div>
+      )}
 
       {/* Members */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden">

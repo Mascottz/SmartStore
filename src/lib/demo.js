@@ -42,7 +42,14 @@ export async function loginOrCreateDemo({ localOnly = false } = {}) {
         'Baby & Kids',
       ],
     });
-    await target.stores.update(store.id, { isDemo: true, plan: 'owner' });
+    // The demo store behaves as a YEARLY Owner Mode subscriber, so anyone
+    // trying it can experience both the monitoring app and the full
+    // transactional app.
+    await target.stores.update(store.id, {
+      isDemo: true,
+      plan: 'owner',
+      billingCycle: 'yearly',
+    });
 
     const created = [];
     for (const p of DEMO_PRODUCTS) {

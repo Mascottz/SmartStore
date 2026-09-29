@@ -8,12 +8,14 @@ import PendingApproval from './components/PendingApproval';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
 import StoreOnboardingGuard from './components/StoreOnboardingGuard';
+import { MainAppGate, MonitoringGate } from './components/OwnerExperienceGates';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineBanner from './components/OfflineBanner';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 import { isInstalledPwa } from './lib/pwa';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { OwnerExperienceProvider, useOwnerExperience } from './context/OwnerExperienceContext';
 
 // Lazy-load pages so the initial bundle stays small
 const Landing = lazy(() => import('./pages/Landing'));
@@ -35,6 +37,15 @@ const AdminApprovals = lazy(() => import('./pages/AdminApprovals'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 const PublicInfo = lazy(() => import('./pages/PublicInfo'));
 
+// The owner's monitoring app (/m): mobile-first, no POS register.
+const OwnerMobileLayout = lazy(() => import('./mobile/OwnerMobileLayout'));
+const MobileDashboard = lazy(() => import('./mobile/MobileDashboard'));
+const MobileInventory = lazy(() => import('./mobile/MobileInventory'));
+const MobileSales = lazy(() => import('./mobile/MobileSales'));
+const MobileCreditBook = lazy(() => import('./mobile/MobileCreditBook'));
+const MobileReports = lazy(() => import('./mobile/MobileReports'));
+const MobileMore = lazy(() => import('./mobile/MobileMore'));
+
 // Mobile-friendly shell layout
 function ShellLayout() {
   return (
@@ -53,6 +64,7 @@ function ShellLayout() {
 
 function RootRoute() {
   const { user, approvalStatus, store } = useAuth();
+  const { experience, loading } = useOwnerExperience();
   // 'POP' is how the router reports a *fresh open* of the site (typed URL,
   // bookmark, link from another app, installed-PWA launch, page reload).
   // In-app navigations are 'PUSH' / 'REPLACE' and keep the app routing below.
@@ -66,7 +78,11 @@ function RootRoute() {
     if (approvalStatus === 'pending' || approvalStatus === 'rejected') {
       return <PendingApproval />;
     }
-    if (user && store) return <Navigate to="/dashboard" replace />;
+    if (user && store) {
+      // Two-way owner app: a monitoring owner's "straight to work" is the
+      // monitoring app, not the register app.
+      return <Navigate to={experience === 'monitoring' ? '/m' : '/dashboard'} replace />;
+    }
     return <Navigate to="/login" replace />;
   }
 
@@ -98,6 +114,10 @@ function RootRoute() {
   }
 
   if (!store) return <Navigate to="/onboarding" replace />;
+
+  // Owners on the two-way plan: the resolved mode decides where home is.
+  // Monitoring owners live in the /m app; everyone else keeps /dashboard.
+  if (!loading && experience === 'monitoring') return <Navigate to="/m" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -190,12 +210,15 @@ function AppInner() {
           }
         />
 
-        {/* Main app: requires auth AND a store */}
+        {/* Main app: requires auth AND a store. Owners in monitoring mode are
+            redirected to the /m app — the POS and checkout stay out of reach. */}
         <Route
           element={
             <ProtectedRoute>
               <StoreOnboardingGuard>
-                <ShellLayout />
+                <MainAppGate>
+                  <ShellLayout />
+                </MainAppGate>
               </StoreOnboardingGuard>
             </ProtectedRoute>
           }
@@ -215,6 +238,39 @@ function AppInner() {
           <Route path="/admin/approvals" element={<AdminApprovals />} />
         </Route>
 
+        {/* Owner monitoring app: strictly monitoring, no POS/checkout. Only
+            exists for owners whose resolved mode is monitoring. */}
+        <Route
+          path="/m"
+          element={
+            <ProtectedRoute>
+              <StoreOnboardingGuard>
+                <MonitoringGate>
+                  <Suspense fallback={<SplashScreen />}>
+                    <OwnerMobileLayout />
+                  </Suspense>
+                </MonitoringGate>
+              </StoreOnboardingGuard>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<MobileDashboard />} />
+          <Route path="inventory" element={<MobileInventory />} />
+          <Route path="sales" element={<MobileSales />} />
+          <Route path="credit" element={<MobileCreditBook />} />
+          <Route path="reports" element={<MobileReports />} />
+          <Route path="more" element={<MobileMore />} />
+          {/* Deeper monitoring screens reuse the full pages inside the
+              mobile shell (they are already responsive on their own). */}
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="reports/voids" element={<VoidReports />} />
+          <Route path="reports/expenses" element={<ExpensesReport />} />
+          <Route path="team" element={<Team />} />
+          <Route path="approvals" element={<AdminApprovals />} />
+          <Route path="owner-settings" element={<OwnerSettings />} />
+          <Route path="pricing" element={<Pricing />} />
+        </Route>
+
         {/* Catch-all: return visitors to the marketing page. */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -226,7 +282,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <AppInner />
+        <OwnerExperienceProvider>
+          <AppInner />
+        </OwnerExperienceProvider>
       </AuthProvider>
     </ErrorBoundary>
   );
