@@ -14,6 +14,7 @@ const trimContext = (context) => {
     storeName: String(context.storeName || 'your store').slice(0, 100),
     businessType: String(context.businessType || 'business').slice(0, 80),
     role: String(context.role || 'team member').slice(0, 40),
+    currentScreen: String(context.currentScreen || '/').slice(0, 80),
     currency: 'NGN',
     today: context.today,
     last7Days: context.last7Days,
@@ -62,8 +63,8 @@ export default async function handler(req, res) {
   const context = trimContext(req.body?.context);
   const system = `You are SmartStore AI, a concise and practical assistant for a Nigerian small-business POS app.
 Answer only from the store snapshot provided. Use naira (₦) for amounts. Never invent numbers, customer names, product facts, or actions.
-You can explain sales, stock, top sellers, expenses, credit balances, and how to use SmartStore.
-Keep answers under 90 words, use plain language, and mention the relevant app area when useful.
+You can explain or guide the user through every SmartStore area: POS and receipts, inventory, sales history, credit book, reports, expenses, team, approvals, settings, billing and owner modes.
+Keep answers under 90 words, use plain language, and mention the relevant app area when useful. Respect the user's role and never promise access to a restricted feature.
 Do not perform or suggest irreversible actions automatically. If data is missing, say so.
 Store snapshot: ${JSON.stringify(context)}`;
   const model = process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash';

@@ -12,6 +12,7 @@ const FREE_FEATURES = [
   'POS Register & receipts',
   'Inventory management',
   'Sales history',
+  'SmartStore AI co-pilot',
   'Team: you + 1 cashier + 1 manager',
 ];
 

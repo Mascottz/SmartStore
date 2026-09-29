@@ -18,13 +18,14 @@ const SUGGESTIONS = [
   { label: 'How are sales today?', value: 'How are sales today?' },
   { label: 'What needs restocking?', value: 'What needs restocking?' },
   { label: 'What is selling best?', value: 'What is selling best?' },
+  { label: 'How do I add a product?', value: 'How do I add a product?' },
   { label: 'How much credit is open?', value: 'How much credit is open?' },
 ];
 
 const welcomeMessage = (storeName) => ({
   id: 'welcome',
   from: 'assistant',
-  text: `Hi! I’m your SmartStore assistant. I can help you understand ${storeName || 'your store'} and get to the right screen faster.`,
+  text: `Hi! I’m your SmartStore assistant. I can help you with any part of ${storeName || 'your store'} — from ringing up a sale to managing stock, credit, expenses, reports and your team.`,
   mode: 'insights',
 });
 
@@ -63,12 +64,13 @@ export default function SmartAssistant() {
         storeName,
         niche,
         role,
+        currentPath: location.pathname,
         sales,
         products,
         expenses,
         creditPayments,
       }),
-    [storeName, niche, role, sales, products, expenses, creditPayments]
+    [storeName, niche, role, location.pathname, sales, products, expenses, creditPayments]
   );
 
   // Replace the optimistic greeting once the store context is known.

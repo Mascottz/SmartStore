@@ -23,6 +23,7 @@ export function buildAssistantContext({
   storeName,
   niche,
   role,
+  currentPath = '/',
   sales = [],
   products = [],
   expenses = [],
@@ -80,6 +81,7 @@ export function buildAssistantContext({
     storeName: storeName || 'your store',
     businessType: niche?.label || 'business',
     role: role || 'team member',
+    currentScreen: currentPath,
     currency: 'NGN',
     today: {
       sales: todaySales.length,
@@ -122,6 +124,44 @@ function localReply(question, context) {
   if (!q) {
     return {
       answer: 'Ask me about sales, stock, top sellers, expenses, credit, or how to use SmartStore.',
+    };
+  }
+
+  if (
+    /\b(add|create|edit|update|remove|delete|manage)\b.*\b(product|item|inventory)\b/.test(q) ||
+    /\b(how do i|where can i)\b.*\b(product|item)\b/.test(q)
+  ) {
+    return {
+      answer: 'Open Inventory to add, edit, remove or organise products. You can set prices, categories, stock quantities, expiry dates and optional SKU or barcode values there.',
+      action: { label: 'Open inventory', route: '/inventory' },
+    };
+  }
+
+  if (/\b(pos|register|checkout|barcode|receipt)\b/.test(q) && /\b(how|where|open|use|record)\b/.test(q)) {
+    return {
+      answer: 'Open POS Register to search or scan products, build the cart, choose Cash, Transfer, POS/Card, Partial or Credit, and complete or print the sale.',
+      action: { label: 'Open POS Register', route: '/pos' },
+    };
+  }
+
+  if (/\b(team|staff|employee|member|role|approval|approve)\b/.test(q) && /\b(how|where|manage|add|invite|approve|remove)\b/.test(q)) {
+    return {
+      answer: 'Use Team to invite staff, approve join requests, change roles and remove members. Some team controls require the right role or Owner Mode.',
+      action: { label: 'Open Team', route: '/team' },
+    };
+  }
+
+  if (/\b(setting|settings|store name|join code|billing|owner mode)\b/.test(q) && /\b(how|where|manage|change|open|upgrade)\b/.test(q)) {
+    return {
+      answer: 'Open Owner Settings for store controls and account-level options. Use Pricing for billing and Owner Mode, where available to the store owner.',
+      action: { label: 'Open settings', route: '/owner-settings' },
+    };
+  }
+
+  if (/\b(report|reports|analytics|profit|performance)\b/.test(q) && /\b(how|where|show|open|see|view)\b/.test(q)) {
+    return {
+      answer: 'Open Reports for revenue, cost of goods, profit, payment mix and top sellers. Expense analytics has its own report, and premium views still follow your plan.',
+      action: { label: 'Open reports', route: '/reports' },
     };
   }
 
@@ -195,18 +235,26 @@ function localReply(question, context) {
 
   if (/\b(how|help|can you|where|what can)\b/.test(q)) {
     return {
-      answer: 'I can give quick answers about sales, restocking, best sellers, expenses and outstanding credit. I can also take you straight to the relevant SmartStore screen.',
+      answer: 'I can answer questions and guide you through every SmartStore area: POS, inventory, sales, credit, reports, expenses, team, approvals, settings and billing. I will follow the permissions of your role and plan.',
     };
   }
 
   return {
-    answer: `I can help you run ${context.storeName}. Try “How are sales today?”, “What needs restocking?”, “What is selling best?”, or “How much credit is open?”`,
+    answer: `I can help you run ${context.storeName} across the whole app. Try “How are sales today?”, “What needs restocking?”, “How do I add a product?”, “How do I manage my team?”, or “How much credit is open?”`,
   };
 }
 
 /** Ask the configured server-side AI, falling back to useful local insights. */
 export async function askAssistant(question, context) {
-  const endpoint = import.meta.env.VITE_AI_ASSISTANT_URL || DEFAULT_ENDPOINT;
+  const configuredEndpoint = import.meta.env.VITE_AI_ASSISTANT_URL;
+  const endpoint = configuredEndpoint || DEFAULT_ENDPOINT;
+
+  // Local/demo mode stays genuinely offline unless a developer explicitly
+  // points it at a protected endpoint. Live Supabase users use the bundled
+  // endpoint and send their short-lived bearer token.
+  if (!configuredEndpoint && api.kind !== 'supabase') {
+    return { ...localReply(question, context), mode: 'insights' };
+  }
 
   try {
     const accessToken = await api.auth.getAccessToken?.();

@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Smartphone,
+  Sparkles,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ const features = [
   ['POS Register', 'Ring up sales quickly with a clean, reliable register.', ShoppingCart],
   ['Inventory', 'Know what is in stock, what is moving, and what needs attention.', Package],
   ['Reports', 'Turn daily sales into clear decisions with simple reports.', BarChart3],
+  ['SmartStore AI', 'Ask questions in plain language, understand any area of the app, and jump straight to the right next step.', Sparkles],
   ['Sales History', 'Find every receipt and transaction whenever you need it.', Receipt],
   ['Credit Book', 'Sell on credit or part payment; every repayment is recorded until the debt is settled.', BookUser],
   ['Void Audit', 'Keep a transparent record of voided transactions.', ShieldCheck],
@@ -145,7 +147,7 @@ export default function Landing() {
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-zinc-600">
                 One calm, organized workspace for sales, credit, inventory, people, and profit. SmartStore NG
-                helps you run today and grow tomorrow.
+                helps you run today and grow tomorrow — with an AI co-pilot that can guide you through every part of the app.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <button
@@ -215,6 +217,17 @@ export default function Landing() {
                 <p className="mt-2 text-sm leading-6 text-zinc-600">{text}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-8 flex items-start gap-4 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-6 sm:items-center">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="font-semibold text-zinc-900">Your AI co-pilot is not locked to Owner Mode.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-600">
+                SmartStore AI is available to every signed-in role in Shop Mode and Owner Mode. Ask it about any SmartStore area — POS, inventory, sales, credit, expenses, reports, team or settings — and it will respect that user&apos;s permissions while pointing to the right next step.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -329,6 +342,7 @@ export default function Landing() {
             </div>
             {[
               ['POS register & receipts', true, true],
+              ['SmartStore AI co-pilot', true, true],
               ['Inventory & sales history', true, true],
               ['Team', 'You + 1 cashier + 1 manager', 'Unlimited, every role'],
               ['Admin role', false, true],

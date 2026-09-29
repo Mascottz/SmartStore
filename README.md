@@ -40,10 +40,12 @@ backend is configured.
   staff roles always get the standard app, untouched
 - ❓ **Contextual help tooltips**: the "?" icons across Dashboard, POS, Inventory,
   Sales History, Reports, Expenses and Team explain each number and control in place
-- ✨ **SmartStore AI assistant**: an in-app co-pilot answers questions about sales,
-  stock, best sellers, expenses and credit using the current store data, with safe
-  links into the relevant screen. It works offline with local insights and can use
-  an optional server-side Gemini endpoint when `GOOGLE_API_KEY` is configured
+- ✨ **SmartStore AI assistant**: an in-app co-pilot available to every signed-in
+  role in both Shop Mode and Owner Mode. It answers questions across POS,
+  inventory, sales, credit, expenses, reports, team and settings using the current
+  store data, with safe links into the relevant screen. It works offline with
+  local insights and can use an optional server-side Gemini endpoint when
+  `GOOGLE_API_KEY` is configured
 - ✅ **Access approvals**: new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
 - 🛡️ **System admin dashboard**: platform metrics, stores, users and global approval controls
 - 👑 **Owner Mode plan gating**: upgrade monthly (₦5,000) or yearly (₦50,000, two months
@@ -128,6 +130,10 @@ server-side role.
 | Admin | Everything except owner settings (Owner Mode plan only — Shop Mode teams stop at one cashier and one manager) |
 | Manager | Inventory, reports, expenses, voids |
 | Cashier | POS + sales history |
+
+**SmartStore AI access** — the assistant is available to every signed-in role in
+both plans. It can explain and guide users across the whole app, while each
+role's existing permissions still apply.
 
 **Plans at a glance** — Shop Mode (free): POS, inventory, sales history, team
 of three (owner + 1 cashier + 1 manager), no full reports. Owner Mode

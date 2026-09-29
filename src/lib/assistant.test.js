@@ -48,6 +48,14 @@ describe('SmartStore assistant insights', () => {
     expect(result.action).toEqual({ label: 'Review inventory', route: '/inventory' });
   });
 
+  it('routes how-to questions for app actions to the right screen', () => {
+    const context = buildAssistantContext(baseData);
+    const result = localReply('How do I add a product?', context);
+
+    expect(result.answer).toContain('Inventory');
+    expect(result.action).toEqual({ label: 'Open inventory', route: '/inventory' });
+  });
+
   it('does not invent an open debt when the credit book is clear', () => {
     const context = buildAssistantContext(baseData);
     const result = localReply('How much credit is open?', context);
