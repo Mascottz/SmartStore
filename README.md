@@ -13,7 +13,9 @@ backend is configured.
 
 - 🏪 **Multi-niche onboarding**: Supermarket, Boutique, Pharmacy, Restaurant, Salon/Services, Other
 - 🛒 **POS Register**: product grid with category filter tabs and paged results, inline
-  help tooltips, cart, camera barcode scanning, payment methods, receipt printing
+  help tooltips, cart, camera barcode scanning, payment methods, receipt printing. The
+  cart panel is capped to the viewport so a long sale scrolls internally while the total
+  and Complete Sale button stay in view
 - 📒 **Partial payments & credit**: sell with the customer paying part now (Partial) or
   nothing yet (Credit); the sale keeps who owes what, receipts print the balance due,
   and the **Credit Book** page tracks every open debt with its full repayment history,
@@ -31,7 +33,11 @@ backend is configured.
   Sales History, Reports, Expenses and Team explain each number and control in place
 - ✅ **Access approvals**: new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
 - 🛡️ **System admin dashboard**: platform metrics, stores, users and global approval controls
-- 👑 **Owner Mode plan gating**, 🌙 light/dark theme
+- 👑 **Owner Mode plan gating**: upgrade monthly (₦5,000) or yearly (₦50,000, two months
+  free) via Paystack, with plan-tagged checkout references
+- 🎬 **Public demo & marketing site**: a landing page with a Point of Sale showcase and a
+  one-click `/demo` page that seeds a fully populated store, no sign-up needed
+- 🌙 light/dark theme
 
 ## Running locally (demo mode)
 
@@ -45,15 +51,17 @@ Checks:
 ```bash
 npm test    # vitest + jsdom: POS category/pagination behaviour, POS partial &
             # credit checkout, credit-sale validation + repayment ledger,
-            # inventory worth summary + auto-SKU, help tooltips, staff
+            # inventory worth summary + auto-SKU, help tooltips, monthly/yearly
+            # pricing plans + Paystack references, public demo page flow, staff
             # join-on-login flow, join-code storage, receipt popup
             # close/timeout, onboarding duplicate-store screen
 npm run lint
 npm run build
 ```
 
-With no env vars set, the app runs entirely on localStorage; click
-**“Try the demo store”** on the login screen for a pre-seeded store.
+With no env vars set, the app runs entirely on localStorage. For a pre-seeded
+store, click **“Try the demo store”** on the login screen, or open the public
+**`/demo`** page and choose **“Enter the demo store”**.
 
 ## Going live with Supabase
 

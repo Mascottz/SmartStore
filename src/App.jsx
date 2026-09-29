@@ -16,6 +16,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Lazy-load pages so the initial bundle stays small
 const Landing = lazy(() => import('./pages/Landing'));
+const Demo = lazy(() => import('./pages/Demo'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const POS = lazy(() => import('./pages/POS'));
@@ -96,6 +97,14 @@ function AppInner() {
 
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/demo"
+          element={
+            <Suspense fallback={<SplashScreen />}>
+              <Demo />
+            </Suspense>
+          }
+        />
         <Route path="/" element={<RootRoute />} />
         <Route
           path="/privacy"
