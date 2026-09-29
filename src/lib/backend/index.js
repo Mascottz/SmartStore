@@ -4,7 +4,49 @@
 import { localAdapter } from './local';
 import { supabaseAdapter, isSupabaseConfigured } from './supabase';
 
-export const backend = isSupabaseConfigured ? supabaseAdapter : localAdapter;
+export const DEMO_SANDBOX_KEY = 'smartstore-demo-sandbox';
+
+export function isDemoSandbox() {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return false;
+    return window.sessionStorage.getItem(DEMO_SANDBOX_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function enterDemoSandbox() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(DEMO_SANDBOX_KEY, 'true');
+    }
+  } catch {}
+}
+
+export function exitDemoSandbox() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem(DEMO_SANDBOX_KEY);
+    }
+  } catch {}
+}
+
+export function bootDemoSandbox(destination = '/dashboard') {
+  enterDemoSandbox();
+  if (typeof window !== 'undefined' && window.location) {
+    window.location.href = destination;
+  }
+}
+
+export function leaveDemoSandbox(destination = '/login') {
+  exitDemoSandbox();
+  if (typeof window !== 'undefined' && window.location) {
+    window.location.href = destination;
+  }
+}
+
+export const backend =
+  isSupabaseConfigured && !isDemoSandbox() ? supabaseAdapter : localAdapter;
 export const isDemoBackend = !isSupabaseConfigured;
 
 // ---- change events -------------------------------------------------------

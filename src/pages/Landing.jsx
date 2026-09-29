@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BarChart3,
@@ -21,7 +21,6 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import PendingApproval from '../components/PendingApproval';
 import logo from '/logo-smartstore.png';
 
 const features = [
@@ -77,12 +76,17 @@ const OWNER_YEARLY = '\u20A650,000';
 const OWNER_YEARLY_SAVINGS = '\u20A610,000';
 
 export default function Landing() {
-  const { user, approvalStatus } = useAuth();
+  // A fresh browser open always starts here, even for visitors with a saved
+  // session; the root route no longer bounces signed-in users into the app.
+  // Their call-to-action buttons simply point into the app instead of the
+  // sign-up flow.
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [billing, setBilling] = useState('monthly'); // 'monthly' | 'yearly'
   const yearly = billing === 'yearly';
-  if (user && (approvalStatus === 'pending' || approvalStatus === 'rejected')) return <PendingApproval />;
-  if (user) return <Navigate to="/dashboard" replace />;
+
+  // Signed in: straight into the app. Signed out: the sign-in / sign-up flow.
+  const goApp = () => navigate(user ? '/dashboard' : '/login');
 
   return (
     <div className="min-h-screen overflow-hidden bg-white text-zinc-900 selection:bg-emerald-600 selection:text-white">
@@ -108,16 +112,16 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/login')}
+              onClick={goApp}
               className="hidden px-3 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:text-zinc-950 sm:block"
             >
-              Log In
+              {user ? 'Open App' : 'Log In'}
             </button>
             <button
-              onClick={() => navigate('/login')}
+              onClick={goApp}
               className="rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500"
             >
-              Get Started
+              {user ? 'Go to App' : 'Get Started'}
             </button>
           </div>
         </div>
@@ -145,10 +149,11 @@ export default function Landing() {
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={goApp}
                   className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3.5 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500"
                 >
-                  Start for free <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  {user ? 'Open your dashboard' : 'Start for free'}
+                  {!user && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
                 </button>
                 <Link
                   to="/demo"
@@ -474,10 +479,11 @@ export default function Landing() {
               Join owners building calmer, more profitable businesses with SmartStore NG.
             </p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={goApp}
               className="mt-8 inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 font-semibold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
             >
-              Get started free <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+              {user ? 'Open your dashboard' : 'Get started free'}
+              <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </section>
@@ -503,8 +509,8 @@ export default function Landing() {
               <li><a href="#pricing" className="hover:text-emerald-600">Pricing</a></li>
               <li><Link to="/demo" className="hover:text-emerald-600">Live demo</Link></li>
               <li>
-                <button type="button" onClick={() => navigate('/login')} className="hover:text-emerald-600">
-                  Log In
+                <button type="button" onClick={goApp} className="hover:text-emerald-600">
+                  {user ? 'Open App' : 'Log In'}
                 </button>
               </li>
             </ul>
@@ -818,6 +824,7 @@ function CompareCell({ value, highlight = false }) {
 
 function PriceCard({ title, price, period, note, text, items, excluded = [], cta, featured }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   return (
     <div
       className={`rounded-3xl border bg-white p-7 ${
@@ -855,7 +862,7 @@ function PriceCard({ title, price, period, note, text, items, excluded = [], cta
         ))}
       </ul>
       <button
-        onClick={() => navigate('/login')}
+        onClick={() => navigate(user ? '/dashboard' : '/login')}
         className={`mt-8 w-full rounded-full px-4 py-3 text-sm font-semibold transition-colors ${
           featured
             ? 'bg-emerald-600 text-white hover:bg-emerald-500'

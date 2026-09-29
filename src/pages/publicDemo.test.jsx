@@ -1,19 +1,18 @@
 // Public /demo page: one click seeds (or reuses) the demo store, refreshes the
 // membership and drops the visitor on the dashboard. These tests pin that flow
-// and that a failure surfaces instead of navigating. The demo store is seeded
-// into localStorage, so the one-click entry only exists on the local backend;
-// with a configured backend (Supabase) the primary CTA must route to real
-// signup instead of calling the demo login.
+// both on the local demo backend and against a Supabase deployment (where the
+// demo is seeded local-only and booted into a session-scoped sandbox).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import Demo from './Demo';
 
-const { navigate, loginOrCreateDemo, refreshMembership, backendFlags } = vi.hoisted(() => ({
+const { navigate, loginOrCreateDemo, refreshMembership, bootDemoSandbox, backendFlags } = vi.hoisted(() => ({
   navigate: vi.fn(),
   loginOrCreateDemo: vi.fn(async () => ({ id: 'demo-user' })),
   refreshMembership: vi.fn(async () => {}),
+  bootDemoSandbox: vi.fn(),
   backendFlags: { isDemoBackend: true },
 }));
 
@@ -34,6 +33,7 @@ vi.mock('../lib/backend', () => ({
   get isDemoBackend() {
     return backendFlags.isDemoBackend;
   },
+  bootDemoSandbox: (...args) => bootDemoSandbox(...args),
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -62,6 +62,7 @@ describe('Public demo page', () => {
     await userEvent.click(screen.getByRole('button', { name: /Enter the demo store/i }));
 
     await waitFor(() => expect(loginOrCreateDemo).toHaveBeenCalledTimes(1));
+    expect(loginOrCreateDemo).toHaveBeenCalledWith();
     expect(refreshMembership).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalledWith('/dashboard', { replace: true });
   });
@@ -74,18 +75,18 @@ describe('Public demo page', () => {
 
     await waitFor(() => expect(loginOrCreateDemo).toHaveBeenCalledTimes(1));
     expect(navigate).not.toHaveBeenCalled();
+    expect(bootDemoSandbox).not.toHaveBeenCalled();
   });
 
-  it('routes to real signup instead of the demo login when a real backend is configured', async () => {
+  it('seeds local-only and boots into the demo sandbox when a real backend is configured', async () => {
     backendFlags.isDemoBackend = false;
     render(<Demo />);
 
-    expect(screen.queryByRole('button', { name: /Enter the demo store/i })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: /Create your free store/i }));
+    expect(screen.getByRole('button', { name: /Enter the demo store/i })).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: /Enter the demo store/i }));
 
-    expect(loginOrCreateDemo).not.toHaveBeenCalled();
-    expect(refreshMembership).not.toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith('/login');
-    expect(navigate).not.toHaveBeenCalledWith('/dashboard', { replace: true });
+    await waitFor(() => expect(loginOrCreateDemo).toHaveBeenCalledWith({ localOnly: true }));
+    expect(bootDemoSandbox).toHaveBeenCalledWith('/dashboard');
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

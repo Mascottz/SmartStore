@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api, isDemoBackend } from '../lib/backend';
+import { api, isDemoBackend, isDemoSandbox, leaveDemoSandbox } from '../lib/backend';
 import { useAuth } from '../context/AuthContext';
 import { useOwnerExperience } from '../context/OwnerExperienceContext';
 import logo from '/logo-smartstore.png';
@@ -79,6 +79,11 @@ export default function Sidebar() {
   ];
 
   const handleSignOut = async () => {
+    if (isDemoSandbox()) {
+      await api.auth.signOut();
+      leaveDemoSandbox('/login');
+      return;
+    }
     await api.auth.signOut();
     navigate('/login');
   };
@@ -127,11 +132,15 @@ export default function Sidebar() {
             )}
           </button>
         </div>
-        {isDemoBackend && (
+        {isDemoSandbox() ? (
+          <p className="mt-3 text-[10px] px-2 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            Demo sandbox (browser-only), sign out to exit
+          </p>
+        ) : isDemoBackend ? (
           <p className="mt-3 text-[10px] px-2 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
             Local demo mode, add Supabase keys to go live
           </p>
-        )}
+        ) : null}
       </div>
 
       {/* Menu */}

@@ -1,6 +1,17 @@
 // src/pages/POS.jsx
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Trash2, Printer, Camera, Minus, Plus, Search, Keyboard, ChevronDown } from 'lucide-react';
+import {
+  Trash2,
+  Printer,
+  Camera,
+  Minus,
+  Plus,
+  Search,
+  Keyboard,
+  ChevronDown,
+  ShoppingCart,
+  X,
+} from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -61,6 +72,10 @@ export default function POS() {
   const [lastSale, setLastSale] = useState(null);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  // Below desktop width the sale lives in a viewport-fixed drawer instead of
+  // underneath the product grid. This keeps checkout one tap away even when a
+  // store has hundreds of products.
+  const [isCartOpen, setIsCartOpen] = useState(false);
   // Barcode scanned by a customer that has no matching product yet; opens
   // the quick-add modal so it can be created and sold in one go.
   const [quickAddBarcode, setQuickAddBarcode] = useState(null);
@@ -255,7 +270,8 @@ export default function POS() {
     if (quickAddBarcode !== null) return {};
     return {
       Escape: () => {
-        if (isScanning) setIsScanning(false);
+        if (isCartOpen) setIsCartOpen(false);
+        else if (isScanning) setIsScanning(false);
         else if (showShortcuts) setShowShortcuts(false);
         else if (showVoidConfirm) setShowVoidConfirm(false);
         else if (isFiltered) clearFilters();
@@ -269,7 +285,7 @@ export default function POS() {
         if (lastSale) printLastReceiptRef.current();
       },
     };
-  }, [quickAddBarcode, isScanning, showShortcuts, showVoidConfirm, cart.length, isCompleting, lastSale, isFiltered, clearFilters]);
+  }, [quickAddBarcode, isCartOpen, isScanning, showShortcuts, showVoidConfirm, cart.length, isCompleting, lastSale, isFiltered, clearFilters]);
   useKeyboard(shortcuts);
 
   const updateQuantity = (id, newQty) => {
@@ -425,9 +441,10 @@ export default function POS() {
   printLastReceiptRef.current = printLastReceipt;
 
   return (
-    <div className="p-4 md:p-6 flex flex-col lg:flex-row gap-6 min-h-screen">
-      {/* Product grid */}
-      <div className="flex-1">
+    <div className="relative flex min-h-screen flex-col gap-6 p-4 pb-28 md:p-6 md:pb-28 xl:h-screen xl:min-h-0 xl:flex-row xl:overflow-hidden xl:pb-6">
+      {/* Product catalogue. On desktop this pane scrolls independently, so the
+          scanner and checkout remain in a stable two-column register. */}
+      <div className="min-w-0 flex-1 xl:overflow-y-auto xl:pr-2">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
           <div className="flex-1 flex items-center gap-2">
             <h1 className="text-2xl font-bold">POS Register</h1>
@@ -640,9 +657,59 @@ export default function POS() {
         )}
       </div>
 
-      {/* Cart */}
-      <div className="w-full lg:w-96 shrink-0">
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl lg:sticky lg:top-6 flex flex-col overflow-hidden lg:max-h-[calc(100vh-3rem)]">
+      {/* Compact sale bar for phones and tablets. It is fixed to the viewport,
+          not placed after the catalogue, so product quantity can never hide
+          checkout. The full sale opens in the drawer below. */}
+      <div className="fixed inset-x-3 bottom-3 z-30 xl:hidden md:left-[19rem]">
+        <button
+          type="button"
+          onClick={() => setIsCartOpen(true)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-emerald-400/40 bg-zinc-900 px-4 py-3 text-left text-white shadow-2xl shadow-black/30 dark:bg-white dark:text-zinc-900"
+          aria-label={`View current sale, ${itemCount} item${itemCount !== 1 ? 's' : ''}, total ${fmtMoney(totalAmount)}`}
+        >
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-black">
+            <ShoppingCart className="h-5 w-5" />
+            {itemCount > 0 && (
+              <span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-white px-1.5 py-0.5 text-center text-[10px] font-bold text-zinc-900 ring-2 ring-zinc-900 dark:bg-zinc-900 dark:text-white dark:ring-white">
+                {itemCount > 99 ? '99+' : itemCount}
+              </span>
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-zinc-300 dark:text-zinc-500">
+              {itemCount > 0
+                ? `${itemCount} item${itemCount !== 1 ? 's' : ''} in current sale`
+                : 'Current sale is empty'}
+            </span>
+            <span className="block truncate text-lg font-bold">{fmtMoney(totalAmount)}</span>
+          </span>
+          <span className="shrink-0 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-black">
+            View sale
+          </span>
+        </button>
+      </div>
+
+      {/* Dim the catalogue while the small-screen sale drawer is open. */}
+      {isCartOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px] xl:hidden"
+          onClick={() => setIsCartOpen(false)}
+          aria-label="Close current sale"
+        />
+      )}
+
+      {/* Sale panel: permanently visible beside the catalogue on desktop and a
+          full-height drawer on smaller screens. */}
+      <aside
+        role="dialog"
+        aria-modal={isCartOpen ? 'true' : undefined}
+        aria-label="Current sale"
+        className={`${
+          isCartOpen ? 'fixed inset-y-0 right-0 z-50 flex w-full max-w-md p-3 sm:p-4' : 'hidden'
+        } xl:static xl:z-auto xl:flex xl:w-96 xl:max-w-none xl:shrink-0 xl:p-0`}
+      >
+        <div className="flex h-full max-h-full w-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 xl:shadow-none">
           {/* Scrollable body. Capping the card to the viewport and letting the
               header, cart lines and payment details scroll in here keeps the
               total and Complete Sale button (the pinned footer below) on screen
@@ -656,14 +723,24 @@ export default function POS() {
                 </span>
               )}
             </h2>
-            {cart.length > 0 && (
+            <div className="flex items-center gap-2">
+              {cart.length > 0 && (
+                <button
+                  onClick={() => setShowVoidConfirm(true)}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Void all
+                </button>
+              )}
               <button
-                onClick={() => setShowVoidConfirm(true)}
-                className="text-xs text-red-500 hover:underline"
+                type="button"
+                onClick={() => setIsCartOpen(false)}
+                className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white xl:hidden"
+                aria-label="Close current sale"
               >
-                Void all
+                <X className="h-4 w-4" />
               </button>
-            )}
+            </div>
           </div>
 
           {cart.length === 0 ? (
@@ -812,7 +889,7 @@ export default function POS() {
             </button>
           </div>
         </div>
-      </div>
+      </aside>
 
       {/* Quick add for an unknown scanned barcode */}
       {quickAddBarcode !== null && (

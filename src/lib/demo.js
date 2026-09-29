@@ -1,6 +1,7 @@
 // src/lib/demo.js
 // Seeds a fully populated demo store (local backend only).
 import { api } from './backend';
+import { localAdapter } from './backend/local';
 
 const DEMO_EMAIL = 'demo@smartstoreng.com';
 const DEMO_PASSWORD = 'Demo1234!';
@@ -18,17 +19,18 @@ const DEMO_PRODUCTS = [
   { name: 'Eva Water 75cl', sku: 'EV-75', category: 'Beverages', costPrice: 150, salePrice: 250, stock: 300 },
 ];
 
-export async function loginOrCreateDemo() {
+export async function loginOrCreateDemo({ localOnly = false } = {}) {
+  const target = localOnly ? localAdapter : api;
   let user;
   try {
-    user = await api.auth.signIn({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+    user = await target.auth.signIn({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
   } catch {
-    user = await api.auth.signUp({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+    user = await target.auth.signUp({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
   }
 
-  let membership = await api.stores.getMyMembership(user.id);
+  let membership = await target.stores.getMyMembership(user.id);
   if (!membership) {
-    const store = await api.stores.create(user.id, user.email, {
+    const store = await target.stores.create(user.id, user.email, {
       name: 'Demo Supermart',
       type: 'supermarket',
       categories: [
@@ -43,7 +45,7 @@ export async function loginOrCreateDemo() {
     // The demo store behaves as a YEARLY Owner Mode subscriber, so anyone
     // trying it can experience both the monitoring app and the full
     // transactional app.
-    await api.stores.update(store.id, {
+    await target.stores.update(store.id, {
       isDemo: true,
       plan: 'owner',
       billingCycle: 'yearly',
@@ -51,7 +53,7 @@ export async function loginOrCreateDemo() {
 
     const created = [];
     for (const p of DEMO_PRODUCTS) {
-      created.push(await api.products.create(store.id, p));
+      created.push(await target.products.create(store.id, p));
     }
 
     // A few historical sales so dashboards & reports have data
@@ -83,7 +85,7 @@ export async function loginOrCreateDemo() {
           lineTotal: p.salePrice * qty,
         };
       });
-      const sale = await api.sales.create(store.id, {
+      const sale = await target.sales.create(store.id, {
         items,
         paymentMethod: s.method,
         receiptNo: 'SM-' + String(now - s.daysAgo * day).slice(-8),
@@ -110,7 +112,7 @@ export async function loginOrCreateDemo() {
         };
       });
       const total = items.reduce((sum, i) => sum + i.lineTotal, 0);
-      const sale = await api.sales.create(store.id, {
+      const sale = await target.sales.create(store.id, {
         items,
         paymentMethod: method,
         receiptNo: 'SM-' + String(now - daysAgo * day).slice(-8),
@@ -126,7 +128,7 @@ export async function loginOrCreateDemo() {
     // Mama Ngozi took ₦15,800 of goods, paid ₦10,000 and has already brought
     // ₦5,000 back; the Credit Book shows her with ₦800 left to pay.
     const partial = await creditSale(3, [0, 0, 5, 7, 7], 'Partial', 'Mama Ngozi', 10000);
-    const repayment = await api.creditPayments.add(store.id, {
+    const repayment = await target.creditPayments.add(store.id, {
       saleId: partial.sale.id,
       amount: 5000,
       method: 'Cash',
@@ -145,7 +147,7 @@ export async function loginOrCreateDemo() {
       { title: 'NEPA bill', amount: 22000, category: 'Utilities', daysAgo: 35 },
     ];
     for (const e of expenses) {
-      await api.expenses.create(store.id, {
+      await target.expenses.create(store.id, {
         title: e.title,
         amount: e.amount,
         category: e.category,
@@ -154,7 +156,7 @@ export async function loginOrCreateDemo() {
       });
     }
 
-    await api.stores.update(store.id, {
+    await target.stores.update(store.id, {
       onboarding: { firstProductAdded: true, firstSaleCompleted: true },
     });
   }

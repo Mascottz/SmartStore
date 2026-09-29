@@ -18,13 +18,14 @@ const ALREADY_HAS_STORE_RE =
 /**
  * Terminal screen for an account that already owns a store: a stale tab, a
  * bookmarked /onboarding link, or a "one store per account" rejection from
- * the backend. Going through the root route keeps RootRoute as the single
- * place that decides where an authenticated user lands, and a full page load
- * sidesteps the StoreOnboardingGuard race with a soft navigate().
+ * the backend. The button goes straight to the dashboard: a fresh open of
+ * '/' is the marketing landing page now, so it can no longer double as the
+ * post-setup redirect. A full page load sidesteps the StoreOnboardingGuard
+ * race with a soft navigate().
  */
 function AlreadyHasStore({ storeName }) {
   const go = () => {
-    window.location.href = '/';
+    window.location.href = '/dashboard';
   };
 
   return (
@@ -134,11 +135,12 @@ export default function Onboarding() {
       });
       await refreshMembership();
       toast.success(`${cleanName} is ready`);
-      // Return to the root route so AuthContext re-fetches membership and
-      // RootRoute can make the canonical dashboard redirect. A direct
-      // /dashboard navigation can race with StoreOnboardingGuard while the
-      // new store is still loading.
-      window.location.href = '/';
+      // Straight to the dashboard with a full page load: AuthContext
+      // re-fetches membership on boot, and the hard navigation sidesteps the
+      // StoreOnboardingGuard race where a soft navigate() re-renders before
+      // AuthContext has updated. ('/' itself is the landing page on a fresh
+      // open now, so it must not be used as the post-setup redirect.)
+      window.location.href = '/dashboard';
     } catch (e) {
       console.error(e);
       // If the backend says the user already has a store, skip the error
