@@ -6,15 +6,23 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import HelpTip from './HelpTip';
 
 describe('HelpTip', () => {
-  it('renders an accessible help button with a fallback title', () => {
+  it('renders an accessible help button without a native title', () => {
     render(<HelpTip label="Help: Stock at cost" text="What the stock cost you." />);
 
-    expect(
-      screen.getByRole('button', { name: 'Help: Stock at cost' })
-    ).toBeTruthy();
-    expect(
-      screen.getByRole('button', { name: 'Help: Stock at cost' }).getAttribute('title')
-    ).toBe('What the stock cost you.');
+    const button = screen.getByRole('button', { name: 'Help: Stock at cost' });
+    expect(button).toBeTruthy();
+    // No native `title`: it would trigger the browser's own OS tooltip on hover
+    // in addition to our custom bubble, showing the same text twice.
+    expect(button.getAttribute('title')).toBeNull();
+  });
+
+  it('shows exactly one tooltip when opened (no duplicate bubble)', () => {
+    render(<HelpTip label="Help: Single tip" text="Only shown once." />);
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Help: Single tip' }));
+
+    expect(screen.getAllByRole('tooltip')).toHaveLength(1);
+    expect(screen.getByRole('tooltip').textContent).toBe('Only shown once.');
   });
 
   it('shows the explanation on focus and hides it on Escape', () => {

@@ -7,8 +7,12 @@ import { Info } from 'lucide-react';
  *
  * The tooltip is only rendered while open, so the page can be scanned without
  * a wall of always-visible copy and screen readers get one `role="tooltip"`
- * at a time. Escape and clicking elsewhere close it, and the button keeps a
- * native `title` as a fallback for browsers/tools that do not use ARIA.
+ * at a time. Escape and clicking elsewhere close it.
+ *
+ * The button deliberately does NOT set a native `title`: the browser would
+ * pop its own OS tooltip on hover on top of our custom bubble, so the same
+ * text showed twice. The accessible name comes from `aria-label` and the
+ * open bubble is wired up with `aria-describedby`, so nothing is lost.
  *
  * `label` is the accessible name of the help button (e.g. "Help: Stock at
  * cost") so a page with several tips still reads clearly.
@@ -50,7 +54,6 @@ export default function HelpTip({ label, text, className = '', iconClassName = '
         aria-label={label}
         aria-describedby={open ? tipId : undefined}
         aria-expanded={open}
-        title={text}
         className={`shrink-0 inline-flex items-center justify-center rounded-full text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${iconClassName}`}
         onFocus={() => setOpen(true)}
         onBlur={close}

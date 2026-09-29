@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BarChart3,
   BookUser,
   Check,
-  ChevronRight,
+  Minus,
   Package,
+  PlayCircle,
+  Plus,
   Receipt,
+  Search,
   ShieldCheck,
   ShoppingCart,
   Users,
@@ -63,9 +67,16 @@ const testimonials = [
   ['Chioma, Port Harcourt', 'My regulars buy on credit every week and the Credit Book keeps every kobo accounted for.'],
 ];
 
+// Owner Mode marketing prices. Yearly is two months free versus paying monthly.
+const OWNER_MONTHLY = '\u20A65,000';
+const OWNER_YEARLY = '\u20A650,000';
+const OWNER_YEARLY_SAVINGS = '\u20A610,000';
+
 export default function Landing() {
   const { user, approvalStatus } = useAuth();
   const navigate = useNavigate();
+  const [billing, setBilling] = useState('monthly'); // 'monthly' | 'yearly'
+  const yearly = billing === 'yearly';
   if (user && (approvalStatus === 'pending' || approvalStatus === 'rejected')) return <PendingApproval />;
   if (user) return <Navigate to="/dashboard" replace />;
 
@@ -85,8 +96,10 @@ export default function Landing() {
           </button>
           <div className="hidden items-center gap-7 text-sm font-medium text-zinc-600 md:flex">
             <a href="#features" className="transition-colors hover:text-emerald-600">Features</a>
+            <a href="#pos" className="transition-colors hover:text-emerald-600">Point of Sale</a>
             <a href="#how-it-works" className="transition-colors hover:text-emerald-600">How it works</a>
             <a href="#pricing" className="transition-colors hover:text-emerald-600">Pricing</a>
+            <Link to="/demo" className="transition-colors hover:text-emerald-600">Live demo</Link>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -132,12 +145,12 @@ export default function Landing() {
                 >
                   Start for free <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </button>
-                <a
-                  href="#features"
+                <Link
+                  to="/demo"
                   className="flex items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-3.5 font-semibold text-zinc-700 transition-colors hover:border-emerald-300 hover:text-emerald-700"
                 >
-                  Explore features <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </a>
+                  <PlayCircle className="h-4 w-4" aria-hidden="true" /> Try the live demo
+                </Link>
               </div>
               <p className="mt-6 flex items-center gap-2 text-sm text-zinc-500">
                 <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
@@ -195,6 +208,45 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Point of Sale showcase */}
+        <section id="pos" className="border-y border-zinc-100 bg-zinc-50/70">
+          <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-24 lg:grid-cols-2 lg:gap-10 lg:px-8">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-600">At the counter</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">
+                A register your cashiers actually enjoy.
+              </h2>
+              <p className="mt-4 text-zinc-600">
+                Tap products into the sale, scan barcodes, take cash, transfer, card, part payment
+                or credit, and print a clean receipt. Fast enough for a queue, simple enough for a
+                new hire on day one.
+              </p>
+              <ul className="mt-7 space-y-3">
+                {[
+                  'Search and category tabs to find any product in a second',
+                  'Barcode scanning by camera or USB scanner',
+                  'Cash, Transfer, Card, Partial and Credit in one tap',
+                  'The total and Complete Sale button stay in view as the cart grows',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-9">
+                <Link
+                  to="/demo"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3.5 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500"
+                >
+                  <PlayCircle className="h-4 w-4" aria-hidden="true" /> Open the register in the demo
+                </Link>
+              </div>
+            </div>
+            <PosPreview />
+          </div>
+        </section>
+
         {/* How it works */}
         <section id="how-it-works" className="border-y border-zinc-100 bg-zinc-50/70">
           <div className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
@@ -239,10 +291,51 @@ export default function Landing() {
               title="Start free. Upgrade when ready."
               text="No hidden fees. No contracts. Pay only when your shop outgrows the basics."
             />
-            <div className="mt-10 grid gap-5 md:grid-cols-2">
+
+            {/* Billing cycle toggle */}
+            <div className="mt-8 flex justify-center">
+              <div
+                role="radiogroup"
+                aria-label="Billing cycle"
+                className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white p-1"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!yearly}
+                  onClick={() => setBilling('monthly')}
+                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                    !yearly ? 'bg-emerald-600 text-white' : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={yearly}
+                  onClick={() => setBilling('yearly')}
+                  className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                    yearly ? 'bg-emerald-600 text-white' : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  Yearly
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      yearly ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'
+                    }`}
+                  >
+                    Save {OWNER_YEARLY_SAVINGS}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-8 grid gap-5 md:grid-cols-2">
               <PriceCard
                 title="Shop Mode"
                 price={'\u20A60'}
+                period="/month"
                 text="The essentials for running your shop today."
                 items={['POS and sales history', 'Inventory basics', 'Team access']}
                 cta="Start free"
@@ -250,7 +343,13 @@ export default function Landing() {
               <PriceCard
                 featured
                 title="Owner Mode"
-                price={'\u20A65,000'}
+                price={yearly ? OWNER_YEARLY : OWNER_MONTHLY}
+                period={yearly ? '/year' : '/month'}
+                note={
+                  yearly
+                    ? `Two months free, save ${OWNER_YEARLY_SAVINGS} a year`
+                    : `Or ${OWNER_YEARLY} a year and save ${OWNER_YEARLY_SAVINGS}`
+                }
                 text="The complete view for owners who want to grow."
                 items={['Everything in Shop Mode', 'Full reports and expenses', 'Remote oversight and approvals']}
                 cta="Choose Owner Mode"
@@ -293,8 +392,10 @@ export default function Landing() {
             <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-900">Product</h3>
             <ul className="mt-4 space-y-2.5">
               <li><a href="#features" className="hover:text-emerald-600">Features</a></li>
+              <li><a href="#pos" className="hover:text-emerald-600">Point of Sale</a></li>
               <li><a href="#niches" className="hover:text-emerald-600">Niches</a></li>
               <li><a href="#pricing" className="hover:text-emerald-600">Pricing</a></li>
+              <li><Link to="/demo" className="hover:text-emerald-600">Live demo</Link></li>
               <li>
                 <button type="button" onClick={() => navigate('/login')} className="hover:text-emerald-600">
                   Log In
@@ -307,6 +408,16 @@ export default function Landing() {
             <ul className="mt-4 space-y-2.5">
               <li><Link to="/contact" className="hover:text-emerald-600">Contact Us</Link></li>
               <li><Link to="/help" className="hover:text-emerald-600">Help Center</Link></li>
+              <li>
+                <a href="mailto:info@mastechinnovations.com.ng" className="hover:text-emerald-600">
+                  Email Support
+                </a>
+              </li>
+              <li>
+                <a href="tel:+2349138825300" className="hover:text-emerald-600">
+                  +234 913 882 5300
+                </a>
+              </li>
               <li>
                 <a href="mailto:business@smartstoreng.shop" className="hover:text-emerald-600">
                   Business Inquiries
@@ -325,7 +436,11 @@ export default function Landing() {
         <div className="border-t border-zinc-100">
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-5 text-xs sm:flex-row lg:px-8">
             <span>&copy; {new Date().getFullYear()} SmartStore NG. All rights reserved.</span>
-            <span>Lagos, Nigeria</span>
+            <span>
+              Powered by{' '}
+              <span className="font-semibold text-zinc-700">MASTECH INNOVATIONS</span>
+              {' '}&middot; Lagos, Nigeria
+            </span>
           </div>
         </div>
       </footer>
@@ -472,6 +587,90 @@ function DashboardPreview() {
   );
 }
 
+function PosPreview() {
+  const tiles = [
+    ['Peak Milk 400g', '\u20A62,800'],
+    ['Indomie Chicken', '\u20A6350'],
+    ['Coca-Cola 50cl', '\u20A6400'],
+    ['Dettol Soap', '\u20A6650'],
+    ['Eva Water 75cl', '\u20A6250'],
+    ['Gala Roll', '\u20A6350'],
+  ];
+  const cart = [
+    ['Peak Milk 400g', 2, '\u20A65,600'],
+    ['Coca-Cola 50cl', 3, '\u20A61,200'],
+    ['Gala Roll', 1, '\u20A6350'],
+  ];
+
+  return (
+    <div
+      role="img"
+      aria-label="Preview of the SmartStore point of sale register"
+      className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_48px_90px_-24px_rgba(16,24,40,0.22)]"
+    >
+      <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-5 py-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700">
+          <ShoppingCart className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+          Register
+        </div>
+        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+          Marta&rsquo;s Mart
+        </span>
+      </div>
+
+      <div className="grid gap-4 p-4 sm:grid-cols-5 sm:p-5">
+        {/* Product grid */}
+        <div className="sm:col-span-3">
+          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
+            <Search className="h-3.5 w-3.5" aria-hidden="true" />
+            Search products
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {tiles.map(([name, price]) => (
+              <div key={name} className="rounded-xl border border-zinc-100 bg-white p-2.5 shadow-sm">
+                <div className="mb-2 h-8 rounded-lg bg-emerald-50" aria-hidden="true" />
+                <p className="truncate text-[11px] font-medium text-zinc-800">{name}</p>
+                <p className="text-[11px] font-bold text-emerald-700">{price}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Cart */}
+        <div className="flex flex-col rounded-xl border border-zinc-100 bg-zinc-50/70 p-3 sm:col-span-2">
+          <p className="text-xs font-semibold text-zinc-900">Current Sale</p>
+          <div className="mt-2 space-y-2">
+            {cart.map(([name, qty, amount]) => (
+              <div key={name} className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-medium text-zinc-800">{name}</p>
+                  <p className="text-[10px] text-zinc-500">{amount}</p>
+                </div>
+                <div className="flex items-center gap-1 text-zinc-500">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white ring-1 ring-zinc-200">
+                    <Minus className="h-2.5 w-2.5" aria-hidden="true" />
+                  </span>
+                  <span className="w-4 text-center text-[11px] font-semibold text-zinc-900">{qty}</span>
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white ring-1 ring-zinc-200">
+                    <Plus className="h-2.5 w-2.5" aria-hidden="true" />
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center justify-between border-t border-zinc-200 pt-3">
+            <span className="text-[11px] text-zinc-500">Total</span>
+            <span className="text-base font-bold text-zinc-900">{'\u20A6'}7,150</span>
+          </div>
+          <div className="mt-2 rounded-lg bg-emerald-500 py-2 text-center text-xs font-bold text-black">
+            Complete Sale
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SectionHeading({ eyebrow, title, text }) {
   return (
     <div className="max-w-2xl">
@@ -482,7 +681,7 @@ function SectionHeading({ eyebrow, title, text }) {
   );
 }
 
-function PriceCard({ title, price, text, items, cta, featured }) {
+function PriceCard({ title, price, period, note, text, items, cta, featured }) {
   const navigate = useNavigate();
   return (
     <div
@@ -503,8 +702,9 @@ function PriceCard({ title, price, text, items, cta, featured }) {
       </div>
       <p className="mt-8 text-4xl font-bold text-zinc-950">
         {price}
-        {featured && <span className="text-sm font-normal text-zinc-500">/month</span>}
+        {period && <span className="text-sm font-normal text-zinc-500">{period}</span>}
       </p>
+      {note && <p className="mt-1.5 text-xs font-semibold text-emerald-700">{note}</p>}
       <ul className="mt-7 space-y-3">
         {items.map((item) => (
           <li key={item} className="flex items-center gap-2 text-sm text-zinc-700">

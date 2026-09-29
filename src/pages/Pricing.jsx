@@ -4,7 +4,7 @@ import { Check, Crown, CreditCard, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { initializePayment, isPaystackConfigured } from '../lib/paystack';
+import { initializePayment, isPaystackConfigured, makeReference } from '../lib/paystack';
 
 const FREE_FEATURES = [
   'POS Register & receipts',
@@ -23,16 +23,30 @@ const OWNER_FEATURES = [
 ];
 
 // Paystack amounts are in Naira; the helper converts to kobo internally.
-const OWNER_PRICE_NAIRA = 5000;
+// Owner Mode bills monthly, or yearly at a two-months-free discount. The
+// yearly saving is derived so the copy can never drift from the prices.
+export const OWNER_PRICE_MONTHLY_NAIRA = 5000;
+export const OWNER_PRICE_YEARLY_NAIRA = 50000;
+export const OWNER_YEARLY_SAVINGS_NAIRA =
+  OWNER_PRICE_MONTHLY_NAIRA * 12 - OWNER_PRICE_YEARLY_NAIRA;
+
+// Reference prefixes so a payment can be traced back to the plan it bought.
+const REFERENCE_PREFIX = { monthly: 'SS-MONTHLY', yearly: 'SS-YEARLY' };
+
+const nairaWithCommas = (n) => '\u20A6' + Number(n).toLocaleString('en-NG');
 
 export default function Pricing() {
   const { plan, upgradeToOwner, storeIsDemo, user } = useAuth();
   const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
+  const [billing, setBilling] = useState('monthly'); // 'monthly' | 'yearly'
 
   // Live billing requires a valid VITE_PAYSTACK_PUBLIC_KEY in the environment.
   const paystackEnabled = useMemo(() => isPaystackConfigured(), []);
   const isOwnerMode = plan === 'owner';
+  const isYearly = billing === 'yearly';
+
+  const priceNaira = isYearly ? OWNER_PRICE_YEARLY_NAIRA : OWNER_PRICE_MONTHLY_NAIRA;
 
   const handleUpgrade = async () => {
     // No Paystack key configured => demo upgrade (unlock Owner Mode locally).
@@ -56,7 +70,9 @@ export default function Pricing() {
     try {
       await initializePayment({
         email: user.email,
-        amount: OWNER_PRICE_NAIRA,
+        amount: priceNaira,
+        // e.g. SS-YEARLY-1727101234567-AB12, so the plan is legible in Paystack.
+        reference: makeReference(REFERENCE_PREFIX[billing]),
         onSuccess: async () => {
           setPaying(false);
           try {
@@ -69,7 +85,7 @@ export default function Pricing() {
         },
         onCancel: () => {
           setPaying(false);
-          toast('Payment cancelled. You can try again anytime.', { icon: 'ℹ️' });
+          toast('Payment cancelled. You can try again anytime.', { icon: '\u2139\uFE0F' });
         },
         onError: (error) => {
           setPaying(false);
@@ -84,11 +100,50 @@ export default function Pricing() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
-      <div className="text-center mb-10">
+      <div className="text-center mb-8">
         <h1 className="text-3xl font-bold">Simple pricing for growing shops</h1>
         <p className="text-zinc-500 dark:text-zinc-400 mt-2">
           Start free at the counter. Upgrade when you want the full picture.
         </p>
+      </div>
+
+      {/* Billing cycle toggle */}
+      <div className="flex justify-center mb-10">
+        <div
+          role="radiogroup"
+          aria-label="Billing cycle"
+          className="inline-flex items-center gap-1 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-1"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!isYearly}
+            onClick={() => setBilling('monthly')}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+              !isYearly ? 'bg-emerald-500 text-black' : 'text-zinc-500 dark:text-zinc-400'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={isYearly}
+            onClick={() => setBilling('yearly')}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${
+              isYearly ? 'bg-emerald-500 text-black' : 'text-zinc-500 dark:text-zinc-400'
+            }`}
+          >
+            Yearly
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                isYearly ? 'bg-black/10 text-black' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+              }`}
+            >
+              Save {nairaWithCommas(OWNER_YEARLY_SAVINGS_NAIRA)}
+            </span>
+          </button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -120,7 +175,15 @@ export default function Pricing() {
           </span>
           <h3 className="font-bold text-lg">Owner Mode</h3>
           <p className="text-3xl font-bold mt-2">
-            &#8358;5,000<span className="text-sm font-normal text-zinc-500">/month</span>
+            {nairaWithCommas(priceNaira)}
+            <span className="text-sm font-normal text-zinc-500">
+              {isYearly ? '/year' : '/month'}
+            </span>
+          </p>
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1 h-4">
+            {isYearly
+              ? `Two months free, save ${nairaWithCommas(OWNER_YEARLY_SAVINGS_NAIRA)} a year`
+              : `Or ${nairaWithCommas(OWNER_PRICE_YEARLY_NAIRA)}/year and save ${nairaWithCommas(OWNER_YEARLY_SAVINGS_NAIRA)}`}
           </p>
           <ul className="mt-6 space-y-3">
             {OWNER_FEATURES.map((f) => (
@@ -138,11 +201,12 @@ export default function Pricing() {
               'You are on Owner Mode'
             ) : paying ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Opening Paystack…
+                <Loader2 className="w-4 h-4 animate-spin" /> Opening Paystack...
               </>
             ) : paystackEnabled ? (
               <>
-                <CreditCard className="w-4 h-4" /> Pay ₦5,000 to upgrade
+                <CreditCard className="w-4 h-4" /> Pay {nairaWithCommas(priceNaira)}{' '}
+                {isYearly ? 'yearly' : 'monthly'}
               </>
             ) : (
               'Upgrade to Owner Mode'
