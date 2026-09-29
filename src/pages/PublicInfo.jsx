@@ -78,11 +78,11 @@ const PAGES = {
       ],
       [
         'Plans & payments',
-        'Shop Mode is free. Owner Mode unlocks full reports and expense analytics and may carry a subscription fee. When you subscribe, payment is processed through Paystack (an independent third party); we do not store your card details. Fees are non-refundable except where law requires. We may offer demo billing in the app until a live payment provider is connected.',
+        'Shop Mode is free. Owner Mode unlocks SmartStore AI, full reports and expense analytics, and may carry a subscription fee. When you subscribe, payment is processed through Paystack (an independent third party); we do not store your card details. Fees are non-refundable except where law requires. We may offer demo billing in the app until a live payment provider is connected.',
       ],
       [
         'AI assistant',
-        'SmartStore AI is available across the app to signed-in users and can answer questions, explain records, and guide you to features. AI responses may be incomplete or inaccurate, so check important numbers in the relevant SmartStore screen. The assistant respects your account permissions and does not replace your responsibility for sales, stock, staff, or financial decisions.',
+        'SmartStore AI is an Owner Mode feature. Stores on the Owner Mode plan (and the public demo store) can use it across the app, for every approved member of that store; Shop Mode stores see an upgrade prompt instead. It can answer questions, explain records, and guide you to features. AI responses may be incomplete or inaccurate, so check important numbers in the relevant SmartStore screen. The assistant respects your account permissions and does not replace your responsibility for sales, stock, staff, or financial decisions.',
       ],
       [
         'Acceptable use',
@@ -128,7 +128,7 @@ const PAGES = {
       ],
       [
         'Use SmartStore AI',
-        'Open Ask AI from anywhere inside the app. Ask about sales, stock, best sellers, credit, expenses, reports, team, settings, or how to use a feature. It is available in both Shop Mode and Owner Mode, works with local insights offline, and follows the permissions of your role.',
+        'SmartStore AI comes with Owner Mode. On a subscribed store, open Ask AI from anywhere inside the app and ask about sales, stock, best sellers, credit, expenses, reports, team, settings, or how to use a feature. Everyone on the team can use it, it works with local insights offline, and it follows the permissions of your role. On Shop Mode the Ask AI button explains the feature and links to the upgrade.',
       ],
       [
         'Install the app',

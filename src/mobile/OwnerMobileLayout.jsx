@@ -1,7 +1,7 @@
 // src/mobile/OwnerMobileLayout.jsx
 // The shell of the owner's monitoring app (/m): a phone-first app frame with
 // a sticky header, a bottom tab bar on phones and a side rail on wider
-// screens. It carries no POS register and no checkout — strictly monitoring.
+// screens. It carries no POS register and no checkout; strictly monitoring.
 import { Suspense } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, LogOut, Moon, Sun } from 'lucide-react';
@@ -29,7 +29,7 @@ export default function OwnerMobileLayout() {
 
   const switchToTransactional = () => {
     setMode('transactional');
-    toast.success('Transactional mode — full app with POS register');
+    toast.success('Transactional mode: full app with POS register');
     navigate('/dashboard', { replace: true });
   };
 

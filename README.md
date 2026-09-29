@@ -29,23 +29,28 @@ backend is configured.
 - 🚨 **Void audit trail**: who voided what, when and why
 - 💸 **Expenses + expense analytics**: category & monthly breakdowns
 - 👥 **Team**: staff join with a store code; roles: owner / admin / manager / cashier.
-  **Shop Mode (free) teams are capped at the owner plus one cashier and one manager** —
+  **Shop Mode (free) teams are capped at the owner plus one cashier and one manager**,
   enforced in the UI, the local demo backend and a Postgres trigger
 - 📱 **Two-way owner app (Owner Mode plan)**: owners open SmartStore in
-  **Monitoring mode** (a mobile-first app at `/m` — dashboard, inventory cards with
+  **Monitoring mode** (a mobile-first app at `/m`: dashboard, inventory cards with
   stock badges, sales, credit book, reports; strictly no POS/checkout) or
   **Transactional mode** (the full app with the register). The device picks the
-  default — phones open Monitoring, the counter computer opens Transactional — and the
+  default (phones open Monitoring, the counter computer opens Transactional), and the
   owner can switch anytime; the choice is remembered per account. Free-plan owners and
   staff roles always get the standard app, untouched
 - ❓ **Contextual help tooltips**: the "?" icons across Dashboard, POS, Inventory,
   Sales History, Reports, Expenses and Team explain each number and control in place
-- ✨ **SmartStore AI assistant**: an in-app co-pilot available to every signed-in
-  role in both Shop Mode and Owner Mode. It answers questions across POS,
-  inventory, sales, credit, expenses, reports, team and settings using the current
-  store data, with safe links into the relevant screen. It works offline with
-  local insights and can use an optional server-side Gemini endpoint when
-  `GOOGLE_API_KEY` is configured
+- ✨ **SmartStore AI assistant (Owner Mode)**: an in-app co-pilot for stores on
+  the Owner Mode plan. Once a store subscribes, every approved member of that
+  store can use it (owner, admin, manager, cashier), and each role's existing
+  permissions still apply. It answers questions across POS, inventory, sales,
+  credit, expenses, reports, team and settings using the current store data,
+  with safe links into the relevant screen. It works offline with local
+  insights and can use an optional server-side Gemini endpoint when
+  `GOOGLE_API_KEY` is configured. Shop Mode (free) stores see a locked "Ask AI"
+  button that explains the feature and links to the upgrade; the gate is
+  enforced in the UI **and** server-side in `api/assistant.js`, which reads the
+  caller's plan from the database instead of trusting the request
 - ✅ **Access approvals**: new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
 - 🛡️ **System admin dashboard**: platform metrics, stores, users and global approval controls
 - 👑 **Owner Mode plan gating**: upgrade monthly (₦5,000) or yearly (₦50,000, two months
@@ -57,7 +62,7 @@ backend is configured.
   no sign-up needed
 - 🚀 **Launch routing**: a fresh open in a browser tab always shows the landing page
   (signed-in visitors get an "Open App" call to action); an installed-PWA launch skips
-  the marketing page and opens on `/login` first — never `/onboarding` — or straight to
+  the marketing page and opens on `/login` first, never `/onboarding`, or straight to
   the dashboard for a signed-in owner whose store is ready
 - 🌙 light/dark theme
 
@@ -80,7 +85,9 @@ npm test    # vitest + jsdom: POS category/pagination behaviour, POS partial &
             # (landing page in browsers, login-first in the installed app), the
             # two-way owner modes (monitoring/transactional + device detection
             # + free plan untouched, end-to-end through the real app), the
-            # mobile inventory page, and Shop Mode team limits
+            # mobile inventory page, Shop Mode team limits, and the SmartStore
+            # AI Owner Mode gate (locked upgrade prompt on Shop Mode, the real
+            # assistant for every role on Owner Mode and in the demo store)
 npm run lint
 npm run build
 ```
@@ -103,14 +110,17 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-The in-app assistant is available in both transactional and monitoring modes.
-Without another setting it uses a small, offline-safe insight engine in the
-browser. To enable Gemini-generated answers on Vercel, add `GOOGLE_API_KEY` as a
-**server-only** project environment variable and optionally set
-`GOOGLE_AI_MODEL` (default: `gemini-2.5-flash`). `GEMINI_API_KEY` is also
-supported. The bundled `api/assistant.js` endpoint keeps that key out of the
-browser; it validates the signed-in Supabase user and receives only aggregate
-store metrics, never raw customer names, emails or receipts. If the endpoint is
+The in-app assistant is an Owner Mode feature, available in both transactional
+and monitoring modes to any approved member of a subscribed store (demo stores
+count as subscribers). Without another setting it uses a small, offline-safe
+insight engine in the browser. To enable Gemini-generated answers on Vercel,
+add `GOOGLE_API_KEY` as a **server-only** project environment variable and
+optionally set `GOOGLE_AI_MODEL` (default: `gemini-2.5-flash`).
+`GEMINI_API_KEY` is also supported. The bundled `api/assistant.js` endpoint
+keeps that key out of the browser; it validates the signed-in Supabase user,
+re-checks the store's plan through `get_my_membership()` (so a Shop Mode store
+cannot call the paid endpoint directly) and receives only aggregate store
+metrics, never raw customer names, emails or receipts. If the endpoint is
 unavailable, the local insight fallback continues to work.
 
 4. `npm run dev`; the app automatically switches to the Supabase backend
@@ -127,24 +137,28 @@ server-side role.
 | Role | Access |
 |---|---|
 | Owner | Everything + settings, team, billing. On the Owner Mode plan: two-way app (Monitoring ⬌ Transactional); on Shop Mode: the standard app |
-| Admin | Everything except owner settings (Owner Mode plan only — Shop Mode teams stop at one cashier and one manager) |
+| Admin | Everything except owner settings (Owner Mode plan only; Shop Mode teams stop at one cashier and one manager) |
 | Manager | Inventory, reports, expenses, voids |
 | Cashier | POS + sales history |
 
-**SmartStore AI access** — the assistant is available to every signed-in role in
-both plans. It can explain and guide users across the whole app, while each
-role's existing permissions still apply.
+**SmartStore AI access**: the assistant ships with Owner Mode. The gate is the
+store's *plan*, not the staff role, so once a store subscribes every approved
+member of that store can ask it questions (owner, admin, manager, cashier)
+while each role's existing permissions still apply. Shop Mode (free) stores get
+a locked prompt that links to the upgrade, and the serverless endpoint refuses
+their requests as well.
 
-**Plans at a glance** — Shop Mode (free): POS, inventory, sales history, team
-of three (owner + 1 cashier + 1 manager), no full reports. Owner Mode
-(₦5,000/month or ₦50,000/year): everything, unlimited team, and the two-way
-owner app with device detection. The demo store behaves as a yearly Owner Mode
-subscriber so both modes can be tried.
+**Plans at a glance**: Shop Mode (free): POS, inventory, sales history, team
+of three (owner + 1 cashier + 1 manager), no SmartStore AI, no full reports.
+Owner Mode (₦5,000/month or ₦50,000/year): everything, SmartStore AI,
+unlimited team, and the two-way owner app with device detection. The demo store
+behaves as a yearly Owner Mode subscriber so both modes, and the assistant, can
+be tried.
 
 Going live with Supabase: run migrations `001`–`009` in order. `008` adds the
 `stores.billing_cycle` column and the database trigger that enforces the
 Shop Mode team limits server-side. `009` adds `admin_delete_user_account`,
 which the Super Admin console's "Delete user" button now uses so it fully
-removes the Supabase Auth account (not just the store membership) — run it
+removes the Supabase Auth account (not just the store membership); run it
 on any project provisioned before this change, or deleted accounts can keep
 signing back in.

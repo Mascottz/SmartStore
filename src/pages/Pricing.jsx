@@ -6,17 +6,17 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { initializePayment, isPaystackConfigured, makeReference } from '../lib/paystack';
 
-// Shop Mode (free) — what you get, and where it stops. The team restriction
+// Shop Mode (free): what you get, and where it stops. The team restriction
 // is enforced in the app (Team page, approvals) and in the database.
 const FREE_FEATURES = [
   'POS Register & receipts',
   'Inventory management',
   'Sales history',
-  'SmartStore AI co-pilot',
   'Team: you + 1 cashier + 1 manager',
 ];
 
 const FREE_LIMITATIONS = [
+  'No SmartStore AI co-pilot',
   'No admin role, no extra staff',
   'No full profit reports or expense analytics',
   'No two-way owner app (Monitoring / Transactional)',
@@ -24,6 +24,7 @@ const FREE_LIMITATIONS = [
 
 const OWNER_FEATURES = [
   'Everything in Shop Mode',
+  'SmartStore AI co-pilot for every member of your team',
   'Two-way owner app: Monitoring & Transactional',
   'Device detection: monitoring on your phone, full register at the counter',
   'Full sales & profit reports',

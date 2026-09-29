@@ -25,17 +25,54 @@ const trimContext = (context) => {
   };
 };
 
-async function requireUser(req) {
+/**
+ * Who may call this endpoint: an approved member of a store on the Owner
+ * Mode plan (demo stores count as subscribers).
+ *
+ * SmartStore AI is a paid feature, so the plan is resolved server-side from
+ * the caller's own membership through get_my_membership(), which reads
+ * auth.uid() inside the database. Nothing about the plan is taken from the
+ * request body, and the UI gate in src/components/SmartAssistant.jsx is only
+ * the cosmetic half of the same rule.
+ */
+async function resolveAccess(req) {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (!url || !anonKey || !token) return false;
+  if (!url || !anonKey || !token) {
+    return { ok: false, status: 401, error: 'Sign in required.' };
+  }
 
   const supabase = createClient(url, anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
   });
+
   const { data, error } = await supabase.auth.getUser(token);
-  return !error && Boolean(data?.user);
+  if (error || !data?.user) {
+    return { ok: false, status: 401, error: 'Sign in required.' };
+  }
+
+  const { data: membership, error: membershipError } = await supabase.rpc(
+    'get_my_membership'
+  );
+  if (membershipError) {
+    console.error('SmartStore assistant plan check failed', membershipError.message);
+    return { ok: false, status: 502, error: 'Could not verify your plan.' };
+  }
+
+  const store = membership?.store;
+  const approved = (membership?.approval_status || 'approved') === 'approved';
+  const ownerMode = store?.plan === 'owner' || store?.is_demo === true;
+  if (!store || !approved || !ownerMode) {
+    return {
+      ok: false,
+      status: 403,
+      error: 'SmartStore AI is an Owner Mode feature. Upgrade the store to use the assistant.',
+    };
+  }
+
+  return { ok: true };
 }
 
 export default async function handler(req, res) {
@@ -48,8 +85,9 @@ export default async function handler(req, res) {
     return json(res, 405, { error: 'Method not allowed' });
   }
 
-  if (!(await requireUser(req))) {
-    return json(res, 401, { error: 'Sign in required.' });
+  const access = await resolveAccess(req);
+  if (!access.ok) {
+    return json(res, access.status, { error: access.error });
   }
 
   const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
