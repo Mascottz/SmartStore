@@ -10,6 +10,7 @@ import { api } from '../lib/backend';
 import { useAuth } from '../context/AuthContext';
 import { useOwnerExperience } from '../context/OwnerExperienceContext';
 import SplashScreen from '../components/SplashScreen';
+import SmartAssistant from '../components/SmartAssistant';
 import { MOBILE_TABS, MOBILE_MORE_ITEMS } from './navItems';
 import logo from '/logo-smartstore.png';
 
@@ -147,6 +148,7 @@ export default function OwnerMobileLayout() {
           })}
         </div>
       </nav>
+      <SmartAssistant />
     </div>
   );
 }

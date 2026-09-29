@@ -40,6 +40,10 @@ backend is configured.
   staff roles always get the standard app, untouched
 - ❓ **Contextual help tooltips**: the "?" icons across Dashboard, POS, Inventory,
   Sales History, Reports, Expenses and Team explain each number and control in place
+- ✨ **SmartStore AI assistant**: an in-app co-pilot answers questions about sales,
+  stock, best sellers, expenses and credit using the current store data, with safe
+  links into the relevant screen. It works offline with local insights and can use
+  an optional server-side Gemini endpoint when `GOOGLE_API_KEY` is configured
 - ✅ **Access approvals**: new staff wait for owner approval; their join code is remembered and re-sent automatically on the next sign-in if the request was ever interrupted
 - 🛡️ **System admin dashboard**: platform metrics, stores, users and global approval controls
 - 👑 **Owner Mode plan gating**: upgrade monthly (₦5,000) or yearly (₦50,000, two months
@@ -96,6 +100,16 @@ store, click **“Try the demo store”** on the login screen, or open the publi
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
+
+The in-app assistant is available in both transactional and monitoring modes.
+Without another setting it uses a small, offline-safe insight engine in the
+browser. To enable Gemini-generated answers on Vercel, add `GOOGLE_API_KEY` as a
+**server-only** project environment variable and optionally set
+`GOOGLE_AI_MODEL` (default: `gemini-2.5-flash`). `GEMINI_API_KEY` is also
+supported. The bundled `api/assistant.js` endpoint keeps that key out of the
+browser; it validates the signed-in Supabase user and receives only aggregate
+store metrics, never raw customer names, emails or receipts. If the endpoint is
+unavailable, the local insight fallback continues to work.
 
 4. `npm run dev`; the app automatically switches to the Supabase backend
    (multi-tenant with row-level security; checkout and voiding run as

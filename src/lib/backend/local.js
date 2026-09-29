@@ -199,6 +199,11 @@ export const localAdapter = {
     async getUser() {
       return currentUser();
     },
+    // Local demo mode has no bearer token; the assistant falls back to its
+    // offline insight engine when the optional server endpoint is unavailable.
+    async getAccessToken() {
+      return null;
+    },
 
     onChange(cb) {
       authListeners.add(cb);

@@ -162,6 +162,10 @@ export const supabaseAdapter = {
     async signOut() {
       await supabase.auth.signOut();
     },
+    async getAccessToken() {
+      const { data } = await supabase.auth.getSession();
+      return data?.session?.access_token || null;
+    },
     async getUser() {
       // getSession() only reads (and, if near expiry, refreshes) the local
       // token -- it never checks whether the account behind it still

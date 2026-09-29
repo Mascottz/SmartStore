@@ -13,6 +13,7 @@ import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineBanner from './components/OfflineBanner';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
+import SmartAssistant from './components/SmartAssistant';
 import { isInstalledPwa } from './lib/pwa';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OwnerExperienceProvider, useOwnerExperience } from './context/OwnerExperienceContext';
@@ -57,6 +58,7 @@ function ShellLayout() {
         <Suspense fallback={<SplashScreen />}>
           <Outlet />
         </Suspense>
+        <SmartAssistant />
       </main>
     </div>
   );
