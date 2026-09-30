@@ -22,7 +22,8 @@ backend is configured.
   settlement progress and CSV export
 - 📦 **Inventory**: SKU, categories, cost/sale price, stock levels, low-stock alerts, expiry
   dates (pharmacy), plus the worth of what is on the shelves: stock at cost, retail value
-  and potential profit with margin %, each explained with help tooltips. A blank SKU is
+  and potential profit with margin %, each explained with help tooltips. StoreSense can
+  turn rough stock-list text into reviewed inventory rows, and a blank SKU is
   auto-generated from the product name; "Peak Milk 400g" becomes `PEA-MIL-400G-A7F3`
 - 📊 **Dashboard & Reports**: daily/monthly revenue, gross & net profit, top sellers, payment breakdown
 - 🧾 **Sales History**: searchable receipts, reprint, void with reason (restocks automatically)
@@ -40,14 +41,15 @@ backend is configured.
   staff roles always get the standard app, untouched
 - ❓ **Contextual help tooltips**: the "?" icons across Dashboard, POS, Inventory,
   Sales History, Reports, Expenses and Team explain each number and control in place
-- ✨ **SmartStore AI assistant (Owner Mode)**: an in-app co-pilot for stores on
+- ✨ **StoreSense assistant (Owner Mode)**: an in-app co-pilot for stores on
   the Owner Mode plan. Once a store subscribes, every approved member of that
   store can use it (owner, admin, manager, cashier), and each role's existing
   permissions still apply. It answers questions across POS, inventory, sales,
   credit, expenses, reports, team and settings using the current store data,
-  with safe links into the relevant screen. It works offline with local
+  can guide raw inventory entry with SKU generation, and links into the
+  relevant screen. It works offline with local
   insights and can use an optional server-side Gemini endpoint when
-  `GOOGLE_API_KEY` is configured. Shop Mode (free) stores see a locked "Ask AI"
+  `GOOGLE_API_KEY` is configured. Shop Mode (free) stores see a locked "StoreSense"
   button that explains the feature and links to the upgrade; the gate is
   enforced in the UI **and** server-side in `api/assistant.js`, which reads the
   caller's plan from the database instead of trusting the request
@@ -85,9 +87,10 @@ npm test    # vitest + jsdom: POS category/pagination behaviour, POS partial &
             # (landing page in browsers, login-first in the installed app), the
             # two-way owner modes (monitoring/transactional + device detection
             # + free plan untouched, end-to-end through the real app), the
-            # mobile inventory page, Shop Mode team limits, and the SmartStore
-            # AI Owner Mode gate (locked upgrade prompt on Shop Mode, the real
-            # assistant for every role on Owner Mode and in the demo store)
+            # mobile inventory page, Shop Mode team limits, StoreSense inventory
+            # intake, and the StoreSense Owner Mode gate (locked upgrade prompt
+            # on Shop Mode, the real assistant for every role on Owner Mode and
+            # in the demo store)
 npm run lint
 npm run build
 ```
@@ -110,7 +113,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-The in-app assistant is an Owner Mode feature, available in both transactional
+The StoreSense assistant is an Owner Mode feature, available in both transactional
 and monitoring modes to any approved member of a subscribed store (demo stores
 count as subscribers). Without another setting it uses a small, offline-safe
 insight engine in the browser. To enable Gemini-generated answers on Vercel,
@@ -141,7 +144,7 @@ server-side role.
 | Manager | Inventory, reports, expenses, voids |
 | Cashier | POS + sales history |
 
-**SmartStore AI access**: the assistant ships with Owner Mode. The gate is the
+**StoreSense access**: the assistant ships with Owner Mode. The gate is the
 store's *plan*, not the staff role, so once a store subscribes every approved
 member of that store can ask it questions (owner, admin, manager, cashier)
 while each role's existing permissions still apply. Shop Mode (free) stores get
@@ -149,8 +152,8 @@ a locked prompt that links to the upgrade, and the serverless endpoint refuses
 their requests as well.
 
 **Plans at a glance**: Shop Mode (free): POS, inventory, sales history, team
-of three (owner + 1 cashier + 1 manager), no SmartStore AI, no full reports.
-Owner Mode (₦5,000/month or ₦50,000/year): everything, SmartStore AI,
+of three (owner + 1 cashier + 1 manager), no StoreSense, no full reports.
+Owner Mode (₦5,000/month or ₦50,000/year): everything, StoreSense,
 unlimited team, and the two-way owner app with device detection. The demo store
 behaves as a yearly Owner Mode subscriber so both modes, and the assistant, can
 be tried.

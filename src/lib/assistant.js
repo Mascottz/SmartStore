@@ -7,7 +7,7 @@ import { hasOwnerModePlan } from './ownerExperience';
 const DEFAULT_ENDPOINT = '/api/assistant';
 
 /**
- * SmartStore AI is an Owner Mode feature.
+ * StoreSense is an Owner Mode feature.
  *
  * The gate is the store's plan, not the staff role: once a store subscribes,
  * every approved member of that store (owner, admin, manager, cashier) can
@@ -148,11 +148,21 @@ function localReply(question, context) {
   }
 
   if (
+    /\b(storesense|bulk|import|paste|raw|arrange|auto|automatic)\b.*\b(inventory|stock|product|item|sku|barcode)\b/.test(q) ||
+    /\b(inventory|stock|product|item)\b.*\b(storesense|bulk|import|paste|raw|arrange|sku)\b/.test(q)
+  ) {
+    return {
+      answer: 'Open Inventory and use StoreSense. Paste rough stock lines or a small table; StoreSense will arrange names, categories, cost, selling price, stock and generated SKUs, then you review before saving.',
+      action: { label: 'Open StoreSense inventory', route: '/inventory' },
+    };
+  }
+
+  if (
     /\b(add|create|edit|update|remove|delete|manage)\b.*\b(product|item|inventory)\b/.test(q) ||
     /\b(how do i|where can i)\b.*\b(product|item)\b/.test(q)
   ) {
     return {
-      answer: 'Open Inventory to add, edit, remove or organise products. You can set prices, categories, stock quantities, expiry dates and optional SKU or barcode values there.',
+      answer: 'Open Inventory to add, edit, remove or organise products. For many items at once, use StoreSense to paste raw stock inputs and generate SKUs before saving.',
       action: { label: 'Open inventory', route: '/inventory' },
     };
   }
@@ -255,12 +265,12 @@ function localReply(question, context) {
 
   if (/\b(how|help|can you|where|what can)\b/.test(q)) {
     return {
-      answer: 'I can answer questions and guide you through every SmartStore area: POS, inventory, sales, credit, reports, expenses, team, approvals, settings and billing. I will follow the permissions of your role and plan.',
+      answer: 'I can answer questions and guide you through every SmartStore area: POS, inventory, sales, credit, reports, expenses, team, approvals, settings and billing. I can also point you to StoreSense inventory input for raw stock lists and generated SKUs. I will follow the permissions of your role and plan.',
     };
   }
 
   return {
-    answer: `I can help you run ${context.storeName} across the whole app. Try “How are sales today?”, “What needs restocking?”, “How do I add a product?”, “How do I manage my team?”, or “How much credit is open?”`,
+    answer: `I can help you run ${context.storeName} across the whole app. Try “How are sales today?”, “What needs restocking?”, “Import raw inventory”, “How do I manage my team?”, or “How much credit is open?”`,
   };
 }
 

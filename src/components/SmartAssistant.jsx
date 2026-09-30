@@ -20,21 +20,21 @@ const SUGGESTIONS = [
   { label: 'How are sales today?', value: 'How are sales today?' },
   { label: 'What needs restocking?', value: 'What needs restocking?' },
   { label: 'What is selling best?', value: 'What is selling best?' },
-  { label: 'How do I add a product?', value: 'How do I add a product?' },
+  { label: 'Import raw inventory', value: 'Can StoreSense arrange raw inventory and add SKUs?' },
   { label: 'How much credit is open?', value: 'How much credit is open?' },
 ];
 
 // What a Shop Mode store is buying when it upgrades.
 const LOCKED_HIGHLIGHTS = [
   'Ask about today\u2019s sales, profit and best sellers in plain language',
-  'Spot what needs restocking and who still owes you money',
-  'Get step-by-step help with any screen, then jump straight to it',
+  'Turn rough stock lists into organised inventory rows with generated SKUs',
+  'Spot what needs restocking and jump straight to the right screen',
 ];
 
 const welcomeMessage = (storeName) => ({
   id: 'welcome',
   from: 'assistant',
-  text: `Hi! I\u2019m your SmartStore assistant. I can help you with any part of ${storeName || 'your store'}, from ringing up a sale to managing stock, credit, expenses, reports and your team.`,
+  text: `Hi! I\u2019m StoreSense, your SmartStore co-pilot. I can help you with any part of ${storeName || 'your store'}, from ringing up a sale to managing stock, arranging raw inventory inputs, credit, expenses, reports and your team.`,
   mode: 'insights',
 });
 
@@ -46,7 +46,7 @@ const LAUNCHER_CLASS =
   'fixed bottom-24 right-4 z-[61] flex items-center gap-2 rounded-full border border-emerald-400/40 bg-zinc-900 px-3.5 py-3 text-white shadow-xl shadow-zinc-950/20 transition-all hover:-translate-y-0.5 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 sm:bottom-6 sm:right-6';
 
 /**
- * SmartStore AI entry point.
+ * StoreSense entry point.
  *
  * Owner Mode stores get the assistant; Shop Mode (free) stores get a locked
  * teaser that explains the feature and links to the upgrade. Signed-out
@@ -184,7 +184,7 @@ function AssistantPanel() {
       )}
 
       <section
-        aria-label="SmartStore AI assistant"
+        aria-label="StoreSense assistant"
         className={`${PANEL_CLASS} ${
           isOpen
             ? 'pointer-events-auto max-h-[min(72vh,42rem)] scale-100 opacity-100'
@@ -198,8 +198,8 @@ function AssistantPanel() {
                 <Sparkles className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <h2 className="font-bold tracking-tight">SmartStore AI</h2>
-                <p className="mt-0.5 text-[11px] text-emerald-50/80">Your shop co-pilot</p>
+                <h2 className="font-bold tracking-tight">StoreSense</h2>
+                <p className="mt-0.5 text-[11px] text-emerald-50/80">Your SmartStore co-pilot</p>
               </div>
             </div>
             <button
@@ -213,7 +213,7 @@ function AssistantPanel() {
           </div>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-emerald-50/85">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-200" />
-            <span>{isOnAssistantDestination ? 'I can explain what you are seeing here.' : 'Ask about your live store data or how to use SmartStore.'}</span>
+            <span>{isOnAssistantDestination ? 'I can explain what you are seeing here.' : 'Ask StoreSense about live store data or how to use SmartStore.'}</span>
           </div>
         </div>
 
@@ -263,8 +263,8 @@ function AssistantPanel() {
                 ref={inputRef}
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
-                placeholder="Ask about your store..."
-                aria-label="Ask SmartStore AI"
+                placeholder="Ask StoreSense about your store..."
+                aria-label="Ask StoreSense"
                 maxLength={500}
                 className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-zinc-400"
               />
@@ -291,14 +291,14 @@ function AssistantPanel() {
         className={`${LAUNCHER_CLASS} ${
           isOpen ? 'pointer-events-none scale-90 opacity-0' : 'scale-100 opacity-100'
         }`}
-        aria-label="Open SmartStore AI assistant"
+        aria-label="Open StoreSense assistant"
         aria-expanded={isOpen}
       >
         <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-black">
           <MessageCircle className="h-4 w-4" />
           {hasNewReply && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-zinc-900 dark:ring-white" />}
         </span>
-        <span className="text-sm font-semibold">Ask AI</span>
+        <span className="text-sm font-semibold">StoreSense</span>
       </button>
     </>
   );
@@ -332,7 +332,7 @@ function AssistantUpgradePrompt() {
       )}
 
       <section
-        aria-label="SmartStore AI is an Owner Mode feature"
+        aria-label="StoreSense is an Owner Mode feature"
         className={`${PANEL_CLASS} ${
           isOpen
             ? 'pointer-events-auto max-h-[min(72vh,42rem)] scale-100 opacity-100'
@@ -346,7 +346,7 @@ function AssistantUpgradePrompt() {
                 <Sparkles className="h-5 w-5 text-emerald-400" />
               </span>
               <div className="min-w-0">
-                <h2 className="font-bold tracking-tight">SmartStore AI</h2>
+                <h2 className="font-bold tracking-tight">StoreSense</h2>
                 <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-emerald-300">
                   <Lock className="h-3 w-3" aria-hidden="true" />
                   Owner Mode feature
@@ -357,7 +357,7 @@ function AssistantUpgradePrompt() {
               type="button"
               onClick={close}
               className="rounded-xl p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-              aria-label="Close SmartStore AI"
+              aria-label="Close StoreSense"
             >
               <X className="h-4 w-4" />
             </button>
@@ -366,8 +366,8 @@ function AssistantUpgradePrompt() {
 
         <div className="space-y-4 px-5 py-5">
           <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-            Your shop co-pilot comes with Owner Mode. Upgrade and every member of your
-            team can ask it questions about the store, within their own permissions.
+            StoreSense comes with Owner Mode. Upgrade and every member of your
+            team can ask it questions about the store, arrange inventory inputs, and stay within their own permissions.
           </p>
           <ul className="space-y-2.5">
             {LOCKED_HIGHLIGHTS.map((item) => (
@@ -411,13 +411,13 @@ function AssistantUpgradePrompt() {
         className={`${LAUNCHER_CLASS} ${
           isOpen ? 'pointer-events-none scale-90 opacity-0' : 'scale-100 opacity-100'
         }`}
-        aria-label="SmartStore AI, an Owner Mode feature"
+        aria-label="StoreSense, an Owner Mode feature"
         aria-expanded={isOpen}
       >
         <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
           <Lock className="h-3.5 w-3.5" />
         </span>
-        <span className="text-sm font-semibold">Ask AI</span>
+        <span className="text-sm font-semibold">StoreSense</span>
       </button>
     </>
   );

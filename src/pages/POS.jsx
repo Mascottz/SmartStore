@@ -499,17 +499,19 @@ export default function POS() {
           </div>
         )}
 
-        <div className="relative mb-4">
-          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <input
-            ref={searchRef}
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={`Search ${niche.itemNounPlural.toLowerCase()} by name, SKU or category...`}
-            aria-label={`Search ${niche.itemNounPlural.toLowerCase()}`}
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:border-emerald-500 text-sm"
-          />
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={`Search ${niche.itemNounPlural.toLowerCase()} by name, SKU or category...`}
+              aria-label={`Search ${niche.itemNounPlural.toLowerCase()}`}
+              className="w-full rounded-2xl border border-zinc-200 bg-white py-3 pl-11 pr-4 text-sm focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900"
+            />
+          </div>
           {niche.hasBarcode && (
             <p className="mt-1.5 pl-1 text-[11px] text-zinc-400 dark:text-zinc-500">
               USB barcode scanners are detected automatically, anywhere on this page.
