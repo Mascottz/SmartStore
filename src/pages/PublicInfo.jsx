@@ -24,11 +24,11 @@ const PAGES = {
       ],
       [
         'Sharing & disclosure',
-        'We share data only with the service providers required to run the product: primarily Supabase (database and authentication), Paystack (payment processing when you choose to pay), and Google Gemini when you choose to use the optional AI assistant. The assistant sends limited store context such as aggregate figures and product labels so it can answer your question; it does not send passwords, account emails, customer names, or raw receipt history. We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
+        'We share data only with the service providers required to run the product: primarily Supabase (database and authentication), Paystack (payment processing when you choose to pay), and Google Gemini when you choose to use the optional StoreSense assistant. The assistant sends limited store context such as aggregate figures and product labels so it can answer your question; it does not send passwords, account emails, customer names, or raw receipt history. We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
       ],
       [
         'Where your data lives',
-        'With the live backend enabled, data is stored in a Supabase (Postgres) project with row-level security. In demo mode, data stays in your browser (localStorage) and is not transmitted to any server unless you choose to use the AI assistant, in which case the limited context described above is sent to the configured Gemini endpoint.',
+        'With the live backend enabled, data is stored in a Supabase (Postgres) project with row-level security. In demo mode, data stays in your browser (localStorage) and is not transmitted to any server unless you choose to use the StoreSense assistant, in which case the limited context described above is sent to the configured Gemini endpoint.',
       ],
       [
         'Data retention',
@@ -78,11 +78,11 @@ const PAGES = {
       ],
       [
         'Plans & payments',
-        'Shop Mode is free. Owner Mode unlocks SmartStore AI, full reports and expense analytics, and may carry a subscription fee. When you subscribe, payment is processed through Paystack (an independent third party); we do not store your card details. Fees are non-refundable except where law requires. We may offer demo billing in the app until a live payment provider is connected.',
+        'Shop Mode is free. Owner Mode unlocks StoreSense, full reports and expense analytics, and may carry a subscription fee. When you subscribe, payment is processed through Paystack (an independent third party); we do not store your card details. Fees are non-refundable except where law requires. We may offer demo billing in the app until a live payment provider is connected.',
       ],
       [
-        'AI assistant',
-        'SmartStore AI is an Owner Mode feature. Stores on the Owner Mode plan (and the public demo store) can use it across the app, for every approved member of that store; Shop Mode stores see an upgrade prompt instead. It can answer questions, explain records, and guide you to features. AI responses may be incomplete or inaccurate, so check important numbers in the relevant SmartStore screen. The assistant respects your account permissions and does not replace your responsibility for sales, stock, staff, or financial decisions.',
+        'StoreSense assistant',
+        'StoreSense is an Owner Mode feature. Stores on the Owner Mode plan (and the public demo store) can use it across the app, for every approved member of that store; Shop Mode stores see an upgrade prompt instead. It can answer questions, explain records, and guide you to features. AI responses may be incomplete or inaccurate, so check important numbers in the relevant SmartStore screen. The assistant respects your account permissions and does not replace your responsibility for sales, stock, staff, or financial decisions.',
       ],
       [
         'Acceptable use',
@@ -127,8 +127,8 @@ const PAGES = {
         'Open POS, tap items or scan a barcode (camera or USB scanner), pick Cash, Transfer, or POS/Card, then complete the sale. Print an 80mm thermal receipt from POS or Sales History.',
       ],
       [
-        'Use SmartStore AI',
-        'SmartStore AI comes with Owner Mode. On a subscribed store, open Ask AI from anywhere inside the app and ask about sales, stock, best sellers, credit, expenses, reports, team, settings, or how to use a feature. Everyone on the team can use it, it works with local insights offline, and it follows the permissions of your role. On Shop Mode the Ask AI button explains the feature and links to the upgrade.',
+        'Use StoreSense',
+        'StoreSense comes with Owner Mode. On a subscribed store, open StoreSense from anywhere inside the app and ask about sales, stock, best sellers, credit, expenses, reports, team, settings, or how to use a feature. In Inventory, StoreSense can also arrange rough stock-list text into reviewed rows with generated SKUs. Everyone on the team can use it, it works with local insights offline, and it follows the permissions of your role. On Shop Mode the StoreSense button explains the feature and links to the upgrade.',
       ],
       [
         'Install the app',

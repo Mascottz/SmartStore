@@ -16,7 +16,7 @@ const FREE_FEATURES = [
 ];
 
 const FREE_LIMITATIONS = [
-  'No SmartStore AI co-pilot',
+  'No StoreSense co-pilot',
   'No admin role, no extra staff',
   'No full profit reports or expense analytics',
   'No two-way owner app (Monitoring / Transactional)',
@@ -24,7 +24,7 @@ const FREE_LIMITATIONS = [
 
 const OWNER_FEATURES = [
   'Everything in Shop Mode',
-  'SmartStore AI co-pilot for every member of your team',
+  'StoreSense co-pilot for every member of your team',
   'Two-way owner app: Monitoring & Transactional',
   'Device detection: monitoring on your phone, full register at the counter',
   'Full sales & profit reports',

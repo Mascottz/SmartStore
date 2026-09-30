@@ -1,4 +1,4 @@
-// SmartStore AI is an Owner Mode feature.
+// StoreSense is an Owner Mode feature.
 //
 // The gate is the store's plan, not the staff role: a subscribed store gets
 // the assistant for everyone on the team, a Shop Mode (free) store gets a
@@ -83,28 +83,28 @@ describe('canUseAssistant', () => {
   });
 });
 
-describe('SmartStore AI access', () => {
+describe('StoreSense access', () => {
   it('gives a free (Shop Mode) store the locked prompt, not the assistant', async () => {
     const user = userEvent.setup();
     renderAssistant();
 
     // No chat: the panel that talks to the AI never mounts.
-    expect(screen.queryByLabelText(/ask smartstore ai/i)).toBeNull();
-    expect(screen.queryByLabelText('SmartStore AI assistant')).toBeNull();
+    expect(screen.queryByLabelText(/ask storesense/i)).toBeNull();
+    expect(screen.queryByLabelText('StoreSense assistant')).toBeNull();
 
-    await openLauncher(user, /smartstore ai, an owner mode feature/i);
+    await openLauncher(user, /storesense, an owner mode feature/i);
 
-    expect(screen.getByLabelText('SmartStore AI is an Owner Mode feature')).toBeTruthy();
+    expect(screen.getByLabelText('StoreSense is an Owner Mode feature')).toBeTruthy();
     expect(screen.getByText(/owner mode feature/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /upgrade to owner mode/i })).toBeTruthy();
-    expect(screen.queryByPlaceholderText(/ask about your store/i)).toBeNull();
+    expect(screen.queryByPlaceholderText(/ask storesense about your store/i)).toBeNull();
   });
 
   it('sends a free store to pricing from the locked prompt', async () => {
     const user = userEvent.setup();
     renderAssistant();
 
-    await openLauncher(user, /smartstore ai, an owner mode feature/i);
+    await openLauncher(user, /storesense, an owner mode feature/i);
     await user.click(screen.getByRole('button', { name: /upgrade to owner mode/i }));
 
     expect(screen.getByTestId('path').textContent).toBe('/pricing');
@@ -115,7 +115,7 @@ describe('SmartStore AI access', () => {
     const user = userEvent.setup();
     renderAssistant('/m/inventory');
 
-    await openLauncher(user, /smartstore ai, an owner mode feature/i);
+    await openLauncher(user, /storesense, an owner mode feature/i);
     await user.click(screen.getByRole('button', { name: /upgrade to owner mode/i }));
 
     expect(screen.getByTestId('path').textContent).toBe('/m/pricing');
@@ -128,10 +128,10 @@ describe('SmartStore AI access', () => {
 
     expect(screen.queryByRole('button', { name: /upgrade to owner mode/i })).toBeNull();
 
-    await openLauncher(user, /open smartstore ai assistant/i);
+    await openLauncher(user, /open storesense assistant/i);
 
-    expect(screen.getByLabelText('SmartStore AI assistant')).toBeTruthy();
-    expect(screen.getByPlaceholderText(/ask about your store/i)).toBeTruthy();
+    expect(screen.getByLabelText('StoreSense assistant')).toBeTruthy();
+    expect(screen.getByPlaceholderText(/ask storesense about your store/i)).toBeTruthy();
   });
 
   it('keeps the assistant for staff roles once the store is subscribed', async () => {
@@ -139,9 +139,9 @@ describe('SmartStore AI access', () => {
     const user = userEvent.setup();
     renderAssistant('/pos');
 
-    await openLauncher(user, /open smartstore ai assistant/i);
+    await openLauncher(user, /open storesense assistant/i);
 
-    expect(screen.getByPlaceholderText(/ask about your store/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/ask storesense about your store/i)).toBeTruthy();
   });
 
   it('keeps the assistant in the demo store', async () => {
@@ -149,9 +149,9 @@ describe('SmartStore AI access', () => {
     const user = userEvent.setup();
     renderAssistant();
 
-    await openLauncher(user, /open smartstore ai assistant/i);
+    await openLauncher(user, /open storesense assistant/i);
 
-    expect(screen.getByPlaceholderText(/ask about your store/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/ask storesense about your store/i)).toBeTruthy();
   });
 
   it('shows nothing at all without a store', () => {

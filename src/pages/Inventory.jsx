@@ -11,6 +11,7 @@ import {
   Wallet,
   Tag,
   TrendingUp,
+  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +21,8 @@ import { api } from '../lib/backend';
 import { fmtMoney, fmtDate } from '../lib/format';
 import { sanitize, isValidItemName } from '../lib/validate';
 import { generateSku } from '../lib/sku';
+import { canUseAssistant } from '../lib/assistant';
+import { parseStoreSenseInventory, isStoreSenseRowReady } from '../lib/storeSenseInventory';
 import { downloadCsv } from '../lib/exportCsv';
 import ConfirmDialog from '../components/ConfirmDialog';
 import HelpTip from '../components/HelpTip';
@@ -41,7 +44,7 @@ const emptyForm = {
 };
 
 export default function Inventory() {
-  const { storeId, niche, store } = useAuth();
+  const { storeId, niche, store, plan, storeIsDemo } = useAuth();
 
   const { data: products, loading } = useStoreData(
     () => (storeId ? api.products.list(storeId) : []),
@@ -59,8 +62,19 @@ export default function Inventory() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showStoreSense, setShowStoreSense] = useState(false);
+  const [storeSenseInput, setStoreSenseInput] = useState('');
+  const [storeSenseDraft, setStoreSenseDraft] = useState(null);
+  const [importingStoreSense, setImportingStoreSense] = useState(false);
 
   const debouncedSearch = useDebounce(searchTerm, 200);
+  const storeSenseEnabled = canUseAssistant({ plan, storeIsDemo });
+
+  const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
+  const storeSenseReadyRows = useMemo(
+    () => (storeSenseDraft?.rows || []).filter(isStoreSenseRowReady),
+    [storeSenseDraft]
+  );
 
   const filtered = useMemo(() => {
     const term = debouncedSearch.toLowerCase();
@@ -105,6 +119,47 @@ export default function Inventory() {
     setEditingId(null);
     setForm(emptyForm);
     setShowModal(true);
+  };
+
+  const openStoreSense = () => {
+    if (!storeSenseEnabled) {
+      toast.error('StoreSense comes with Owner Mode.');
+      return;
+    }
+    setStoreSenseDraft(null);
+    setShowStoreSense(true);
+  };
+
+  const closeStoreSense = () => {
+    if (importingStoreSense) return;
+    setShowStoreSense(false);
+    setStoreSenseInput('');
+    setStoreSenseDraft(null);
+  };
+
+  const arrangeStoreSenseInput = () => {
+    const draft = parseStoreSenseInventory(storeSenseInput, {
+      existingSkus: products.map((p) => p.sku),
+      categories: categoryNames,
+      trackStock: niche.trackStock,
+      hasExpiry: niche.hasExpiry,
+    });
+    setStoreSenseDraft(draft);
+    if (!draft.rows.length) {
+      toast.error('StoreSense could not find any inventory lines yet.');
+    }
+  };
+
+  const updateStoreSenseRow = (index, patch) => {
+    setStoreSenseDraft((draft) => {
+      if (!draft) return draft;
+      return {
+        ...draft,
+        rows: draft.rows.map((row, rowIndex) =>
+          rowIndex === index ? { ...row, ...patch } : row
+        ),
+      };
+    });
   };
 
   const openEdit = (p) => {
@@ -179,6 +234,52 @@ export default function Inventory() {
     }
   };
 
+
+  const handleStoreSenseImport = async () => {
+    if (!storeId) return toast.error('Store not ready yet. Try again in a second.');
+    const rows = (storeSenseDraft?.rows || []).filter(isStoreSenseRowReady);
+    if (!rows.length) return toast.error('No ready inventory rows to save yet.');
+
+    setImportingStoreSense(true);
+    try {
+      const usedSkus = new Set(products.map((p) => String(p.sku || '').toLowerCase()).filter(Boolean));
+      for (const row of rows) {
+        const cleanName = sanitize(row.name);
+        let sku = sanitize(row.sku);
+        if (!sku || usedSkus.has(sku.toLowerCase())) {
+          sku = generateSku(cleanName, [...usedSkus]);
+        }
+        usedSkus.add(sku.toLowerCase());
+
+        await api.products.create(storeId, {
+          name: cleanName,
+          sku,
+          category: sanitize(row.category) || 'General',
+          costPrice: Math.max(0, Number(row.costPrice) || 0),
+          salePrice: Math.max(0, Number(row.salePrice) || 0),
+          stock: niche.trackStock ? Math.max(0, Math.floor(Number(row.stock) || 0)) : 0,
+          expiryDate: niche.hasExpiry && row.expiryDate ? row.expiryDate : null,
+        });
+      }
+
+      if (!store?.onboarding?.firstProductAdded) {
+        await api.stores.update(storeId, {
+          onboarding: { firstProductAdded: true },
+        });
+      }
+
+      toast.success(
+        `StoreSense added ${rows.length} ${rows.length === 1 ? niche.itemNoun.toLowerCase() : niche.itemNounPlural.toLowerCase()}.`
+      );
+      closeStoreSense();
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || 'StoreSense could not save these items.');
+    } finally {
+      setImportingStoreSense(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -234,6 +335,15 @@ export default function Inventory() {
               aria-label="Export inventory to CSV"
             >
               <Download className="w-4 h-4" /> Export
+            </button>
+          )}
+          {storeSenseEnabled && (
+            <button
+              onClick={openStoreSense}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-sm font-semibold hover:border-emerald-500 hover:bg-emerald-500/15 transition-all"
+              aria-label="Open StoreSense inventory input"
+            >
+              <Sparkles className="w-4 h-4" /> StoreSense
             </button>
           )}
           <button
@@ -408,6 +518,251 @@ export default function Inventory() {
         </div>
       </div>
 
+
+      {/* StoreSense raw inventory intake */}
+      {showStoreSense && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={closeStoreSense}
+          role="dialog"
+          aria-modal="true"
+          aria-label="StoreSense inventory input"
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-zinc-200 bg-white/95 px-6 py-5 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <Sparkles className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-bold">StoreSense inventory input</h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                    Paste a messy stock list and StoreSense will arrange it into inventory rows,
+                    generate missing SKUs, and let you review everything before saving.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closeStoreSense}
+                disabled={importingStoreSense}
+                className="p-2 rounded-xl text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
+                aria-label="Close StoreSense"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-6">
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm leading-6 text-zinc-700 dark:text-zinc-200">
+                <p className="font-semibold text-emerald-700 dark:text-emerald-300">
+                  Best results: one item per line, with labels or columns.
+                </p>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Examples: <span className="font-mono">Peak Milk 400g cost 1200 sell 1500 stock 24 category Beverages</span> · <span className="font-mono">Indomie Chicken, Food Cupboard, 170, 250, 40</span> · <span className="font-mono">name,category,cost,selling price,stock</span>
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  Raw inventory input
+                </label>
+                <textarea
+                  value={storeSenseInput}
+                  onChange={(e) => {
+                    setStoreSenseInput(e.target.value);
+                    setStoreSenseDraft(null);
+                  }}
+                  placeholder={`Paste lines like:
+Peak Milk 400g cost 1200 sell 1500 stock 24 category Beverages
+Eva Water 75cl, Beverages, 80, 150, 36
+Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
+                  className="min-h-44 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-mono text-sm leading-6 outline-none transition-colors placeholder:text-zinc-400 focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-950"
+                  aria-label="Raw inventory input"
+                />
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  StoreSense never saves automatically. Review the preview, fix any row, then save.
+                </p>
+                <button
+                  type="button"
+                  onClick={arrangeStoreSenseInput}
+                  disabled={!storeSenseInput.trim() || importingStoreSense}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Arrange with StoreSense
+                </button>
+              </div>
+
+              {storeSenseDraft && (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="font-medium">
+                      {storeSenseReadyRows.length} of {storeSenseDraft.rows.length} rows ready to save
+                    </p>
+                    {storeSenseDraft.rejected.length > 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {storeSenseDraft.rejected.length} line(s) need a clearer format.
+                      </p>
+                    )}
+                  </div>
+
+                  {storeSenseDraft.rows.length > 0 && (
+                    <div className="overflow-x-auto rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                      <table className="w-full min-w-[860px] text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950">
+                            <th className="px-3 py-3">Status</th>
+                            <th className="px-3 py-3">Name</th>
+                            <th className="px-3 py-3">SKU / Barcode</th>
+                            <th className="px-3 py-3">Category</th>
+                            <th className="px-3 py-3 text-right">Cost</th>
+                            <th className="px-3 py-3 text-right">Price *</th>
+                            {niche.trackStock && <th className="px-3 py-3 text-right">Stock</th>}
+                            {niche.hasExpiry && <th className="px-3 py-3">Expiry</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {storeSenseDraft.rows.map((row, index) => {
+                            const issues = storeSenseRowIssues(row);
+                            const ready = issues.length === 0;
+                            return (
+                              <tr key={`${row.lineNumber}-${index}`} className="border-b border-zinc-100 align-top last:border-0 dark:border-zinc-800/70">
+                                <td className="px-3 py-3">
+                                  <span
+                                    className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${
+                                      ready
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    }`}
+                                  >
+                                    {ready ? 'Ready' : issues.join(', ')}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <input
+                                    value={row.name}
+                                    onChange={(e) => updateStoreSenseRow(index, { name: e.target.value })}
+                                    className={previewInputCls}
+                                    aria-label={`StoreSense row ${index + 1} name`}
+                                  />
+                                  <p className="mt-1 line-clamp-2 text-[10px] text-zinc-400">Line {row.lineNumber}: {row.raw}</p>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <input
+                                    value={row.sku}
+                                    onChange={(e) => updateStoreSenseRow(index, { sku: e.target.value })}
+                                    className={previewInputCls}
+                                    aria-label={`StoreSense row ${index + 1} SKU`}
+                                    maxLength={50}
+                                  />
+                                </td>
+                                <td className="px-3 py-3">
+                                  <input
+                                    value={row.category}
+                                    onChange={(e) => updateStoreSenseRow(index, { category: e.target.value })}
+                                    className={previewInputCls}
+                                    aria-label={`StoreSense row ${index + 1} category`}
+                                  />
+                                </td>
+                                <td className="px-3 py-3">
+                                  <input
+                                    type="number"
+                                    value={row.costPrice || ''}
+                                    onChange={(e) => updateStoreSenseRow(index, { costPrice: e.target.value })}
+                                    className={`${previewInputCls} text-right`}
+                                    aria-label={`StoreSense row ${index + 1} cost price`}
+                                    min="0"
+                                  />
+                                </td>
+                                <td className="px-3 py-3">
+                                  <input
+                                    type="number"
+                                    value={row.salePrice || ''}
+                                    onChange={(e) => updateStoreSenseRow(index, { salePrice: e.target.value })}
+                                    className={`${previewInputCls} text-right`}
+                                    aria-label={`StoreSense row ${index + 1} selling price`}
+                                    min="0"
+                                  />
+                                </td>
+                                {niche.trackStock && (
+                                  <td className="px-3 py-3">
+                                    <input
+                                      type="number"
+                                      value={row.stock || ''}
+                                      onChange={(e) => updateStoreSenseRow(index, { stock: e.target.value })}
+                                      className={`${previewInputCls} text-right`}
+                                      aria-label={`StoreSense row ${index + 1} stock`}
+                                      min="0"
+                                    />
+                                  </td>
+                                )}
+                                {niche.hasExpiry && (
+                                  <td className="px-3 py-3">
+                                    <input
+                                      type="date"
+                                      value={row.expiryDate || ''}
+                                      onChange={(e) => updateStoreSenseRow(index, { expiryDate: e.target.value })}
+                                      className={previewInputCls}
+                                      aria-label={`StoreSense row ${index + 1} expiry date`}
+                                    />
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {storeSenseDraft.rejected.length > 0 && (
+                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                        Lines StoreSense could not arrange
+                      </p>
+                      <ul className="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-300">
+                        {storeSenseDraft.rejected.map((line) => (
+                          <li key={`${line.lineNumber}-${line.raw}`}>
+                            Line {line.lineNumber}: {line.raw} - {line.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 flex flex-col gap-2 border-t border-zinc-200 bg-white/95 px-6 py-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeStoreSense}
+                disabled={importingStoreSense}
+                className="rounded-2xl px-4 py-2.5 text-sm font-semibold text-zinc-500 transition-colors hover:text-zinc-900 disabled:opacity-50 dark:hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleStoreSenseImport}
+                disabled={!storeSenseReadyRows.length || importingStoreSense}
+                className="rounded-2xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {importingStoreSense
+                  ? 'Saving...'
+                  : `Save ${storeSenseReadyRows.length || ''} ready ${storeSenseReadyRows.length === 1 ? niche.itemNoun.toLowerCase() : niche.itemNounPlural.toLowerCase()}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Modal */}
       {showModal && (
         <div
@@ -560,8 +915,17 @@ export default function Inventory() {
   );
 }
 
+const storeSenseRowIssues = (row) =>
+  [
+    !sanitize(row?.name) ? 'Add name' : null,
+    Number(row?.salePrice) <= 0 ? 'Add selling price' : null,
+  ].filter(Boolean);
+
 const inputCls =
   'w-full px-4 py-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-emerald-500 text-sm';
+
+const previewInputCls =
+  'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs outline-none focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-900';
 
 /**
  * Summary tile for the inventory worth cards. `badge` is the small pill on the

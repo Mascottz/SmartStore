@@ -56,6 +56,15 @@ describe('SmartStore assistant insights', () => {
     expect(result.action).toEqual({ label: 'Open inventory', route: '/inventory' });
   });
 
+  it('points bulk inventory requests to StoreSense input', () => {
+    const context = buildAssistantContext(baseData);
+    const result = localReply('Can StoreSense arrange raw inventory and add SKUs?', context);
+
+    expect(result.answer).toContain('StoreSense');
+    expect(result.answer).toContain('generated SKUs');
+    expect(result.action).toEqual({ label: 'Open StoreSense inventory', route: '/inventory' });
+  });
+
   it('does not invent an open debt when the credit book is clear', () => {
     const context = buildAssistantContext(baseData);
     const result = localReply('How much credit is open?', context);

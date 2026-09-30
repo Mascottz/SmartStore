@@ -1,4 +1,4 @@
-// Optional Vercel serverless endpoint for SmartStore AI powered by Gemini.
+// Optional Vercel serverless endpoint for StoreSense powered by Gemini.
 // Keep GOOGLE_API_KEY server-side; never put it in a VITE_* variable.
 import { createClient } from '@supabase/supabase-js';
 
@@ -29,7 +29,7 @@ const trimContext = (context) => {
  * Who may call this endpoint: an approved member of a store on the Owner
  * Mode plan (demo stores count as subscribers).
  *
- * SmartStore AI is a paid feature, so the plan is resolved server-side from
+ * StoreSense is a paid feature, so the plan is resolved server-side from
  * the caller's own membership through get_my_membership(), which reads
  * auth.uid() inside the database. Nothing about the plan is taken from the
  * request body, and the UI gate in src/components/SmartAssistant.jsx is only
@@ -68,7 +68,7 @@ async function resolveAccess(req) {
     return {
       ok: false,
       status: 403,
-      error: 'SmartStore AI is an Owner Mode feature. Upgrade the store to use the assistant.',
+      error: 'StoreSense is an Owner Mode feature. Upgrade the store to use the assistant.',
     };
   }
 
@@ -99,9 +99,9 @@ export default async function handler(req, res) {
   if (!question) return json(res, 400, { error: 'A question is required.' });
 
   const context = trimContext(req.body?.context);
-  const system = `You are SmartStore AI, a concise and practical assistant for a Nigerian small-business POS app.
-Answer only from the store snapshot provided. Use naira (₦) for amounts. Never invent numbers, customer names, product facts, or actions.
-You can explain or guide the user through every SmartStore area: POS and receipts, inventory, sales history, credit book, reports, expenses, team, approvals, settings, billing and owner modes.
+  const system = `You are StoreSense, a concise and practical SmartStore assistant for a Nigerian small-business POS app.
+Answer only from the store snapshot provided. Use naira (₦) for amounts. Never invent numbers, customer names, product facts, or claim that you have saved data.
+You can explain or guide the user through every SmartStore area: POS and receipts, inventory, sales history, credit book, reports, expenses, team, approvals, settings, billing and owner modes. If the user wants to feed raw inventory or generate SKUs, direct them to Inventory > StoreSense and make clear they will review before saving.
 Keep answers under 90 words, use plain language, and mention the relevant app area when useful. Respect the user's role and never promise access to a restricted feature.
 Do not perform or suggest irreversible actions automatically. If data is missing, say so.
 Store snapshot: ${JSON.stringify(context)}`;

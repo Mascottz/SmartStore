@@ -4,7 +4,7 @@
 // exactly as typed, and the generated one never matches a SKU the store
 // already uses.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import Inventory from './Inventory';
@@ -33,6 +33,8 @@ vi.mock('../context/AuthContext', () => ({
 
 const authState = {
   storeId: 'store-1',
+  plan: 'owner',
+  storeIsDemo: false,
   niche: getNiche('supermarket'),
   store: { id: 'store-1', name: 'Demo Supermart', onboarding: {} },
 };
@@ -47,7 +49,7 @@ async function saveProduct(fields) {
   // The header's Add Product button (there is no modal yet, so it is unique).
   await userEvent.click(await screen.findByRole('button', { name: /add product/i }));
 
-  const dialog = screen.getByRole('dialog');
+  screen.getByRole('dialog');
   for (const [label, value] of Object.entries(fields)) {
     if (value === '') continue; // leave the field untouched
     // The SKU label also carries a HelpTip button whose accessible name ends
@@ -115,5 +117,50 @@ describe('Inventory: auto-generated SKU', () => {
 
     expect(sku).toMatch(/^PEA-MIL-400G-[0-9A-F]{4}$/);
     expect(sku).not.toBe('PEA-MIL-400G-0000');
+  });
+
+  it('uses StoreSense to preview and save raw inventory lines', async () => {
+    render(<Inventory />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /open storesense inventory input/i }));
+    const dialog = screen.getByRole('dialog', { name: /storesense inventory input/i });
+
+    fireEvent.change(screen.getByLabelText(/raw inventory input/i), {
+      target: {
+        value:
+          'Peak Milk 400g cost 1200 sell 1500 stock 24 category Beverages\nGolden Penny Spaghetti, General, 500, 850, 12',
+      },
+    });
+    await userEvent.click(screen.getByRole('button', { name: /arrange with storesense/i }));
+
+    expect(screen.getByDisplayValue('Peak Milk 400g')).toBeTruthy();
+    expect(screen.getByDisplayValue('Golden Penny Spaghetti')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: /save 2 ready products/i }));
+
+    await waitFor(() => expect(api.products.create).toHaveBeenCalledTimes(2));
+    expect(api.products.create).toHaveBeenNthCalledWith(
+      1,
+      'store-1',
+      expect.objectContaining({
+        name: 'Peak Milk 400g',
+        category: 'Beverages',
+        costPrice: 1200,
+        salePrice: 1500,
+        stock: 24,
+        sku: expect.stringMatching(/^PEA-MIL-400G-[0-9A-F]{4}$/),
+      })
+    );
+    expect(api.products.create).toHaveBeenNthCalledWith(
+      2,
+      'store-1',
+      expect.objectContaining({
+        name: 'Golden Penny Spaghetti',
+        costPrice: 500,
+        salePrice: 850,
+        stock: 12,
+      })
+    );
+    expect(dialog).toBeTruthy();
   });
 });

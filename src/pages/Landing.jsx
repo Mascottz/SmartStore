@@ -31,7 +31,7 @@ const features = [
   ['Inventory', 'Know what is in stock, what is moving, and what needs attention.', Package],
   ['Reports', 'Turn daily sales into clear decisions with simple reports.', BarChart3],
   [
-    'SmartStore AI',
+    'StoreSense',
     'Ask questions in plain language, get answers from your live store data, and jump straight to the right screen.',
     Sparkles,
     true,
@@ -155,7 +155,7 @@ export default function Landing() {
               <p className="mt-6 max-w-xl text-lg leading-8 text-zinc-600">
                 One calm, organized workspace for sales, credit, inventory, people, and profit.
                 SmartStore NG helps you run today and grow tomorrow; upgrade to Owner Mode and
-                SmartStore AI guides you through every part of the app.
+                StoreSense guides you through every part of the app.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <button
@@ -246,7 +246,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">
-                    SmartStore AI comes with Owner Mode.
+                    StoreSense comes with Owner Mode.
                   </p>
                   <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-600">
                     Upgrade and your whole team can ask about any part of the shop: POS,
@@ -313,7 +313,7 @@ export default function Landing() {
           <SectionHeading
             eyebrow="For owners on the move"
             title="Two ways to open your shop. Both yours."
-            text="Owner Mode subscribers get a two-way app: a strictly Monitoring experience on your phone, and the full Transactional register at the counter. SmartStore detects your device and opens the right one, and you can switch anytime. SmartStore AI rides along in both modes."
+            text="Owner Mode subscribers get a two-way app: a strictly Monitoring experience on your phone, and the full Transactional register at the counter. SmartStore detects your device and opens the right one, and you can switch anytime. StoreSense rides along in both modes."
           />
           <div className="mt-12 grid gap-5 md:grid-cols-2">
             <div className="rounded-3xl border border-zinc-200 bg-white p-7">
@@ -331,7 +331,7 @@ export default function Landing() {
                   'Who owes what, with the full repayment history',
                   'Profit reports, expenses and the void audit trail',
                   'Approve staff and manage your team remotely',
-                  'SmartStore AI in your pocket, answering from live data',
+                  'StoreSense in your pocket, answering from live data',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
@@ -357,7 +357,7 @@ export default function Landing() {
                   'The full POS register, receipts and credit sales',
                   'Inventory, expenses and team management',
                   'Everything in monitoring mode, plus selling',
-                  'SmartStore AI on every screen, for you and your staff',
+                  'StoreSense on every screen, for you and your staff',
                   'Opens by default on the shop computer',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700">
@@ -383,7 +383,7 @@ export default function Landing() {
             {[
               ['POS register & receipts', true, true],
               ['Inventory & sales history', true, true],
-              ['SmartStore AI co-pilot', false, true],
+              ['StoreSense co-pilot', false, true],
               ['Team', 'You + 1 cashier + 1 manager', 'Unlimited, every role'],
               ['Admin role', false, true],
               ['Full profit reports & expense analytics', false, true],
@@ -494,7 +494,7 @@ export default function Landing() {
                 text="The essentials for running your shop today."
                 items={['POS and sales history', 'Inventory basics', 'Team: you + 1 cashier + 1 manager']}
                 excluded={[
-                  'No SmartStore AI co-pilot',
+                  'No StoreSense co-pilot',
                   'No admin role or extra staff',
                   'No full profit reports or expense analytics',
                   'No two-way owner app',
@@ -514,7 +514,7 @@ export default function Landing() {
                 text="The complete view for owners who want to grow."
                 items={[
                   'Everything in Shop Mode',
-                  'SmartStore AI co-pilot for your whole team',
+                  'StoreSense co-pilot for your whole team',
                   'Two-way owner app: Monitoring & Transactional',
                   'Full reports, expenses & void audit',
                   'Unlimited team, every role',
