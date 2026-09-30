@@ -18,12 +18,12 @@ import {
   ShieldCheck,
   ShoppingCart,
   Smartphone,
-  Sparkles,
   Users,
   Wallet,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import logo from '/logo-smartstore.png';
+import StoreSenseMark from '../components/StoreSenseMark';
 
 // [title, description, icon, ownerOnly]
 const features = [
@@ -33,7 +33,7 @@ const features = [
   [
     'StoreSense',
     'Ask questions in plain language, get answers from your live store data, and jump straight to the right screen.',
-    Sparkles,
+    StoreSenseMark,
     true,
   ],
   ['Sales History', 'Find every receipt and transaction whenever you need it.', Receipt],
@@ -242,7 +242,7 @@ export default function Landing() {
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
-                  <Sparkles className="h-5 w-5" aria-hidden="true" />
+                  <StoreSenseMark className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">

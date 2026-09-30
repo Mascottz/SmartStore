@@ -11,7 +11,6 @@ import {
   Wallet,
   Tag,
   TrendingUp,
-  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +24,7 @@ import { canUseAssistant } from '../lib/assistant';
 import { parseStoreSenseInventory, isStoreSenseRowReady } from '../lib/storeSenseInventory';
 import { downloadCsv } from '../lib/exportCsv';
 import ConfirmDialog from '../components/ConfirmDialog';
+import StoreSenseMark from '../components/StoreSenseMark';
 import HelpTip from '../components/HelpTip';
 
 const LOW_STOCK_THRESHOLD = 50;
@@ -343,7 +343,7 @@ export default function Inventory() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-sm font-semibold hover:border-emerald-500 hover:bg-emerald-500/15 transition-all"
               aria-label="Open StoreSense inventory input"
             >
-              <Sparkles className="w-4 h-4" /> StoreSense
+              <StoreSenseMark className="w-4 h-4" /> StoreSense
             </button>
           )}
           <button
@@ -535,7 +535,7 @@ export default function Inventory() {
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-zinc-200 bg-white/95 px-6 py-5 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
               <div className="flex items-start gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  <Sparkles className="h-5 w-5" />
+                  <StoreSenseMark className="h-5 w-5" />
                 </span>
                 <div>
                   <h2 className="text-lg font-bold">StoreSense inventory input</h2>
@@ -594,7 +594,7 @@ Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
                   disabled={!storeSenseInput.trim() || importingStoreSense}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <StoreSenseMark className="h-4 w-4" />
                   Arrange with StoreSense
                 </button>
               </div>

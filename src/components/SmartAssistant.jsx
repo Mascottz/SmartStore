@@ -6,11 +6,10 @@ import {
   Crown,
   Lock,
   LoaderCircle,
-  MessageCircle,
   Send,
-  Sparkles,
   X,
 } from 'lucide-react';
+import StoreSenseMark from './StoreSenseMark';
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
@@ -191,11 +190,11 @@ function AssistantPanel() {
             : 'pointer-events-none max-h-0 scale-95 opacity-0'
         }`}
       >
-        <div className="bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-700 px-5 pb-5 pt-4 text-white">
+        <div className="bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-700 px-5 pb-5 pt-6 text-white">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
-                <Sparkles className="h-5 w-5" />
+                <StoreSenseMark className="h-5 w-5" />
               </span>
               <div className="min-w-0">
                 <h2 className="font-bold tracking-tight">StoreSense</h2>
@@ -295,7 +294,7 @@ function AssistantPanel() {
         aria-expanded={isOpen}
       >
         <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-black">
-          <MessageCircle className="h-4 w-4" />
+          <StoreSenseMark className="h-4 w-4" />
           {hasNewReply && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-zinc-900 dark:ring-white" />}
         </span>
         <span className="text-sm font-semibold">StoreSense</span>
@@ -339,11 +338,11 @@ function AssistantUpgradePrompt() {
             : 'pointer-events-none max-h-0 scale-95 opacity-0'
         }`}
       >
-        <div className="bg-gradient-to-br from-zinc-800 via-zinc-800 to-zinc-900 px-5 pb-5 pt-4 text-white">
+        <div className="bg-gradient-to-br from-zinc-800 via-zinc-800 to-zinc-900 px-5 pb-5 pt-6 text-white">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-                <Sparkles className="h-5 w-5 text-emerald-400" />
+                <StoreSenseMark className="h-5 w-5 text-emerald-400" />
               </span>
               <div className="min-w-0">
                 <h2 className="font-bold tracking-tight">StoreSense</h2>
@@ -372,7 +371,7 @@ function AssistantUpgradePrompt() {
           <ul className="space-y-2.5">
             {LOCKED_HIGHLIGHTS.map((item) => (
               <li key={item} className="flex items-start gap-2.5 text-sm text-zinc-700 dark:text-zinc-300">
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
+                <StoreSenseMark className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
                 {item}
               </li>
             ))}
@@ -415,7 +414,7 @@ function AssistantUpgradePrompt() {
         aria-expanded={isOpen}
       >
         <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-          <Lock className="h-3.5 w-3.5" />
+          <StoreSenseMark className="h-4 w-4" />
         </span>
         <span className="text-sm font-semibold">StoreSense</span>
       </button>
