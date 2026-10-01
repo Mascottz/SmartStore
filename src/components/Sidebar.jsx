@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Truck,
   PackagePlus,
+  ScrollText,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -66,6 +67,7 @@ export default function Sidebar() {
       ? [
           { name: 'Suppliers', icon: Truck, path: '/suppliers', minRole: 'manager' },
           { name: 'Purchases', icon: PackagePlus, path: '/purchases', minRole: 'manager' },
+          { name: 'Controlled Register', icon: ScrollText, path: '/controlled-register', minRole: 'manager' },
         ]
       : []),
     { name: 'Reports', icon: BarChart3, path: '/reports', minRole: 'manager' },

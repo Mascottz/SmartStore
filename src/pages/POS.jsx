@@ -64,6 +64,16 @@ export default function POS() {
     () => (storeId && isPharmacy ? api.batches.list(storeId) : []),
     [storeId, isPharmacy]
   );
+  // Phase 3: licensed pharmacists on the team, offered as the verifying
+  // pharmacist when the cart holds controlled medicines.
+  const { data: pharmacists } = useStoreData(
+    () => (storeId && isPharmacy ? api.team.list(storeId) : []),
+    [storeId, isPharmacy]
+  );
+  const teamPharmacists = useMemo(
+    () => (pharmacists || []).filter((m) => m.isPharmacist),
+    [pharmacists]
+  );
 
   // productId → batches, for FEFO previews and sellable caps.
   const batchesByProduct = useMemo(() => {
@@ -119,6 +129,9 @@ export default function POS() {
   const [lastSale, setLastSale] = useState(null);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [showRxConfirm, setShowRxConfirm] = useState(false);
+  // Phase 3: the team member (a flagged pharmacist) verifying the
+  // prescription check for the pending sale.
+  const [verifiedBy, setVerifiedBy] = useState('');
   const [showShortcuts, setShowShortcuts] = useState(false);
   // Below desktop width the sale lives in a viewport-fixed drawer instead of
   // underneath the product grid. This keeps checkout one tap away even when a
@@ -382,19 +395,35 @@ export default function POS() {
 
   // Prescription-only items get a dispensing check before the sale goes
   // through. SmartStore records that the check happened; the professional
-  // judgment itself stays with the pharmacist.
-  const rxItems = useMemo(() => cart.filter((i) => Boolean(i.isRx)), [cart]);
+  // judgment itself stays with the pharmacist. Controlled medicines go one
+  // step further: the check names the verifying pharmacist, so the
+  // controlled register can show who signed off each dispensing.
+  const rxItems = useMemo(
+    () => cart.filter((i) => Boolean(i.isRx) || Boolean(i.isControlled)),
+    [cart]
+  );
+  const controlledItems = useMemo(
+    () => cart.filter((i) => Boolean(i.isControlled)),
+    [cart]
+  );
 
   const completeSale = () => {
     if (cart.length === 0) return toast.error('Cart is empty');
     if (isPharmacy && rxItems.length > 0) {
+      // Default the verification to the signed-in pharmacist when they are
+      // one; otherwise the first flagged pharmacist on the team.
+      const preferred =
+        (user?.email && teamPharmacists.find((m) => m.email === user.email)?.email) ||
+        teamPharmacists[0]?.email ||
+        '';
+      setVerifiedBy(preferred);
       setShowRxConfirm(true);
       return;
     }
     return doCompleteSale();
   };
 
-  const doCompleteSale = async () => {
+  const doCompleteSale = async (verifier = '') => {
     if (cart.length === 0) return toast.error('Cart is empty');
     if (!storeId) return toast.error('Store not ready yet. Try again in a second.');
 
@@ -427,6 +456,7 @@ export default function POS() {
         // Travels with the line so receipts can mark prescription items;
         // the backend RPC passes jsonb items through untouched.
         ...(item.isRx ? { isRx: true } : {}),
+        ...(item.isControlled ? { isControlled: true } : {}),
       }));
 
       const sale = await api.sales.create(storeId, {
@@ -437,6 +467,7 @@ export default function POS() {
         trackStock: niche.trackStock,
         amountPaid: creditSelected ? credit.amountPaid : undefined,
         customerName: creditSelected ? credit.customerName : '',
+        verifiedBy: verifier || '',
       });
 
       setLastSale({
@@ -446,6 +477,7 @@ export default function POS() {
         paymentMethod,
         amountPaid: creditSelected ? credit.amountPaid : totalAmount,
         customerName: credit.customerName,
+        verifiedBy: verifier || '',
         // The backend's copy carries the FEFO batch allocation per line,
         // which the receipt prints for traceability.
         items: Array.isArray(sale.items) && sale.items.length ? sale.items : items,
@@ -495,6 +527,7 @@ export default function POS() {
       paymentMethod: method,
       amountPaid,
       customerName,
+      verifiedBy: receiptVerifier,
     } = lastSale;
     const printed = printReceipt({
       storeName: storeName || 'SmartStore NG',
@@ -505,6 +538,7 @@ export default function POS() {
       paymentMethod: method,
       amountPaid,
       customerName,
+      verifiedBy: receiptVerifier,
       cashier: user?.email || '',
       cashierRole: role || '',
     });
@@ -710,6 +744,14 @@ export default function POS() {
                         Rx
                       </span>
                     )}
+                    {p.isControlled && (
+                      <span
+                        className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 shrink-0"
+                        title="Controlled medicine — recorded in the controlled register"
+                      >
+                        CD
+                      </span>
+                    )}
                   </p>
                   <p className="text-emerald-500 font-bold mt-1">{fmtMoney(p.salePrice)}</p>
                   {niche.trackStock && (
@@ -860,6 +902,14 @@ export default function POS() {
                           title="Prescription-only"
                         >
                           Rx
+                        </span>
+                      )}
+                      {Boolean(item.isControlled) && (
+                        <span
+                          className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 shrink-0"
+                          title="Controlled medicine — recorded in the controlled register"
+                        >
+                          CD
                         </span>
                       )}
                     </p>
@@ -1038,26 +1088,90 @@ export default function POS() {
         onCancel={() => setShowVoidConfirm(false)}
       />
 
-      {/* Prescription check for Rx lines. SmartStore only records that the
-          check happened — the judgment is the pharmacist's. */}
-      <ConfirmDialog
-        open={showRxConfirm}
-        title="Prescription checked?"
-        message={
-          rxItems.length > 0
-            ? `This sale includes prescription-only ${rxItems.length === 1 ? 'medicine' : 'medicines'}: ${rxItems
-                .map((i) => i.name)
-                .join(', ')}. Confirm a valid prescription was presented and checked before dispensing.`
-            : ''
-        }
-        confirmLabel="Prescription checked — dispense"
-        variant="warning"
-        onConfirm={() => {
-          setShowRxConfirm(false);
-          doCompleteSale();
-        }}
-        onCancel={() => setShowRxConfirm(false)}
-      />
+      {/* Prescription check for Rx / controlled lines. SmartStore only
+          records that the check happened — the judgment is the
+          pharmacist's. Controlled lines additionally name the verifying
+          pharmacist for the controlled register. */}
+      {showRxConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !isCompleting && setShowRxConfirm(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Prescription check"
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-2">Prescription checked?</h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+              This sale includes prescription-only{' '}
+              {rxItems.length === 1 ? 'medicine' : 'medicines'}:{' '}
+              <span className="font-medium text-zinc-700 dark:text-zinc-200">
+                {rxItems.map((i) => i.name).join(', ')}
+              </span>
+              . Confirm a valid prescription was presented and checked before
+              dispensing.
+            </p>
+
+            {controlledItems.length > 0 && (
+              <div className="mb-4">
+                <label
+                  htmlFor="verifying-pharmacist"
+                  className="block text-xs font-medium text-zinc-500 mb-1.5"
+                >
+                  Verifying pharmacist (controlled {controlledItems.length === 1 ? 'medicine' : 'medicines'}: {controlledItems.map((i) => i.name).join(', ')})
+                </label>
+                {teamPharmacists.length > 0 ? (
+                  <select
+                    id="verifying-pharmacist"
+                    value={verifiedBy}
+                    onChange={(e) => setVerifiedBy(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-emerald-500 text-sm"
+                  >
+                    {teamPharmacists.map((m) => (
+                      <option key={m.id} value={m.email}>
+                        {m.email}
+                        {m.email === user?.email ? ' (you)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-xl px-3 py-2">
+                    No pharmacist is flagged on your team yet — the dispensing
+                    will be recorded without a named verifier. Flag licensed
+                    pharmacists in Team so the controlled register shows who
+                    signed off.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRxConfirm(false)}
+                disabled={isCompleting}
+                className="flex-1 px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-700 font-semibold text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Go back
+              </button>
+              <button
+                onClick={() => {
+                  setShowRxConfirm(false);
+                  doCompleteSale(
+                    controlledItems.length > 0 ? verifiedBy : ''
+                  );
+                }}
+                disabled={isCompleting}
+                className="flex-1 px-4 py-3 rounded-2xl bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 disabled:opacity-50"
+              >
+                Prescription checked — dispense
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

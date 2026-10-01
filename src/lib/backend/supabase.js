@@ -42,6 +42,7 @@ const mapProduct = (p) =>
     dosageForm: p.dosage_form || '',
     packSize: p.pack_size || '',
     isRx: Boolean(p.is_rx),
+    isControlled: Boolean(p.is_controlled),
     createdAt: p.created_at,
   };
 
@@ -132,6 +133,7 @@ const mapSale = (s) =>
     receiptNo: s.receipt_no,
     paymentMethod: s.payment_method,
     cashierEmail: s.cashier_email || '',
+    verifiedBy: s.verified_by || '',
     status: s.status,
     amountPaid: s.amount_paid == null ? Number(s.total || 0) : Number(s.amount_paid),
     customerName: s.customer_name || '',
@@ -185,6 +187,7 @@ const mapMember = (m) =>
     userId: m.user_id,
     email: m.email,
     role: m.role,
+    isPharmacist: Boolean(m.is_pharmacist),
     approvalStatus: m.approval_status || 'approved',
     createdAt: m.created_at,
   };
@@ -410,6 +413,7 @@ export const supabaseAdapter = {
           p_dosage_form: clamp(sanitize(d.dosageForm || ''), 60),
           p_pack_size: clamp(sanitize(d.packSize || ''), 60),
           p_is_rx: Boolean(d.isRx),
+          p_is_controlled: Boolean(d.isControlled),
           p_batch: {
             batchNo: clamp(sanitize(b.batchNo || ''), 60) || 'OPENING',
             expiryDate: b.expiryDate || null,
@@ -438,6 +442,7 @@ export const supabaseAdapter = {
           dosage_form: clamp(sanitize(d.dosageForm || ''), 60),
           pack_size: clamp(sanitize(d.packSize || ''), 60),
           is_rx: Boolean(d.isRx),
+          is_controlled: Boolean(d.isControlled),
         })
         .select()
         .single();
@@ -458,6 +463,7 @@ export const supabaseAdapter = {
       if (patch.dosageForm !== undefined) row.dosage_form = patch.dosageForm;
       if (patch.packSize !== undefined) row.pack_size = patch.packSize;
       if (patch.isRx !== undefined) row.is_rx = patch.isRx;
+      if (patch.isControlled !== undefined) row.is_controlled = patch.isControlled;
       const { data, error } = await supabase
         .from('products')
         .update(row)
@@ -545,7 +551,7 @@ export const supabaseAdapter = {
       ensure(error);
       return data.map(mapSale);
     },
-    async create(storeId, { items, paymentMethod, receiptNo, cashierEmail, trackStock, amountPaid, customerName }) {
+    async create(storeId, { items, paymentMethod, receiptNo, cashierEmail, trackStock, amountPaid, customerName, verifiedBy }) {
       const { data, error } = await supabase.rpc('create_sale', {
         p_store_id: storeId,
         p_items: items,
@@ -555,6 +561,7 @@ export const supabaseAdapter = {
         p_track_stock: Boolean(trackStock),
         p_amount_paid: amountPaid == null ? null : Number(amountPaid),
         p_customer_name: customerName ? clamp(sanitize(customerName), 100) : '',
+        p_verified_by: verifiedBy ? clamp(sanitize(verifiedBy), 200) : '',
       });
       ensure(error);
       return mapSale(data);
@@ -827,7 +834,7 @@ export const supabaseAdapter = {
      */
     async dispense(
       storeId,
-      { prescriptionId, lines, paymentMethod, cashierEmail }
+      { prescriptionId, lines, paymentMethod, cashierEmail, verifiedBy }
     ) {
       if (!Array.isArray(lines) || lines.length === 0) {
         throw new Error('Select at least one medicine to dispense.');
@@ -860,7 +867,7 @@ export const supabaseAdapter = {
       // Prices come from the catalogue at dispense time.
       const { data: productRows, error: productError } = await supabase
         .from('products')
-        .select('id, name, sale_price, is_rx')
+        .select('id, name, sale_price, is_rx, is_controlled')
         .in('id', lines.map((l) => l.productId));
       ensure(productError);
 
@@ -875,6 +882,7 @@ export const supabaseAdapter = {
           price: Number(p.sale_price || 0),
           lineTotal: Number(p.sale_price || 0) * qty,
           ...(p.is_rx ? { isRx: true } : {}),
+          ...(p.is_controlled ? { isControlled: true } : {}),
         };
       });
 
@@ -887,6 +895,7 @@ export const supabaseAdapter = {
         receiptNo: 'SM-' + Date.now().toString().slice(-8),
         cashierEmail: cashierEmail || '',
         trackStock: true,
+        verifiedBy: verifiedBy || '',
       });
 
       // Advance the line quantities (the sale is already committed; these
@@ -965,6 +974,18 @@ export const supabaseAdapter = {
       const { data, error } = await supabase
         .from('store_members')
         .update({ role })
+        .eq('id', memberId)
+        .select()
+        .single();
+      ensure(error);
+      return mapMember(data);
+    },
+    // Phase 3: licensed-pharmacist flag, independent of role. Same trust line
+    // as role changes — the "owner updates team" RLS policy governs.
+    async setPharmacist(memberId, isPharmacist) {
+      const { data, error } = await supabase
+        .from('store_members')
+        .update({ is_pharmacist: Boolean(isPharmacist) })
         .eq('id', memberId)
         .select()
         .single();

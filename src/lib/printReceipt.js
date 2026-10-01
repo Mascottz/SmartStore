@@ -83,6 +83,7 @@ export function printReceipt(sale = {}, options = {}) {
     customerName = '',
     cashier = '',
     cashierRole = '',
+    verifiedBy = '',
     status = 'completed',
   } = sale;
   const items = Array.isArray(suppliedItems) ? suppliedItems : [];
@@ -119,9 +120,10 @@ export function printReceipt(sale = {}, options = {}) {
         .join(' · ');
       const sub = `${qty} x ${money(item.price)}${batchText ? ` · ${batchText}` : ''}`;
       const rxMark = item.isRx || item.is_rx ? ' [Rx]' : '';
+      const cdMark = item.isControlled || item.is_controlled ? ' [CD]' : '';
       return `
         <tr class="line">
-          <td class="name">${escapeHtml(`${item.name}${rxMark}`)}</td>
+          <td class="name">${escapeHtml(`${item.name}${rxMark}${cdMark}`)}</td>
           <td class="amt">${escapeHtml(money(lineTotal))}</td>
         </tr>
         <tr class="sub">
@@ -316,7 +318,7 @@ export function printReceipt(sale = {}, options = {}) {
       </tbody>
     </table>
     ${hasRx ? `
-    <p class="rx-note">Prescription item${items.filter((i) => i.isRx || i.is_rx).length === 1 ? '' : 's'} dispensed after prescription check.</p>` : ''}
+    <p class="rx-note">Prescription item${items.filter((i) => i.isRx || i.is_rx).length === 1 ? '' : 's'} dispensed after prescription check.${verifiedBy ? ` Verified by ${escapeHtml(verifiedBy)} (pharmacist).` : ''}</p>` : ''}
     <hr class="rule" />
     <p class="footer">${escapeHtml(footer)}</p>
     <script>

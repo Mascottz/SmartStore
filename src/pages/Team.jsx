@@ -1,6 +1,6 @@
 // src/pages/Team.jsx
 import { useState } from 'react';
-import { Copy, Crown, Shield, Trash2, Users } from 'lucide-react';
+import { Copy, Crown, Pill, Shield, Trash2, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
@@ -20,7 +20,7 @@ const ROLE_STYLES = {
 };
 
 export default function Team() {
-  const { storeId, store, user, role, plan } = useAuth();
+  const { storeId, store, user, role, plan, niche } = useAuth();
   const [busyId, setBusyId] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
 
@@ -32,6 +32,8 @@ export default function Team() {
   const freePlan = isFreePlanStore({ plan, storeIsDemo: store?.isDemo });
 
   const isOwner = role === 'owner';
+  // Pharmacy Mode: teams can flag licensed pharmacists.
+  const isPharmacy = Boolean(niche?.pharmacy);
 
   const copyJoinCode = () => {
     const code = store?.joinCode || '';
@@ -59,6 +61,25 @@ export default function Team() {
       toast.success(`${member.email} is now ${newRole}`);
     } catch (e) {
       toast.error(e.message || 'Could not update role.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Pharmacy Mode: flag licensed pharmacists. Roles decide what someone can
+  // do in the app; this decides who can be named as verifying a
+  // prescription check for controlled medicines at the till.
+  const togglePharmacist = async (member, next) => {
+    setBusyId(member.id);
+    try {
+      await api.team.setPharmacist(member.id, next);
+      toast.success(
+        next
+          ? `${member.email} flagged as a pharmacist.`
+          : `${member.email} is no longer flagged as a pharmacist.`
+      );
+    } catch (e) {
+      toast.error(e.message || 'Could not update.');
     } finally {
       setBusyId(null);
     }
@@ -186,11 +207,38 @@ export default function Team() {
                         <Shield className="w-3 h-3" />
                         {m.role}
                       </span>
+                      {isPharmacy && m.isPharmacist && (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30"
+                          title="Licensed pharmacist — can be named as verifying prescription checks"
+                        >
+                          <Pill className="w-3 h-3" />
+                          Pharmacist
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-3 text-zinc-500">{fmtDate(m.createdAt)}</td>
                     {isOwner && (
                       <td className="px-5 py-3">
                         <div className="flex justify-end items-center gap-2">
+                          {isPharmacy && (
+                            <button
+                              onClick={() => togglePharmacist(m, !m.isPharmacist)}
+                              disabled={busyId === m.id}
+                              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-colors disabled:opacity-50 ${
+                                m.isPharmacist
+                                  ? 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                                  : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:text-purple-500 hover:border-purple-500/40'
+                              }`}
+                              aria-label={`Toggle pharmacist flag for ${m.email}`}
+                              title="Flag licensed pharmacists — they can be named as verifying prescription checks at the till"
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                <Pill className="w-3 h-3" />
+                                {m.isPharmacist ? 'Pharmacist' : 'Flag pharmacist'}
+                              </span>
+                            </button>
+                          )}
                           {m.role !== 'owner' && (
                             <>
                               <select

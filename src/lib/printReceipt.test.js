@@ -111,4 +111,27 @@ describe('printReceipt', () => {
     expect(written).toContain('AMX-2501 exp 2027-07-28 x 5');
     expect(written).toContain('Prescription item dispensed after prescription check.');
   });
+
+  it('marks controlled lines and names the verifying pharmacist', () => {
+    printReceipt({
+      ...sale,
+      items: [
+        {
+          name: 'Tramadol 50mg Cap',
+          qty: 2,
+          price: 1800,
+          lineTotal: 3600,
+          isRx: true,
+          isControlled: true,
+          batches: [{ batchNo: 'TRA-11', expiryDate: '2027-04-01', qty: 2 }],
+        },
+      ],
+      verifiedBy: 'pharmacist@healthway.ng',
+    });
+    expect(written).toContain('Tramadol 50mg Cap [Rx] [CD]');
+    expect(written).toContain('TRA-11 exp 2027-04-01 x 2');
+    expect(written).toContain(
+      'Verified by pharmacist@healthway.ng (pharmacist).'
+    );
+  });
 });

@@ -2,7 +2,7 @@
 // a prescription check, tiles show in-date stock (not the raw rollup), and
 // cart lines preview the FEFO batches the sale will be dispensed from.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import POS from './POS';
@@ -16,6 +16,7 @@ vi.mock('../lib/backend', () => ({
     products: { list: vi.fn(async () => state.products) },
     batches: { list: vi.fn(async () => state.batches) },
     categories: { list: vi.fn(async () => state.categories) },
+    team: { list: vi.fn(async () => state.team || []) },
     sales: {
       create: vi.fn(async (_storeId, payload) => ({
         id: 'sale-1',
@@ -81,6 +82,7 @@ describe('POS: pharmacy mode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     state.categories = [];
+    state.team = [];
   });
 
   it('caps the cart at in-date stock and says so when batches expired', async () => {
@@ -166,7 +168,7 @@ describe('POS: pharmacy mode', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Complete Sale' }));
 
     // The prescription check dialog opens instead of the sale going through.
-    const dialog = await screen.findByRole('dialog', { name: 'Prescription checked?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Prescription check' });
     expect(dialog).toBeTruthy();
     expect(api.sales.create).not.toHaveBeenCalled();
 
@@ -175,7 +177,53 @@ describe('POS: pharmacy mode', () => {
       screen.getByRole('button', { name: 'Prescription checked — dispense' })
     );
     await waitFor(() => expect(api.sales.create).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole('dialog', { name: 'Prescription checked?' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Prescription check' })).toBeNull();
+    // A plain Rx sale (no controlled lines) records no verifier.
+    expect(api.sales.create.mock.calls[0][1].verifiedBy).toBe('');
+  });
+
+  it('names the verifying pharmacist for controlled medicines', async () => {
+    state.products = [
+      medicine('Tramadol 50mg', { isRx: true, isControlled: true, stock: 20 }),
+    ];
+    state.batches = [batch('Tramadol 50mg', { qty: 20, batchNo: 'TRA-11' })];
+    state.team = [
+      {
+        id: 'm1',
+        email: 'chief@healthway.ng',
+        role: 'owner',
+        isPharmacist: true,
+      },
+      { id: 'm2', email: 'cashier@healthway.ng', role: 'cashier', isPharmacist: false },
+    ];
+
+    render(<POS />);
+    await waitFor(() => expect(screen.getByText('Tramadol 50mg')).toBeTruthy());
+
+    await userEvent.click(screen.getByRole('button', { name: /Tramadol 50mg/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Complete Sale' }));
+
+    // The verification dialog opens with the pharmacist select; the signed-in
+    // user is not a flagged pharmacist, so the flagged one is offered.
+    const dialog = await screen.findByRole('dialog', { name: 'Prescription check' });
+    expect(
+      within(dialog).getByLabelText(/Verifying pharmacist/)
+    ).toBeTruthy();
+    expect(
+      within(dialog).getByLabelText(/Verifying pharmacist/).value
+    ).toBe('chief@healthway.ng');
+    // The non-pharmacist signed-in user is not offered as a verifier option.
+    expect(within(dialog).queryByText('cashier@healthway.ng (you)')).toBeNull();
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Prescription checked — dispense' })
+    );
+    await waitFor(() => expect(api.sales.create).toHaveBeenCalledTimes(1));
+    const payload = api.sales.create.mock.calls[0][1];
+    // The dispensing is recorded against the named pharmacist, and the
+    // controlled line travels with the sale for the register.
+    expect(payload.verifiedBy).toBe('chief@healthway.ng');
+    expect(payload.items[0].isControlled).toBe(true);
   });
 
   it('completes non-Rx sales with no prescription dialog', async () => {

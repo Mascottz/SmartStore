@@ -68,18 +68,44 @@ describe('pharmacy demo seed', () => {
     });
 
     const prescriptions = await localAdapter.prescriptions.list(storeId);
-    expect(prescriptions.length).toBeGreaterThanOrEqual(1);
-    const rx = prescriptions[0];
-    expect(rx.status).toBe('open'); // part-dispensed, balance still owed
+    expect(prescriptions.length).toBeGreaterThanOrEqual(2);
+    // The part-dispensed script stays open with a balance still owed...
+    const rx = prescriptions.find((r) => r.patientName === 'Mr. Musa Ibrahim');
+    expect(rx).toBeTruthy();
+    expect(rx.status).toBe('open');
     const dispensedLine = rx.items.find((i) => i.dispensedQty > 0);
     expect(dispensedLine).toBeTruthy();
     expect(rx.items.some((i) => i.dispensedQty < i.prescribedQty)).toBe(true);
 
+    // ...and the controlled script closed fully, with a named verifier on
+    // its dispensing for the controlled register.
+    const cdRx = prescriptions.find((r) => r.patientName === 'Mrs. Iyabo Ogun');
+    expect(cdRx).toBeTruthy();
+    expect(cdRx.status).toBe('dispensed');
+
     const dispensings = await localAdapter.prescriptions.dispensings.list(storeId);
-    expect(dispensings.length).toBeGreaterThanOrEqual(1);
+    expect(dispensings.length).toBeGreaterThanOrEqual(2);
     // The dispensing audit trail carries the receipt's batch allocations.
     expect(dispensings[0].items[0].batches.length).toBeGreaterThan(0);
     expect(sales.some((s) => s.receiptNo === dispensings[0].receiptNo)).toBe(true);
+
+    // Phase 3: controlled medicines exist and their dispensings carry the
+    // verifying pharmacist + batch allocation for the register.
+    expect(products.some((p) => p.isControlled)).toBe(true);
+    const controlledSales = sales.filter((s) =>
+      (s.items || []).some((i) => i.isControlled)
+    );
+    expect(controlledSales.length).toBeGreaterThanOrEqual(2);
+    controlledSales.forEach((s) => {
+      expect(s.verifiedBy).toBeTruthy();
+      s.items
+        .filter((i) => i.isControlled)
+        .forEach((i) => expect(i.batches.length).toBeGreaterThan(0));
+    });
+
+    // The team carries a flagged pharmacist for till verification.
+    const team = await localAdapter.team.list(storeId);
+    expect(team.some((m) => m.isPharmacist)).toBe(true);
   });
 
   it('is idempotent: a second login reuses the seeded store untouched', async () => {

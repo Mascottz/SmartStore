@@ -415,6 +415,7 @@ export const localAdapter = {
         dosageForm: clamp(sanitize(data.dosageForm || ''), 60),
         packSize: clamp(sanitize(data.packSize || ''), 60),
         isRx: Boolean(data.isRx),
+        isControlled: Boolean(data.isControlled),
         createdAt: new Date().toISOString(),
       };
       db.products.push(product);
@@ -456,6 +457,7 @@ export const localAdapter = {
       if (clean.dosageForm !== undefined) clean.dosageForm = clamp(sanitize(clean.dosageForm || ''), 60);
       if (clean.packSize !== undefined) clean.packSize = clamp(sanitize(clean.packSize || ''), 60);
       if (clean.isRx !== undefined) clean.isRx = Boolean(clean.isRx);
+      if (clean.isControlled !== undefined) clean.isControlled = Boolean(clean.isControlled);
 
       // Batch-tracked products own their stock through batches; a direct
       // stock write would be overwritten by the next batch change anyway.
@@ -543,7 +545,7 @@ export const localAdapter = {
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     },
 
-    async create(storeId, { items, paymentMethod, receiptNo, cashierEmail, trackStock, amountPaid, customerName }) {
+    async create(storeId, { items, paymentMethod, receiptNo, cashierEmail, trackStock, amountPaid, customerName, verifiedBy }) {
       if (!Array.isArray(items) || items.length === 0) {
         throw new Error('Cart is empty.');
       }
@@ -639,6 +641,9 @@ export const localAdapter = {
         receiptNo: clamp(sanitize(receiptNo), 30),
         paymentMethod: method,
         cashierEmail: clamp(sanitize(cashierEmail || ''), 200),
+        // Phase 3: which pharmacist verified the prescription check for
+        // Rx / controlled lines ('' when the sale had none to verify).
+        verifiedBy: clamp(sanitize(verifiedBy || ''), 200),
         status: 'completed',
         amountPaid: paid,
         customerName: customer,
@@ -649,6 +654,7 @@ export const localAdapter = {
           price: Math.max(0, Number(i.price) || 0),
           lineTotal: Math.max(0, Number(i.lineTotal) || 0),
           ...(i.isRx ? { isRx: true } : {}),
+          ...(i.isControlled ? { isControlled: true } : {}),
           ...(Array.isArray(i.batches)
             ? {
                 batches: i.batches.map((a) => ({
@@ -1059,7 +1065,7 @@ export const localAdapter = {
      */
     async dispense(
       storeId,
-      { prescriptionId, lines, paymentMethod, cashierEmail }
+      { prescriptionId, lines, paymentMethod, cashierEmail, verifiedBy }
     ) {
       if (!Array.isArray(lines) || lines.length === 0) {
         throw new Error('Select at least one medicine to dispense.');
@@ -1102,6 +1108,7 @@ export const localAdapter = {
           price: product.salePrice,
           lineTotal: product.salePrice * qty,
           ...(product.isRx ? { isRx: true } : {}),
+          ...(product.isControlled ? { isControlled: true } : {}),
         };
       });
 
@@ -1117,6 +1124,7 @@ export const localAdapter = {
         receiptNo: 'SM-' + Date.now().toString().slice(-8),
         cashierEmail: cashierEmail || '',
         trackStock: true,
+        verifiedBy: verifiedBy || '',
       });
 
       // sales.create() loads and saves its own snapshot, so re-read the
@@ -1187,6 +1195,17 @@ export const localAdapter = {
       });
       if (limitError) throw limitError;
       m.role = role;
+      save(db);
+      return m;
+    },
+    // Phase 3: mark which team members are licensed pharmacists. Roles say
+    // what someone can do in the app; this says who may verify a
+    // prescription check at the till. Either flag is independent of role.
+    async setPharmacist(memberId, isPharmacist) {
+      const db = load();
+      const m = db.members.find((x) => x.id === memberId);
+      if (!m) throw new Error('Member not found');
+      m.isPharmacist = Boolean(isPharmacist);
       save(db);
       return m;
     },

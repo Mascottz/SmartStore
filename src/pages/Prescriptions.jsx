@@ -19,6 +19,7 @@ import {
   Eye,
   Ban,
   Pill,
+  MessageCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +35,17 @@ const inputCls =
   'w-full px-4 py-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-emerald-500 text-sm';
 
 const PAYMENT_METHODS = ['Cash', 'Transfer', 'POS/Card'];
+
+// Nigerian numbers to wa.me form: '0802-311-4455' → '2348023114455'.
+// Returns '' when the digits don't look like a phone number at all.
+const waLinkNumber = (phone) => {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('234')) return digits;
+  if (digits.startsWith('0') && digits.length === 11) return '234' + digits.slice(1);
+  if (digits.length >= 10) return digits;
+  return '';
+};
 
 const emptyRxForm = {
   patientName: '',
@@ -64,6 +76,16 @@ export default function Prescriptions() {
     () => (storeId ? api.prescriptions.dispensings.list(storeId) : []),
     [storeId]
   );
+  // Phase 3: flagged pharmacists, offered as the verifier when dispensing
+  // controlled medicines against a script.
+  const { data: team } = useStoreData(
+    () => (storeId ? api.team.list(storeId) : []),
+    [storeId]
+  );
+  const pharmacists = useMemo(
+    () => (team || []).filter((m) => m.isPharmacist),
+    [team]
+  );
 
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 200);
@@ -76,6 +98,7 @@ export default function Prescriptions() {
   const [dispenseTarget, setDispenseTarget] = useState(null);
   const [dispenseQty, setDispenseQty] = useState({});
   const [dispenseMethod, setDispenseMethod] = useState('Cash');
+  const [dispenseVerifier, setDispenseVerifier] = useState('');
   const [dispensing, setDispensing] = useState(false);
 
   const [viewTarget, setViewTarget] = useState(null);
@@ -95,6 +118,26 @@ export default function Prescriptions() {
   }, [prescriptions, debouncedSearch]);
 
   const openCount = (prescriptions || []).filter((r) => r.status === 'open').length;
+  // Refill nudges: open scripts with a phone number the pharmacy can call
+  // or message about the balance still owed.
+  const dueForReminder = (prescriptions || []).filter(
+    (r) => r.status === 'open' && waLinkNumber(r.patientPhone)
+  );
+
+  const messagePatient = (rx) => {
+    const number = waLinkNumber(rx.patientPhone);
+    if (!number) return toast.error('No usable phone number on this prescription.');
+    const remaining = rx.items
+      .filter((i) => i.prescribedQty - i.dispensedQty > 0)
+      .map((i) => `${i.productName} (${i.prescribedQty - i.dispensedQty})`)
+      .join(', ');
+    const text = `Hello ${rx.patientName}, this is a reminder from your pharmacy about the balance of your prescription: ${remaining}. Kindly come in at your convenience to collect it.`;
+    window.open(
+      `https://wa.me/${number}?text=${encodeURIComponent(text)}`,
+      '_blank',
+      'noopener'
+    );
+  };
   const productById = useMemo(
     () => new Map((products || []).map((p) => [p.id, p])),
     [products]
@@ -167,6 +210,11 @@ export default function Prescriptions() {
     });
     setDispenseQty(defaults);
     setDispenseMethod('Cash');
+    setDispenseVerifier(
+      (user?.email && pharmacists.find((m) => m.email === user.email)?.email) ||
+        pharmacists[0]?.email ||
+        ''
+    );
     setDispenseTarget(rx);
   };
 
@@ -192,11 +240,16 @@ export default function Prescriptions() {
 
     setDispensing(true);
     try {
+      // Controlled lines name the verifying pharmacist for the register.
+      const hasControlled = lines.some(
+        (line) => productById.get(line.productId)?.isControlled
+      );
       const { sale, prescription } = await api.prescriptions.dispense(storeId, {
         prescriptionId: dispenseTarget.id,
         lines,
         paymentMethod: dispenseMethod,
         cashierEmail: user?.email || '',
+        verifiedBy: hasControlled ? dispenseVerifier || '' : '',
       });
       toast.success(
         prescription.status === 'dispensed'
@@ -246,6 +299,13 @@ export default function Prescriptions() {
             {(prescriptions || []).length} recorded
             {openCount > 0 && (
               <span className="text-sky-500"> · {openCount} open</span>
+            )}
+            {dueForReminder.length > 0 && (
+              <span className="text-emerald-500">
+                {' '}
+                · {dueForReminder.length} patient{dueForReminder.length === 1 ? '' : 's'} to
+                remind about refills
+              </span>
             )}
           </p>
         </div>
@@ -345,6 +405,16 @@ export default function Prescriptions() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1">
+                          {rx.status === 'open' && waLinkNumber(rx.patientPhone) && (
+                            <button
+                              onClick={() => messagePatient(rx)}
+                              className="p-2 rounded-xl text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                              aria-label={`Message ${rx.patientName} about the balance`}
+                              title="Message patient about the balance (WhatsApp)"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => openDispense(rx)}
                             disabled={done || cancelled}
@@ -651,6 +721,44 @@ export default function Prescriptions() {
                 sale at the POS instead.
               </p>
             </div>
+
+            {dispenseTarget.items.some((item) => {
+              const qty = Math.max(
+                0,
+                Math.floor(Number(dispenseQty[item.productId]) || 0)
+              );
+              return qty > 0 && productById.get(item.productId)?.isControlled;
+            }) && (
+              <div className="mb-4">
+                <label
+                  htmlFor="dispense-verifier"
+                  className="block text-xs font-medium text-zinc-500 mb-1.5"
+                >
+                  Verifying pharmacist (controlled medicine in this dispensing)
+                </label>
+                {pharmacists.length > 0 ? (
+                  <select
+                    id="dispense-verifier"
+                    value={dispenseVerifier}
+                    onChange={(e) => setDispenseVerifier(e.target.value)}
+                    className={inputCls}
+                  >
+                    {pharmacists.map((m) => (
+                      <option key={m.id} value={m.email}>
+                        {m.email}
+                        {m.email === user?.email ? ' (you)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-xl px-3 py-2">
+                    No pharmacist is flagged on your team yet — this dispensing
+                    will be recorded without a named verifier. Flag licensed
+                    pharmacists in Team.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center justify-between border-t border-zinc-200 dark:border-zinc-800 pt-4">
               <span className="text-sm text-zinc-500">Total</span>

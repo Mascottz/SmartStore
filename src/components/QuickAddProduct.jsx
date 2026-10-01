@@ -55,6 +55,7 @@ export default function QuickAddProduct({
     expiryDate: '',
     batchNo: '',
     isRx: false,
+    isControlled: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -105,6 +106,7 @@ export default function QuickAddProduct({
         stock,
         expiryDate: niche.hasExpiry && form.expiryDate ? form.expiryDate : null,
         isRx: isPharmacy && Boolean(form.isRx),
+        isControlled: isPharmacy && Boolean(form.isControlled),
         // Pharmacy: the scanned pack becomes the medicine's opening batch.
         ...(isPharmacy
           ? {
@@ -282,21 +284,38 @@ export default function QuickAddProduct({
           )}
 
           {isPharmacy && (
-            <label className="flex items-center gap-2.5 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.isRx}
-                onChange={(e) => setForm({ ...form, isRx: e.target.checked })}
-                className="w-4 h-4 accent-emerald-500"
-                aria-label="Prescription-only medicine"
-              />
-              <span>
-                Prescription-only{' '}
-                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 border border-red-500/30 rounded px-1">
-                  Rx
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isRx}
+                  onChange={(e) => setForm({ ...form, isRx: e.target.checked })}
+                  className="w-4 h-4 accent-emerald-500"
+                  aria-label="Prescription-only medicine"
+                />
+                <span>
+                  Prescription-only{' '}
+                  <span className="text-[10px] font-bold text-red-600 dark:text-red-400 border border-red-500/30 rounded px-1">
+                    Rx
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isControlled}
+                  onChange={(e) => setForm({ ...form, isControlled: e.target.checked })}
+                  className="w-4 h-4 accent-emerald-500"
+                  aria-label="Controlled medicine"
+                />
+                <span>
+                  Controlled{' '}
+                  <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 border border-purple-500/30 rounded px-1">
+                    CD
+                  </span>
+                </span>
+              </label>
+            </div>
           )}
 
           <div className="flex items-center justify-end gap-3 pt-2">

@@ -120,6 +120,7 @@ export const api = {
   team: withNotify(backend.team, 'team', [
     'updateRole',
     'updateApproval',
+    'setPharmacist',
     'remove',
   ]),
   admin: withNotify(backend.admin, 'admin', [

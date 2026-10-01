@@ -45,6 +45,16 @@ backend is configured.
     the batch drawer — it leaves sellable stock immediately — and a one-click **trace**
     lists every receipt that batch was dispensed on, with quantities, dates and cashier:
     the list a recall needs
+  - **Controlled medicines & pharmacist oversight**: medicines can be flagged
+    **controlled** (CD) alongside Rx. The till's prescription check then names the
+    **verifying pharmacist** (team members flagged as licensed pharmacists in Team),
+    and every controlled dispensing lands in the **Controlled Register** — what left
+    the shelf, from which batch, for which patient (linked to the prescription when
+    there is one), who prescribed and who verified — searchable, exportable as CSV and
+    printable for inspection. Receipts mark CD lines and name the verifier
+  - **Refill nudges**: open prescriptions with a phone number get a one-tap WhatsApp
+    reminder (pre-written message listing the balance still owed), and the page header
+    counts the patients to remind
   - Voided sales return stock to the exact batches it came from
   - Fully backwards compatible: `products.stock` stays the sum of active batches and
     `products.expiry_date` mirrors the earliest active batch expiry, so every existing

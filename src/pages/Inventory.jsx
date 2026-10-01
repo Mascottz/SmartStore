@@ -70,6 +70,7 @@ const emptyForm = {
   dosageForm: '',
   packSize: '',
   isRx: false,
+  isControlled: false,
   batchNo: '',
   supplier: '',
 };
@@ -258,6 +259,7 @@ export default function Inventory() {
       dosageForm: p.dosageForm || '',
       packSize: p.packSize || '',
       isRx: Boolean(p.isRx),
+      isControlled: Boolean(p.isControlled),
       batchNo: '',
       supplier: '',
     });
@@ -301,6 +303,7 @@ export default function Inventory() {
         dosageForm: sanitize(form.dosageForm || ''),
         packSize: sanitize(form.packSize || ''),
         isRx: isPharmacy && Boolean(form.isRx),
+        isControlled: isPharmacy && Boolean(form.isControlled),
       };
 
       // Pharmacy products open life with their first batch — stock and
@@ -445,6 +448,7 @@ export default function Inventory() {
         'Form',
         'Pack Size',
         'Rx',
+        'Controlled',
         'SKU',
         'Category',
         'Cost Price',
@@ -460,6 +464,7 @@ export default function Inventory() {
         p.dosageForm || '',
         p.packSize || '',
         p.isRx ? 'Yes' : 'No',
+        p.isControlled ? 'Yes' : 'No',
         p.sku,
         p.category,
         p.costPrice,
@@ -719,6 +724,14 @@ export default function Inventory() {
                             title="Prescription-only"
                           >
                             Rx
+                          </span>
+                        )}
+                        {p.isControlled && (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30"
+                            title="Controlled medicine — recorded in the controlled register"
+                          >
+                            CD
                           </span>
                         )}
                       </div>
@@ -1223,6 +1236,22 @@ Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
                         Rx
                       </span>{' '}
                       — the till asks for a prescription check before selling
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.isControlled}
+                      onChange={(e) => setForm({ ...form, isControlled: e.target.checked })}
+                      className="w-4 h-4 accent-emerald-500"
+                      aria-label="Controlled medicine"
+                    />
+                    <span>
+                      Controlled{' '}
+                      <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 border border-purple-500/30 rounded px-1">
+                        CD
+                      </span>{' '}
+                      — every dispensing is written to the Controlled Register
                     </span>
                   </label>
                 </div>

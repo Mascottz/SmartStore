@@ -358,6 +358,23 @@ const PHARMACY_PRODUCTS = [
     // One damaged delivery sits quarantined — visible, never dispensed.
     extraBatches: [{ qty: 8, batchNo: 'SAL-01', expiryDate: isoIn(250), supplier: 'GSK', quarantine: true }],
   },
+  {
+    // Phase 3: a controlled medicine. Every dispensing is written to the
+    // Controlled Register with its batch, patient and verifying pharmacist.
+    name: 'Tramadol 50mg Cap (pack of 10)',
+    sku: 'TRA-50',
+    category: 'Prescription Drugs',
+    genericName: 'Tramadol',
+    strength: '50 mg',
+    dosageForm: 'Capsule',
+    packSize: 'pack of 10',
+    isRx: true,
+    isControlled: true,
+    costPrice: 1200,
+    salePrice: 1800,
+    openingBatch: { qty: 25, batchNo: 'TRA-11', expiryDate: isoIn(330), supplier: 'Emzor' },
+    extraBatches: [],
+  },
 ];
 
 export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
@@ -396,6 +413,15 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
       billingCycle: 'yearly',
     });
 
+    // Phase 3: the demo owner is the pharmacy's licensed pharmacist, so the
+    // till offers them as the verifying pharmacist for controlled medicines.
+    const ownerMember = (await target.team.list(store.id)).find(
+      (m) => m.role === 'owner'
+    );
+    if (ownerMember) {
+      await target.team.setPharmacist(ownerMember.id, true);
+    }
+
     const created = [];
     for (const p of PHARMACY_PRODUCTS) {
       const product = await target.products.create(store.id, p);
@@ -431,6 +457,9 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
       { daysAgo: 21, picks: [6, 9], method: 'Transfer' },
       { daysAgo: 34, picks: [0, 3], method: 'Cash' },
       { daysAgo: 48, picks: [2, 2, 2, 7], method: 'Cash' },
+      // Phase 3: a walk-in controlled dispensing, verified by the
+      // pharmacist — the Controlled Register's bread and butter.
+      { daysAgo: 6, picks: [12, 8], method: 'Cash', verifiedBy: PHARMACY_DEMO_EMAIL },
     ];
 
     for (const s of sampleSales) {
@@ -444,6 +473,8 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
           qty,
           price: p.salePrice,
           lineTotal: p.salePrice * qty,
+          ...(p.isRx ? { isRx: true } : {}),
+          ...(p.isControlled ? { isControlled: true } : {}),
         };
       });
       const sale = await target.sales.create(store.id, {
@@ -452,6 +483,7 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
         receiptNo: 'SM-' + String(now - s.daysAgo * day).slice(-8),
         cashierEmail: PHARMACY_DEMO_EMAIL,
         trackStock: true,
+        ...(s.verifiedBy ? { verifiedBy: s.verifiedBy } : {}),
       });
       backdate('smartstore-db', 'sales', sale.id, new Date(now - s.daysAgo * day));
     }
@@ -568,6 +600,25 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
       lines: [{ productId: created[2].id, qty: 2 }],
       paymentMethod: 'Cash',
       cashierEmail: PHARMACY_DEMO_EMAIL,
+    });
+
+    // Phase 3: a fully dispensed controlled script with a named verifier —
+    // the Controlled Register opens with real, patient-linked history.
+    const cdRx = await target.prescriptions.create(store.id, {
+      patientName: 'Mrs. Iyabo Ogun',
+      patientPhone: '0809-442-1187',
+      patientAge: '47',
+      prescriber: 'Dr. Bello, Unity Hospital',
+      notes: '',
+      items: [{ productId: created[12].id, name: created[12].name, qty: 2 }],
+      createdBy: PHARMACY_DEMO_EMAIL,
+    });
+    await target.prescriptions.dispense(store.id, {
+      prescriptionId: cdRx.id,
+      lines: [{ productId: created[12].id, qty: 2 }],
+      paymentMethod: 'Cash',
+      cashierEmail: PHARMACY_DEMO_EMAIL,
+      verifiedBy: PHARMACY_DEMO_EMAIL,
     });
 
 
