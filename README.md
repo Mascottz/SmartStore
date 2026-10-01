@@ -49,7 +49,16 @@ backend is configured.
   can guide raw inventory entry with SKU generation, and links into the
   relevant screen. It works offline with local
   insights and can use an optional server-side Gemini endpoint when
-  `GOOGLE_API_KEY` is configured. Shop Mode (free) stores see a locked "StoreSense"
+  `GOOGLE_API_KEY` is configured.
+  **Spoken replies**: a speaker button in the StoreSense header makes it read
+  each answer aloud, and every answer keeps a "Listen" button so a number can
+  be replayed. This is output only — there is no microphone, no permission
+  prompt and no extra cost: it uses the browser's built-in on-device speech,
+  so it works offline and in demo mode exactly like the text answers do.
+  Amounts are re-phrased for the ear before they are spoken
+  ("₦12,400" is read as "12400 naira", "POS" as "P O S"), the opening greeting
+  is never read aloud, and the choice is remembered per account per device.
+  Shop Mode (free) stores see a locked "StoreSense"
   button that explains the feature and links to the upgrade; the gate is
   enforced in the UI **and** server-side in `api/assistant.js`, which reads the
   caller's plan from the database instead of trusting the request
@@ -88,9 +97,10 @@ npm test    # vitest + jsdom: POS category/pagination behaviour, POS partial &
             # two-way owner modes (monitoring/transactional + device detection
             # + free plan untouched, end-to-end through the real app), the
             # mobile inventory page, Shop Mode team limits, StoreSense inventory
-            # intake, and the StoreSense Owner Mode gate (locked upgrade prompt
+            # intake, the StoreSense Owner Mode gate (locked upgrade prompt
             # on Shop Mode, the real assistant for every role on Owner Mode and
-            # in the demo store)
+            # in the demo store), and StoreSense spoken replies (naira/acronym
+            # phrasing for the ear, silence unless asked, per-account recall)
 npm run lint
 npm run build
 ```
