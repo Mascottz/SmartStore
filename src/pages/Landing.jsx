@@ -624,6 +624,23 @@ export default function Landing() {
             <p className="mt-4 max-w-xs leading-6">
               Smarter management for shops, pharmacies, boutiques, and restaurants across Nigeria.
             </p>
+            <a
+              href="https://x.com/smartstore_ng"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Follow SmartStore NG on X (@smartstore_ng)"
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-2 font-semibold text-zinc-700 transition-colors hover:border-emerald-300 hover:text-emerald-600"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              @smartstore_ng
+            </a>
           </div>
           <div>
             <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-900">Product</h3>
