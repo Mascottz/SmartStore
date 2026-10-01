@@ -38,6 +38,12 @@ const AdminApprovals = lazy(() => import('./pages/AdminApprovals'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 const PublicInfo = lazy(() => import('./pages/PublicInfo'));
 
+// Pharmacy Mode (Phase 2): prescriptions with part-dispensing, suppliers
+// and recorded deliveries.
+const Prescriptions = lazy(() => import('./pages/Prescriptions'));
+const Suppliers = lazy(() => import('./pages/Suppliers'));
+const Purchases = lazy(() => import('./pages/Purchases'));
+
 // The owner's monitoring app (/m): mobile-first, no POS register.
 const OwnerMobileLayout = lazy(() => import('./mobile/OwnerMobileLayout'));
 const MobileDashboard = lazy(() => import('./mobile/MobileDashboard'));
@@ -228,6 +234,9 @@ function AppInner() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/pos" element={<POS />} />
+          <Route path="/prescriptions" element={<Prescriptions />} />
+          <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/purchases" element={<Purchases />} />
           <Route path="/sales" element={<SalesHistory />} />
           <Route path="/credit" element={<CreditBook />} />
           <Route path="/reports" element={<Reports />} />

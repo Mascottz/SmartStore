@@ -15,6 +15,9 @@ import {
   Sun,
   BookUser,
   Eye,
+  ClipboardList,
+  Truck,
+  PackagePlus,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -53,8 +56,18 @@ export default function Sidebar() {
       minRole: 'manager',
     },
     { name: 'POS Register', icon: ShoppingCart, path: '/pos' },
+    // Pharmacy Mode: the dispensing workflow and the supply chain.
+    ...(niche.pharmacy
+      ? [{ name: 'Prescriptions', icon: ClipboardList, path: '/prescriptions' }]
+      : []),
     { name: 'Sales History', icon: Receipt, path: '/sales' },
     { name: 'Credit Book', icon: BookUser, path: '/credit' },
+    ...(niche.pharmacy
+      ? [
+          { name: 'Suppliers', icon: Truck, path: '/suppliers', minRole: 'manager' },
+          { name: 'Purchases', icon: PackagePlus, path: '/purchases', minRole: 'manager' },
+        ]
+      : []),
     { name: 'Reports', icon: BarChart3, path: '/reports', minRole: 'manager' },
     {
       name: 'Void Report',

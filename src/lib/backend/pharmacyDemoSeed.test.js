@@ -50,6 +50,36 @@ describe('pharmacy demo seed', () => {
         .reduce((sum, b) => sum + (Number(b.qty) || 0), 0);
       expect(p.stock).toBe(rollup);
     });
+
+    // Phase 2: the supply chain and a live part-dispensed prescription.
+    const suppliers = await localAdapter.suppliers.list(storeId);
+    const purchases = await localAdapter.purchases.list(storeId);
+    expect(suppliers.length).toBeGreaterThanOrEqual(3);
+    expect(purchases.length).toBeGreaterThanOrEqual(2);
+    purchases.forEach((p) => {
+      expect(p.total).toBe(p.items.reduce((s, i) => s + i.lineTotal, 0));
+      // Every delivery line created a real, active batch.
+      p.items.forEach((line) => {
+        const batch = batches.find((b) => b.id === line.batchId);
+        expect(batch).toBeTruthy();
+        expect(batch.qty).toBeGreaterThanOrEqual(line.qty); // minus any sales since
+        expect(batch.supplier).toBe(suppliers.find((s) => s.id === p.supplierId)?.name || '');
+      });
+    });
+
+    const prescriptions = await localAdapter.prescriptions.list(storeId);
+    expect(prescriptions.length).toBeGreaterThanOrEqual(1);
+    const rx = prescriptions[0];
+    expect(rx.status).toBe('open'); // part-dispensed, balance still owed
+    const dispensedLine = rx.items.find((i) => i.dispensedQty > 0);
+    expect(dispensedLine).toBeTruthy();
+    expect(rx.items.some((i) => i.dispensedQty < i.prescribedQty)).toBe(true);
+
+    const dispensings = await localAdapter.prescriptions.dispensings.list(storeId);
+    expect(dispensings.length).toBeGreaterThanOrEqual(1);
+    // The dispensing audit trail carries the receipt's batch allocations.
+    expect(dispensings[0].items[0].batches.length).toBeGreaterThan(0);
+    expect(sales.some((s) => s.receiptNo === dispensings[0].receiptNo)).toBe(true);
   });
 
   it('is idempotent: a second login reuses the seeded store untouched', async () => {

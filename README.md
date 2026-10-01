@@ -28,6 +28,23 @@ backend is configured.
   - **Dashboard** adds the expiry watch, and the StoreSense assistant answers expiry
     questions from batch aggregates ("what's expiring soon?") — never clinical ones
   - **Medicine fields**: generic name, strength, dosage form, pack size and the Rx flag
+  - **Suppliers & purchase receiving**: record who you buy from (Suppliers) and every
+    delivery against them (Purchases) — supplier, invoice/waybill reference, and lines of
+    medicine + quantity + batch number + expiry + unit cost. Each recorded line **becomes
+    a batch in one transaction**, so stock arrives traced to source instead of by editing
+    numbers; the purchase ledger keeps the delivery history (at-cost totals, what was
+    received, by whom)
+  - **Prescriptions with part-dispensing**: record the script (patient, prescriber,
+    medicines and quantities), then dispense **fully or in part across visits**. Each
+    dispensing runs through the normal sale engine — FEFO allocation, receipt, stock
+    movement — and the script keeps a running balance per line until complete, with a
+    dispensing audit trail linking every receipt (and its batches) back to the script.
+    Payment at pickup is settled methods only (Cash / Transfer / POS); part-payment and
+    credit sales go through the POS as usual
+  - **Batch recall & trace**: any batch can be marked **recalled** (or quarantined) from
+    the batch drawer — it leaves sellable stock immediately — and a one-click **trace**
+    lists every receipt that batch was dispensed on, with quantities, dates and cashier:
+    the list a recall needs
   - Voided sales return stock to the exact batches it came from
   - Fully backwards compatible: `products.stock` stays the sum of active batches and
     `products.expiry_date` mirrors the earliest active batch expiry, so every existing

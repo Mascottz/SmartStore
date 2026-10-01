@@ -481,6 +481,96 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
     });
     backdate('smartstore-db', 'sales', creditSale.id, new Date(now - 2 * day));
 
+    // Phase 2: the supply chain behind those batches. Suppliers first, then
+    // two recorded deliveries — receiving stock now happens through the
+    // Purchases page, exactly like this.
+    const supplierIds = {};
+    for (const s of [
+      { name: 'Emzor Pharmaceuticals', phone: '0803-000-1122', notes: 'Delivers Tuesdays' },
+      { name: 'Juhel Nigeria Ltd', phone: '0805-000-3344', notes: '14-day credit terms' },
+      { name: 'Swipha (Swiss Pharma)', phone: '0706-000-5566', notes: '' },
+    ]) {
+      const supplier = await target.suppliers.create(store.id, s);
+      supplierIds[s.name] = supplier.id;
+    }
+
+    const restocks = [
+      {
+        supplierId: supplierIds['Emzor Pharmaceuticals'],
+        reference: 'EMZ-INV-4471',
+        daysAgo: 4,
+        lines: [
+          {
+            product: created[0], // Amoxil 500mg
+            qty: 30,
+            batchNo: 'AMX-2530',
+            expiryDays: 540,
+          },
+          {
+            product: created[11], // Salbutamol inhaler
+            qty: 10,
+            batchNo: 'SAL-04',
+            expiryDays: 420,
+          },
+        ],
+      },
+      {
+        supplierId: supplierIds['Juhel Nigeria Ltd'],
+        reference: 'JHL-WB-0902',
+        daysAgo: 11,
+        lines: [
+          {
+            product: created[7], // Vitamin C
+            qty: 40,
+            batchNo: 'VC-51',
+            expiryDays: 300,
+          },
+        ],
+      },
+    ];
+    for (const r of restocks) {
+      const supplierName =
+        Object.entries(supplierIds).find(([, id]) => id === r.supplierId)?.[0] || '';
+      const purchase = await target.purchases.create(store.id, {
+        supplierId: r.supplierId,
+        reference: r.reference,
+        items: r.lines.map((line) => ({
+          productId: line.product.id,
+          name: line.product.name,
+          qty: line.qty,
+          unitCost: line.product.costPrice,
+          batchNo: line.batchNo,
+          expiryDate: isoIn(line.expiryDays),
+          supplier: supplierName,
+        })),
+        receivedBy: PHARMACY_DEMO_EMAIL,
+      });
+      backdate('smartstore-db', 'purchases', purchase.id, new Date(now - r.daysAgo * day));
+    }
+
+    // A live prescription with part-dispensing: the patient collected part of
+    // the course already, the balance is still open on the book.
+    const rx = await target.prescriptions.create(store.id, {
+      patientName: 'Mr. Musa Ibrahim',
+      patientPhone: '0802-311-4455',
+      patientAge: '58',
+      prescriber: 'Dr. Eze, Lagoon Clinic',
+      notes: 'Collect balance after 7 days.',
+      items: [
+        { productId: created[2].id, name: created[2].name, qty: 2 },
+        { productId: created[8].id, name: created[8].name, qty: 1 },
+        { productId: created[9].id, name: created[9].name, qty: 4 },
+      ],
+      createdBy: PHARMACY_DEMO_EMAIL,
+    });
+    await target.prescriptions.dispense(store.id, {
+      prescriptionId: rx.id,
+      lines: [{ productId: created[2].id, qty: 2 }],
+      paymentMethod: 'Cash',
+      cashierEmail: PHARMACY_DEMO_EMAIL,
+    });
+
+
     const expenses = [
       { title: 'Generator fuel', amount: 15000, category: 'Utilities', daysAgo: 1 },
       { title: 'Shop rent (monthly)', amount: 180000, category: 'Rent', daysAgo: 9 },

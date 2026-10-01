@@ -11,8 +11,11 @@ import {
   CheckCircle2,
   PackagePlus,
   Pencil,
+  Search,
   ShieldAlert,
+  OctagonX,
   Trash2,
+  Undo2,
   X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -75,6 +78,10 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
   const [edit, setEdit] = useState(emptyEdit);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  // Recall trace: receipts this batch was dispensed on, loaded on demand.
+  const [traceTarget, setTraceTarget] = useState(null);
+  const [traceResults, setTraceResults] = useState(null);
+  const [tracing, setTracing] = useState(false);
 
   const productId = product?.id;
   const storeId = product?.storeId;
@@ -174,6 +181,54 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Could not change this batch.');
+    }
+  };
+
+  const markRecalled = async (batch) => {
+    try {
+      await api.batches.update(batch.id, { status: 'recalled' });
+      toast.success(
+        'Batch marked recalled — it can no longer be dispensed. Trace where it went with the search action.'
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || 'Could not mark this batch recalled.');
+    }
+  };
+
+  // Where did this batch go? Every receipt whose line items carry an
+  // allocation from this exact batch — the list a recall needs.
+  const openTrace = async (batch) => {
+    setTraceTarget(batch);
+    setTraceResults(null);
+    setTracing(true);
+    try {
+      const sales = await api.sales.list(product.storeId);
+      const hits = [];
+      (sales || []).forEach((sale) => {
+        let qty = 0;
+        (sale.items || []).forEach((item) => {
+          (Array.isArray(item.batches) ? item.batches : []).forEach((alloc) => {
+            if (alloc.batchId === batch.id) qty += Number(alloc.qty) || 0;
+          });
+        });
+        if (qty > 0) {
+          hits.push({
+            receiptNo: sale.receiptNo,
+            createdAt: sale.createdAt,
+            status: sale.status,
+            cashier: sale.cashierEmail,
+            qty,
+          });
+        }
+      });
+      setTraceResults(hits);
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || 'Could not trace this batch.');
+      setTraceResults([]);
+    } finally {
+      setTracing(false);
     }
   };
 
@@ -476,24 +531,49 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
                               <td className="px-3 py-2.5">
                                 <div className="flex justify-end gap-1">
                                   <button
+                                    onClick={() => openTrace(batch)}
+                                    className="p-2 rounded-xl text-zinc-500 hover:text-sky-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                    aria-label={`Trace where batch ${batch.batchNo || ''} was sold`}
+                                    title="Trace receipts that dispensed this batch"
+                                  >
+                                    <Search className="w-4 h-4" />
+                                  </button>
+                                  <button
                                     onClick={() => startEdit(batch)}
                                     className="p-2 rounded-xl text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                                     aria-label={`Edit batch ${batch.batchNo || ''}`}
                                   >
                                     <Pencil className="w-4 h-4" />
                                   </button>
-                                  <button
-                                    onClick={() => toggleStatus(batch)}
-                                    className="p-2 rounded-xl text-zinc-500 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                                    aria-label={
-                                      isActiveBatch(batch)
-                                        ? `Quarantine batch ${batch.batchNo || ''}`
-                                        : `Restore batch ${batch.batchNo || ''}`
-                                    }
-                                    title={isActiveBatch(batch) ? 'Quarantine' : 'Restore to active'}
-                                  >
-                                    <ShieldAlert className="w-4 h-4" />
-                                  </button>
+                                  {isActiveBatch(batch) ? (
+                                    <>
+                                      <button
+                                        onClick={() => toggleStatus(batch)}
+                                        className="p-2 rounded-xl text-zinc-500 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                        aria-label={`Quarantine batch ${batch.batchNo || ''}`}
+                                        title="Quarantine (damaged / under inspection)"
+                                      >
+                                        <ShieldAlert className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => markRecalled(batch)}
+                                        className="p-2 rounded-xl text-zinc-500 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                        aria-label={`Mark batch ${batch.batchNo || ''} recalled`}
+                                        title="Mark recalled"
+                                      >
+                                        <OctagonX className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={() => toggleStatus(batch)}
+                                      className="p-2 rounded-xl text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                      aria-label={`Restore batch ${batch.batchNo || ''} to active stock`}
+                                      title="Restore to active stock"
+                                    >
+                                      <Undo2 className="w-4 h-4" />
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => setDeleteTarget(batch)}
                                     className="p-2 rounded-xl text-zinc-500 hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -528,6 +608,72 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
           </button>
         </div>
       </div>
+
+      {/* Recall trace: every receipt this batch was dispensed on */}
+      {traceTarget && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setTraceTarget(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Batch trace"
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-md p-6 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-lg font-bold">Where this batch went</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Batch {traceTarget.batchNo || '(no number)'}
+                  {traceTarget.expiryDate ? ` · exp ${fmtDate(traceTarget.expiryDate)}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setTraceTarget(null)}
+                className="p-2 rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="Close trace"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {tracing ? (
+              <p className="text-sm text-zinc-500 py-6 text-center">Tracing receipts...</p>
+            ) : (traceResults || []).length === 0 ? (
+              <p className="text-sm text-zinc-500 py-6 text-center">
+                No sale has dispensed from this batch yet.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                <p className="text-xs text-zinc-500 mb-2">
+                  {traceResults.length} receipt{traceResults.length === 1 ? '' : 's'} dispensed
+                  {' '}
+                  {traceResults.reduce((s, r) => s + r.qty, 0)} unit
+                  {traceResults.reduce((s, r) => s + r.qty, 0) === 1 ? '' : 's'} from this batch:
+                </p>
+                {traceResults.map((r) => (
+                  <div
+                    key={r.receiptNo}
+                    className="flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-mono text-xs font-semibold">{r.receiptNo}</p>
+                      <p className="text-[11px] text-zinc-500">
+                        {fmtDate(r.createdAt)}
+                        {r.cashier ? ` · ${r.cashier}` : ''}
+                        {r.status === 'voided' ? ' · voided' : ''}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold">{r.qty} unit{r.qty === 1 ? '' : 's'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation */}
       {deleteTarget && (

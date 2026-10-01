@@ -87,6 +87,11 @@ function load() {
     expenses: [],
     creditPayments: [],
     voidLogs: [],
+    suppliers: [],
+    purchases: [],
+    prescriptions: [],
+    prescriptionItems: [],
+    dispensings: [],
   };
 }
 
@@ -823,6 +828,338 @@ export const localAdapter = {
     },
   },
 
+  // ------------------------------------------------------------------
+  // Pharmacy Phase 2: suppliers, purchase receiving, prescriptions.
+  // Mirrors 011_pharmacy_operations.sql; purchases create their batches in
+  // the same save (the RPC's one-transaction promise), and dispensing a
+  // prescription runs through the normal sale engine so FEFO, receipts and
+  // voids all behave exactly like a till sale.
+  // ------------------------------------------------------------------
+
+  suppliers: {
+    async list(storeId) {
+      return (load().suppliers || [])
+        .filter((s) => s.storeId === storeId)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async create(storeId, data) {
+      const cleanName = clamp(sanitize(data.name), 120);
+      if (!cleanName) throw new Error('Supplier name is required.');
+      const db = load();
+      const supplier = {
+        id: uid(),
+        storeId,
+        name: cleanName,
+        phone: clamp(sanitize(data.phone || ''), 40),
+        email: clamp(sanitize(data.email || ''), 120),
+        address: clamp(sanitize(data.address || ''), 200),
+        notes: clamp(sanitize(data.notes || ''), 500),
+        createdAt: new Date().toISOString(),
+      };
+      db.suppliers = db.suppliers || [];
+      db.suppliers.push(supplier);
+      save(db);
+      return supplier;
+    },
+    async update(id, patch) {
+      const db = load();
+      const idx = (db.suppliers || []).findIndex((s) => s.id === id);
+      if (idx === -1) throw new Error('Supplier not found');
+      const clean = { ...patch };
+      if (clean.name !== undefined) clean.name = clamp(sanitize(clean.name), 120);
+      if (clean.phone !== undefined) clean.phone = clamp(sanitize(clean.phone || ''), 40);
+      if (clean.email !== undefined) clean.email = clamp(sanitize(clean.email || ''), 120);
+      if (clean.address !== undefined) clean.address = clamp(sanitize(clean.address || ''), 200);
+      if (clean.notes !== undefined) clean.notes = clamp(sanitize(clean.notes || ''), 500);
+      db.suppliers[idx] = { ...db.suppliers[idx], ...clean };
+      save(db);
+      return db.suppliers[idx];
+    },
+    async remove(id) {
+      const db = load();
+      db.suppliers = (db.suppliers || []).filter((s) => s.id !== id);
+      // Purchases keep their record with the supplier detached.
+      (db.purchases || []).forEach((p) => {
+        if (p.supplierId === id) p.supplierId = null;
+      });
+      save(db);
+    },
+  },
+
+  purchases: {
+    async list(storeId) {
+      return (load().purchases || [])
+        .filter((p) => p.storeId === storeId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    },
+    async create(storeId, { supplierId, reference, items, receivedBy }) {
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new Error('A delivery needs at least one line.');
+      }
+      const db = load();
+
+      const recordedItems = [];
+      let total = 0;
+      for (const line of items) {
+        const product = db.products.find(
+          (p) => p.id === line.productId && p.storeId === storeId
+        );
+        if (!product) throw new Error(`Product not found for delivery line: ${line.name || ''}`);
+        const qty = Math.max(0, Math.floor(Number(line.qty) || 0));
+        if (qty < 1) throw new Error('Every delivery line needs a quantity of at least 1.');
+        const unitCost = Math.max(0, Number(line.unitCost) || 0);
+
+        const batch = {
+          id: uid(),
+          storeId,
+          productId: product.id,
+          receivedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          ...mapBatchIn({
+            batchNo: line.batchNo,
+            expiryDate: line.expiryDate,
+            qty,
+            costPrice: unitCost,
+            supplier: line.supplier || '',
+            status: 'active',
+          }),
+        };
+        db.batches = db.batches || [];
+        db.batches.push(batch);
+        syncProductStock(db, product.id);
+
+        total += qty * unitCost;
+        recordedItems.push({
+          productId: product.id,
+          name: product.name,
+          qty,
+          unitCost,
+          lineTotal: qty * unitCost,
+          batchId: batch.id,
+          batchNo: batch.batchNo,
+          expiryDate: batch.expiryDate,
+        });
+      }
+
+      const purchase = {
+        id: uid(),
+        storeId,
+        supplierId: supplierId || null,
+        reference: clamp(sanitize(reference || ''), 60),
+        status: 'received',
+        items: recordedItems,
+        total,
+        receivedBy: clamp(sanitize(receivedBy || ''), 200),
+        createdAt: new Date().toISOString(),
+      };
+      db.purchases = db.purchases || [];
+      db.purchases.push(purchase);
+      save(db);
+      return purchase;
+    },
+    async remove(id) {
+      // The purchase ledger row only. Physical stock (the batches it
+      // created) is managed from the batch drawer, not by deleting records.
+      const db = load();
+      db.purchases = (db.purchases || []).filter((p) => p.id !== id);
+      save(db);
+      return id;
+    },
+  },
+
+  prescriptions: {
+    async list(storeId) {
+      const db = load();
+      return (db.prescriptions || [])
+        .filter((r) => r.storeId === storeId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .map((r) => ({
+          ...r,
+          items: (db.prescriptionItems || []).filter(
+            (i) => i.prescriptionId === r.id
+          ),
+        }));
+    },
+
+    async create(storeId, { patientName, patientPhone, patientAge, prescriber, notes, items, createdBy }) {
+      const cleanPatient = clamp(sanitize(patientName), 120);
+      if (!cleanPatient) throw new Error('Patient name is required.');
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new Error('Add at least one prescribed medicine.');
+      }
+
+      const db = load();
+      const prescription = {
+        id: uid(),
+        storeId,
+        code: 'RX-' + Date.now().toString(36).toUpperCase().slice(-6),
+        patientName: cleanPatient,
+        patientPhone: clamp(sanitize(patientPhone || ''), 40),
+        patientAge: clamp(sanitize(patientAge || ''), 20),
+        prescriber: clamp(sanitize(prescriber || ''), 120),
+        notes: clamp(sanitize(notes || ''), 500),
+        status: 'open',
+        createdBy: clamp(sanitize(createdBy || ''), 200),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      db.prescriptions = db.prescriptions || [];
+      db.prescriptions.push(prescription);
+
+      db.prescriptionItems = db.prescriptionItems || [];
+      for (const line of items) {
+        const product = db.products.find(
+          (p) => p.id === line.productId && p.storeId === storeId
+        );
+        if (!product) throw new Error(`Product not found: ${line.name || ''}`);
+        const qty = Math.max(0, Math.floor(Number(line.qty) || 0));
+        if (qty < 1) throw new Error('Every prescribed line needs a quantity of at least 1.');
+        db.prescriptionItems.push({
+          id: uid(),
+          prescriptionId: prescription.id,
+          productId: product.id,
+          productName: product.name,
+          prescribedQty: qty,
+          dispensedQty: 0,
+        });
+      }
+      save(db);
+      return { ...prescription, items: db.prescriptionItems.filter((i) => i.prescriptionId === prescription.id) };
+    },
+
+    async cancel(id) {
+      const db = load();
+      const rx = (db.prescriptions || []).find((r) => r.id === id);
+      if (!rx) throw new Error('Prescription not found');
+      if (rx.status === 'dispensed') {
+        throw new Error('This prescription has already been fully dispensed.');
+      }
+      rx.status = 'cancelled';
+      rx.updatedAt = new Date().toISOString();
+      save(db);
+      return rx;
+    },
+
+    async remove(id) {
+      const db = load();
+      db.prescriptions = (db.prescriptions || []).filter((r) => r.id !== id);
+      db.prescriptionItems = (db.prescriptionItems || []).filter(
+        (i) => i.prescriptionId !== id
+      );
+      db.dispensings = (db.dispensings || []).filter((d) => d.prescriptionId !== id);
+      save(db);
+      return id;
+    },
+
+    /**
+     * Dispense (part of) a prescription: runs a real sale through the FEFO
+     * engine, advances each line's dispensed quantity, and appends the
+     * dispensing event linking the receipt and its batch allocation. All in
+     * one save, so the prescription and the till always agree.
+     */
+    async dispense(
+      storeId,
+      { prescriptionId, lines, paymentMethod, cashierEmail }
+    ) {
+      if (!Array.isArray(lines) || lines.length === 0) {
+        throw new Error('Select at least one medicine to dispense.');
+      }
+      const db = load();
+      const rx = (db.prescriptions || []).find(
+        (r) => r.id === prescriptionId && r.storeId === storeId
+      );
+      if (!rx) throw new Error('Prescription not found');
+      if (rx.status !== 'open') {
+        throw new Error('This prescription is not open for dispensing.');
+      }
+
+      const rxItems = (db.prescriptionItems || []).filter(
+        (i) => i.prescriptionId === prescriptionId
+      );
+
+      // Validate the requested lines against what remains on the script.
+      for (const line of lines) {
+        const item = rxItems.find((i) => i.productId === line.productId);
+        if (!item) throw new Error('That medicine is not on this prescription.');
+        const remaining = item.prescribedQty - item.dispensedQty;
+        const qty = Math.max(0, Math.floor(Number(line.qty) || 0));
+        if (qty < 1) throw new Error('Every line needs a quantity of at least 1.');
+        if (qty > remaining) {
+          throw new Error(
+            `Only ${remaining} of ${item.productName} remain on this prescription.`
+          );
+        }
+      }
+
+      const saleItems = lines.map((line) => {
+        const product = db.products.find((p) => p.id === line.productId);
+        if (!product) throw new Error('Product not found');
+        const qty = Math.max(1, Math.floor(Number(line.qty) || 1));
+        return {
+          productId: product.id,
+          name: product.name,
+          qty,
+          price: product.salePrice,
+          lineTotal: product.salePrice * qty,
+          ...(product.isRx ? { isRx: true } : {}),
+        };
+      });
+
+      // Reuse the sale engine: FEFO allocation, stock checks, receipt.
+      // Dispensing settles at pickup: Cash, Transfer or POS/Card. Anything
+      // the patient should owe on goes through the till instead.
+      const method = ['Cash', 'Transfer', 'POS/Card'].includes(paymentMethod)
+        ? paymentMethod
+        : 'Cash';
+      const sale = await localAdapter.sales.create(storeId, {
+        items: saleItems,
+        paymentMethod: method,
+        receiptNo: 'SM-' + Date.now().toString().slice(-8),
+        cashierEmail: cashierEmail || '',
+        trackStock: true,
+      });
+
+      // sales.create() loads and saves its own snapshot, so re-read the
+      // freshest state before advancing the prescription.
+      const fresh = load();
+      const freshRx = fresh.prescriptions.find((r) => r.id === prescriptionId);
+      const freshItems = (fresh.prescriptionItems || []).filter(
+        (i) => i.prescriptionId === prescriptionId
+      );
+      for (const line of lines) {
+        const item = freshItems.find((i) => i.productId === line.productId);
+        item.dispensedQty += Math.max(1, Math.floor(Number(line.qty) || 1));
+      }
+      const fullyDispensed = freshItems.every(
+        (i) => i.dispensedQty >= i.prescribedQty
+      );
+      freshRx.status = fullyDispensed ? 'dispensed' : 'open';
+      freshRx.updatedAt = new Date().toISOString();
+
+      fresh.dispensings = fresh.dispensings || [];
+      fresh.dispensings.push({
+        id: uid(),
+        storeId,
+        prescriptionId,
+        saleId: sale.id,
+        receiptNo: sale.receiptNo,
+        items: sale.items,
+        dispensedBy: clamp(sanitize(cashierEmail || ''), 200),
+        createdAt: new Date().toISOString(),
+      });
+      save(fresh);
+      return { sale, prescription: { ...freshRx, items: freshItems } };
+    },
+
+    dispensings: {
+      async list(storeId) {
+        return (load().dispensings || [])
+          .filter((d) => d.storeId === storeId)
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      },
+    },
+  },
+
   team: {
     async list(storeId) {
       return load()
@@ -977,6 +1314,18 @@ export const localAdapter = {
       db.categories = db.categories.filter((item) => item.storeId !== storeId);
       db.products = db.products.filter((item) => item.storeId !== storeId);
       db.batches = (db.batches || []).filter((item) => item.storeId !== storeId);
+      db.suppliers = (db.suppliers || []).filter((item) => item.storeId !== storeId);
+      db.purchases = (db.purchases || []).filter((item) => item.storeId !== storeId);
+      const prescriptionIds = new Set(
+        (db.prescriptions || [])
+          .filter((item) => item.storeId === storeId)
+          .map((item) => item.id)
+      );
+      db.prescriptions = (db.prescriptions || []).filter((item) => item.storeId !== storeId);
+      db.prescriptionItems = (db.prescriptionItems || []).filter(
+        (item) => !prescriptionIds.has(item.prescriptionId)
+      );
+      db.dispensings = (db.dispensings || []).filter((item) => item.storeId !== storeId);
       db.sales = db.sales.filter((item) => item.storeId !== storeId);
       db.expenses = db.expenses.filter((item) => item.storeId !== storeId);
       db.creditPayments = (db.creditPayments || []).filter((item) => item.storeId !== storeId);

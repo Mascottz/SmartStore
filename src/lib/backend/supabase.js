@@ -61,6 +61,70 @@ const mapBatch = (b) =>
     createdAt: b.created_at,
   };
 
+const mapSupplier = (s) =>
+  s && {
+    id: s.id,
+    storeId: s.store_id,
+    name: s.name,
+    phone: s.phone || '',
+    email: s.email || '',
+    address: s.address || '',
+    notes: s.notes || '',
+    createdAt: s.created_at,
+  };
+
+const mapPurchase = (p) =>
+  p && {
+    id: p.id,
+    storeId: p.store_id,
+    supplierId: p.supplier_id || null,
+    reference: p.reference || '',
+    status: p.status || 'received',
+    items: p.items || [],
+    total: Number(p.total || 0),
+    receivedBy: p.received_by || '',
+    createdAt: p.created_at,
+  };
+
+const mapPrescription = (r, items = []) =>
+  r && {
+    id: r.id,
+    storeId: r.store_id,
+    code: r.code || '',
+    patientName: r.patient_name || '',
+    patientPhone: r.patient_phone || '',
+    patientAge: r.patient_age || '',
+    prescriber: r.prescriber || '',
+    notes: r.notes || '',
+    status: r.status || 'open',
+    createdBy: r.created_by || '',
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    items: items.map(mapPrescriptionItem),
+  };
+
+const mapPrescriptionItem = (i) =>
+  i && {
+    id: i.id,
+    prescriptionId: i.prescription_id,
+    productId: i.product_id,
+    productName: i.product_name || '',
+    prescribedQty: Number(i.prescribed_qty || 0),
+    dispensedQty: Number(i.dispensed_qty || 0),
+  };
+
+const mapDispensing = (d) =>
+  d && {
+    id: d.id,
+    storeId: d.store_id,
+    prescriptionId: d.prescription_id,
+    saleId: d.sale_id || null,
+    receiptNo: d.receipt_no || '',
+    items: d.items || [],
+    dispensedBy: d.dispensed_by || '',
+    createdAt: d.created_at,
+  };
+
 const mapSale = (s) =>
   s && {
     id: s.id,
@@ -585,6 +649,303 @@ export const supabaseAdapter = {
         .order('created_at', { ascending: false });
       ensure(error);
       return data.map(mapVoidLog);
+    },
+  },
+
+  // ------------------------------------------------------------------
+  // Pharmacy Phase 2: suppliers, purchase receiving, prescriptions.
+  // Purchases go through the record_purchase RPC so the purchase row and
+  // every batch it brings in land in one transaction; prescriptions dispense
+  // through the normal create_sale RPC (FEFO) and then record the event.
+  // ------------------------------------------------------------------
+
+  suppliers: {
+    async list(storeId) {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('name');
+      ensure(error);
+      return data.map(mapSupplier);
+    },
+    async create(storeId, d) {
+      const cleanName = clamp(sanitize(d.name), 120);
+      if (!cleanName) throw new Error('Supplier name is required.');
+      const { data, error } = await supabase
+        .from('suppliers')
+        .insert({
+          store_id: storeId,
+          name: cleanName,
+          phone: clamp(sanitize(d.phone || ''), 40),
+          email: clamp(sanitize(d.email || ''), 120),
+          address: clamp(sanitize(d.address || ''), 200),
+          notes: clamp(sanitize(d.notes || ''), 500),
+        })
+        .select()
+        .single();
+      ensure(error);
+      return mapSupplier(data);
+    },
+    async update(id, patch) {
+      const row = {};
+      if (patch.name !== undefined) row.name = clamp(sanitize(patch.name), 120);
+      if (patch.phone !== undefined) row.phone = clamp(sanitize(patch.phone || ''), 40);
+      if (patch.email !== undefined) row.email = clamp(sanitize(patch.email || ''), 120);
+      if (patch.address !== undefined) row.address = clamp(sanitize(patch.address || ''), 200);
+      if (patch.notes !== undefined) row.notes = clamp(sanitize(patch.notes || ''), 500);
+      const { data, error } = await supabase
+        .from('suppliers')
+        .update(row)
+        .eq('id', id)
+        .select()
+        .single();
+      ensure(error);
+      return mapSupplier(data);
+    },
+    async remove(id) {
+      const { error } = await supabase.from('suppliers').delete().eq('id', id);
+      ensure(error);
+      return id;
+    },
+  },
+
+  purchases: {
+    async list(storeId) {
+      const { data, error } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false });
+      ensure(error);
+      return data.map(mapPurchase);
+    },
+    async create(storeId, { supplierId, reference, items, receivedBy }) {
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new Error('A delivery needs at least one line.');
+      }
+      const { data, error } = await supabase.rpc('record_purchase', {
+        p_store_id: storeId,
+        p_supplier_id: supplierId || null,
+        p_reference: clamp(sanitize(reference || ''), 60),
+        p_items: items.map((line) => ({
+          productId: line.productId,
+          name: clamp(sanitize(line.name || ''), 200),
+          qty: Math.max(0, Math.floor(Number(line.qty) || 0)),
+          unitCost: Math.max(0, Number(line.unitCost) || 0),
+          batchNo: clamp(sanitize(line.batchNo || ''), 60),
+          expiryDate: line.expiryDate || null,
+          supplier: clamp(sanitize(line.supplier || ''), 120),
+        })),
+        p_received_by: clamp(sanitize(receivedBy || ''), 200),
+      });
+      ensure(error);
+      return mapPurchase(data);
+    },
+    async remove(id) {
+      // Ledger row only — the physical batches it created are managed from
+      // the batch drawer, not by deleting records.
+      const { error } = await supabase.from('purchases').delete().eq('id', id);
+      ensure(error);
+      return id;
+    },
+  },
+
+  prescriptions: {
+    async list(storeId) {
+      const { data, error } = await supabase
+        .from('prescriptions')
+        .select('*, items:prescription_items(*)')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false });
+      ensure(error);
+      return data.map((r) => mapPrescription(r, r.items || []));
+    },
+
+    async create(storeId, { patientName, patientPhone, patientAge, prescriber, notes, items, createdBy }) {
+      const cleanPatient = clamp(sanitize(patientName), 120);
+      if (!cleanPatient) throw new Error('Patient name is required.');
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new Error('Add at least one prescribed medicine.');
+      }
+
+      // Insert the script and its lines; items ride along in one round trip
+      // so the page can show the full record immediately.
+      const { data: rx, error: rxError } = await supabase
+        .from('prescriptions')
+        .insert({
+          store_id: storeId,
+          code: 'RX-' + Date.now().toString(36).toUpperCase().slice(-6),
+          patient_name: cleanPatient,
+          patient_phone: clamp(sanitize(patientPhone || ''), 40),
+          patient_age: clamp(sanitize(patientAge || ''), 20),
+          prescriber: clamp(sanitize(prescriber || ''), 120),
+          notes: clamp(sanitize(notes || ''), 500),
+          created_by: clamp(sanitize(createdBy || ''), 200),
+        })
+        .select()
+        .single();
+      ensure(rxError);
+
+      const { data: itemRows, error: itemError } = await supabase
+        .from('prescription_items')
+        .insert(
+          items.map((line) => ({
+            prescription_id: rx.id,
+            product_id: line.productId,
+            product_name: clamp(sanitize(line.name || ''), 200),
+            prescribed_qty: Math.max(1, Math.floor(Number(line.qty) || 1)),
+            dispensed_qty: 0,
+          }))
+        )
+        .select();
+      ensure(itemError);
+      return mapPrescription(rx, itemRows || []);
+    },
+
+    async cancel(id) {
+      const { data, error } = await supabase
+        .from('prescriptions')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      ensure(error);
+      return mapPrescription(data, []);
+    },
+
+    async remove(id) {
+      const { error } = await supabase.from('prescriptions').delete().eq('id', id);
+      ensure(error);
+      return id;
+    },
+
+    /**
+     * Dispense (part of) a prescription: a real sale through the FEFO
+     * engine, then the line quantities advance and the dispensing event is
+     * recorded with the receipt and its batch allocation.
+     */
+    async dispense(
+      storeId,
+      { prescriptionId, lines, paymentMethod, cashierEmail }
+    ) {
+      if (!Array.isArray(lines) || lines.length === 0) {
+        throw new Error('Select at least one medicine to dispense.');
+      }
+      // Current state of the script, for validation and for the updates.
+      const { data: rxRows, error: rxError } = await supabase
+        .from('prescriptions')
+        .select('*, items:prescription_items(*)')
+        .eq('id', prescriptionId)
+        .single();
+      ensure(rxError);
+      const rx = mapPrescription(rxRows, rxRows.items || []);
+      if (rx.status !== 'open') {
+        throw new Error('This prescription is not open for dispensing.');
+      }
+
+      for (const line of lines) {
+        const item = rx.items.find((i) => i.productId === line.productId);
+        if (!item) throw new Error('That medicine is not on this prescription.');
+        const remaining = item.prescribedQty - item.dispensedQty;
+        const qty = Math.max(0, Math.floor(Number(line.qty) || 0));
+        if (qty < 1) throw new Error('Every line needs a quantity of at least 1.');
+        if (qty > remaining) {
+          throw new Error(
+            `Only ${remaining} of ${item.productName} remain on this prescription.`
+          );
+        }
+      }
+
+      // Prices come from the catalogue at dispense time.
+      const { data: productRows, error: productError } = await supabase
+        .from('products')
+        .select('id, name, sale_price, is_rx')
+        .in('id', lines.map((l) => l.productId));
+      ensure(productError);
+
+      const saleItems = lines.map((line) => {
+        const p = productRows.find((row) => row.id === line.productId);
+        if (!p) throw new Error('Product not found');
+        const qty = Math.max(1, Math.floor(Number(line.qty) || 1));
+        return {
+          productId: p.id,
+          name: p.name,
+          qty,
+          price: Number(p.sale_price || 0),
+          lineTotal: Number(p.sale_price || 0) * qty,
+          ...(p.is_rx ? { isRx: true } : {}),
+        };
+      });
+
+      const method = ['Cash', 'Transfer', 'POS/Card'].includes(paymentMethod)
+        ? paymentMethod
+        : 'Cash';
+      const sale = await supabaseAdapter.sales.create(storeId, {
+        items: saleItems,
+        paymentMethod: method,
+        receiptNo: 'SM-' + Date.now().toString().slice(-8),
+        cashierEmail: cashierEmail || '',
+        trackStock: true,
+      });
+
+      // Advance the line quantities (the sale is already committed; these
+      // record-keeping writes follow it).
+      for (const line of lines) {
+        const item = rx.items.find((i) => i.productId === line.productId);
+        const { error: itemError } = await supabase
+          .from('prescription_items')
+          .update({
+            dispensed_qty: item.dispensedQty + Math.max(1, Math.floor(Number(line.qty) || 1)),
+          })
+          .eq('id', item.id);
+        ensure(itemError);
+      }
+
+      const fullyDispensed = rx.items.every((item) => {
+        const line = lines.find((l) => l.productId === item.productId);
+        const advanced = line
+          ? item.dispensedQty + Math.max(1, Math.floor(Number(line.qty) || 1))
+          : item.dispensedQty;
+        return advanced >= item.prescribedQty;
+      });
+
+      const { data: updatedRx, error: updatedRxError } = await supabase
+        .from('prescriptions')
+        .update({
+          status: fullyDispensed ? 'dispensed' : 'open',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', prescriptionId)
+        .select('*, items:prescription_items(*)')
+        .single();
+      ensure(updatedRxError);
+
+      const { error: dispensingError } = await supabase
+        .from('prescription_dispensings')
+        .insert({
+          store_id: storeId,
+          prescription_id: prescriptionId,
+          sale_id: sale.id,
+          receipt_no: sale.receiptNo,
+          items: sale.items,
+          dispensed_by: clamp(sanitize(cashierEmail || ''), 200),
+        });
+      ensure(dispensingError);
+
+      return { sale, prescription: mapPrescription(updatedRx, updatedRx.items || []) };
+    },
+
+    dispensings: {
+      async list(storeId) {
+        const { data, error } = await supabase
+          .from('prescription_dispensings')
+          .select('*')
+          .eq('store_id', storeId)
+          .order('created_at', { ascending: false });
+        ensure(error);
+        return data.map(mapDispensing);
+      },
     },
   },
 
