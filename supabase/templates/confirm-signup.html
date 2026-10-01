@@ -1,0 +1,147 @@
+<!--
+  SmartStore NG — Supabase "Confirm signup" email template
+  =========================================================
+  Where to use it:
+    Supabase Dashboard -> Authentication -> Emails -> Templates -> Confirm signup
+    1. Set Subject to:  Confirm your SmartStore NG account
+    2. Paste everything below (from <!DOCTYPE html> down) into the Message body.
+
+  Template variables used (filled in by Supabase automatically):
+    {{ .ConfirmationURL }}  - the one-click confirmation link
+    {{ .Email }}            - the address that signed up
+    {{ .SiteURL }}          - your configured Site URL
+
+  Notes:
+    - Table-based layout + inline styles so it renders correctly in Gmail,
+      Outlook, Apple Mail and Yandex/Yahoo.
+    - Colors match the app: zinc-950 background, zinc-900 card, emerald-500
+      accents with black button text — same as the Login screen.
+-->
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="supported-color-schemes" content="dark light" />
+    <title>Confirm your SmartStore NG account</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#09090b; -webkit-text-size-adjust:100%;">
+    <!-- Preheader: shows next to the subject in the inbox, invisible in the email body -->
+    <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+      One tap and your store is ready. Confirm your email to start selling with SmartStore NG.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#09090b;">
+      <tr>
+        <td align="center" style="padding:40px 16px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%;">
+
+            <!-- Logo / wordmark -->
+            <tr>
+              <td align="center" style="padding-bottom:28px;">
+                <img src="https://smartstoreng.shop/logo-smartstore.png" width="56" height="56" alt="SmartStore NG" style="display:block; border:0; border-radius:14px;" />
+                <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:22px; font-weight:700; color:#ffffff; padding-top:12px;">
+                  SmartStore&nbsp;<span style="color:#10b981;">NG</span>
+                </div>
+                <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; color:#10b981; padding-top:4px;">
+                  Smarter Management. Stronger Business.
+                </div>
+              </td>
+            </tr>
+
+            <!-- Card -->
+            <tr>
+              <td style="background-color:#18181b; border:1px solid #27272a; border-radius:24px; padding:36px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      <h1 style="margin:0 0 14px 0; font-size:22px; line-height:1.3; font-weight:700; color:#ffffff;">
+                        Welcome to SmartStore NG 👋
+                      </h1>
+                      <p style="margin:0 0 10px 0; font-size:15px; line-height:1.6; color:#d4d4d8;">
+                        You're one step away from your POS, inventory and reports
+                        — all in one calm workspace.
+                      </p>
+                      <p style="margin:0 0 28px 0; font-size:15px; line-height:1.6; color:#d4d4d8;">
+                        Confirm that <strong style="color:#ffffff;">{{ .Email }}</strong> is your email address to activate your account.
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- CTA button -->
+                  <tr>
+                    <td align="center" style="padding:4px 0 28px 0;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td align="center" style="background-color:#10b981; border-radius:16px;">
+                            <a href="{{ .ConfirmationURL }}"
+                               style="display:inline-block; padding:15px 44px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; font-weight:700; color:#000000; text-decoration:none; border-radius:16px;">
+                              Confirm my email
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Fallback link -->
+                  <tr>
+                    <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; border-top:1px solid #27272a; padding-top:22px;">
+                      <p style="margin:0 0 8px 0; font-size:13px; line-height:1.6; color:#a1a1aa;">
+                        Button not working? Copy and paste this link into your browser:
+                      </p>
+                      <p style="margin:0 0 22px 0; font-size:12px; line-height:1.6; word-break:break-all;">
+                        <a href="{{ .ConfirmationURL }}" style="color:#10b981; text-decoration:underline;">{{ .ConfirmationURL }}</a>
+                      </p>
+                      <p style="margin:0; font-size:13px; line-height:1.6; color:#71717a;">
+                        This link expires in 24 hours and can only be used once.
+                        If you didn't create a SmartStore NG account, you can safely
+                        ignore this email — nothing will happen without confirmation.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- What happens next -->
+            <tr>
+              <td style="padding:28px 8px 0 8px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                <p style="margin:0 0 10px 0; font-size:13px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#10b981;">
+                  What happens next
+                </p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:14px; line-height:2; color:#a1a1aa; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      🏪 &nbsp;Pick your business type — supermarket, boutique, pharmacy, restaurant and more<br />
+                      🛒 &nbsp;Ring up your first sale on the POS register<br />
+                      📦 &nbsp;Add your stock and watch low-stock alerts do the worrying for you
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" style="padding:36px 8px 0 8px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                <p style="margin:0 0 6px 0; font-size:12px; line-height:1.6; color:#71717a;">
+                  Sent by SmartStore NG · POS &amp; store management for Nigerian businesses
+                </p>
+                <p style="margin:0; font-size:12px; line-height:1.6;">
+                  <a href="{{ .SiteURL }}" style="color:#10b981; text-decoration:none;">smartstoreng.shop</a>
+                  &nbsp;·&nbsp;
+                  <a href="https://smartstoreng.shop/help" style="color:#71717a; text-decoration:underline;">Help</a>
+                  &nbsp;·&nbsp;
+                  <a href="https://smartstoreng.shop/privacy" style="color:#71717a; text-decoration:underline;">Privacy</a>
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

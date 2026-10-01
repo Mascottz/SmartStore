@@ -94,8 +94,11 @@ export default function Landing() {
   const [billing, setBilling] = useState('monthly'); // 'monthly' | 'yearly'
   const yearly = billing === 'yearly';
 
-  // Signed in: straight into the app. Signed out: the sign-in / sign-up flow.
-  const goApp = () => navigate(user ? '/dashboard' : '/login');
+  // Always route through /login: it knows where everyone belongs. Signed-out
+  // visitors get the sign-in / sign-up flow; signed-in users with a store are
+  // forwarded to the dashboard; anyone mid-setup sees the already-signed-in
+  // screen instead of being dropped straight into onboarding.
+  const goApp = () => navigate('/login');
 
   return (
     <div className="min-h-screen overflow-hidden bg-white text-zinc-900 selection:bg-emerald-600 selection:text-white">
@@ -880,7 +883,6 @@ function CompareCell({ value, highlight = false }) {
 
 function PriceCard({ title, price, period, note, text, items, excluded = [], cta, featured }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
   return (
     <div
       className={`rounded-3xl border bg-white p-7 ${
@@ -918,7 +920,7 @@ function PriceCard({ title, price, period, note, text, items, excluded = [], cta
         ))}
       </ul>
       <button
-        onClick={() => navigate(user ? '/dashboard' : '/login')}
+        onClick={() => navigate('/login')}
         className={`mt-8 w-full rounded-full px-4 py-3 text-sm font-semibold transition-colors ${
           featured
             ? 'bg-emerald-600 text-white hover:bg-emerald-500'
