@@ -91,10 +91,12 @@ backend is configured.
 - ✨ **StoreSense assistant (Owner Mode)**: an in-app co-pilot for stores on
   the Owner Mode plan. Once a store subscribes, every approved member of that
   store can use it (owner, admin, manager, cashier), and each role's existing
-  permissions still apply. It answers questions across POS, inventory, sales,
-  credit, expenses, reports, team and settings using the current store data,
-  can guide raw inventory entry with SKU generation, and links into the
-  relevant screen. It works offline with local
+  permissions still apply. It uses a live, role-filtered snapshot across the
+  whole store: products and categories, stock and valuation, per-product sales,
+  payment mix, credit, expenses and profit, voids, team totals, plan details and,
+  in Pharmacy Mode, batches, suppliers, purchases, prescriptions and controlled
+  medicines. It can guide raw inventory entry with SKU generation and links into
+  the relevant screen. It works offline with local
   insights and can use an optional server-side Gemini endpoint when
   `GOOGLE_API_KEY` is configured.
   **Spoken replies**: a speaker button in the StoreSense header makes it read
@@ -197,9 +199,11 @@ optionally set `GOOGLE_AI_MODEL` (default: `gemini-2.5-flash`).
 `GEMINI_API_KEY` is also supported. The bundled `api/assistant.js` endpoint
 keeps that key out of the browser; it validates the signed-in Supabase user,
 re-checks the store's plan through `get_my_membership()` (so a Shop Mode store
-cannot call the paid endpoint directly) and receives only aggregate store
-metrics, never raw customer names, emails or receipts. If the endpoint is
-unavailable, the local insight fallback continues to work.
+cannot call the paid endpoint directly) and receives a bounded, role-filtered
+operational snapshot. It includes catalogue and other business labels plus
+aggregates, but never customer or patient names, staff emails, contact details
+or raw receipts. If the endpoint is unavailable, the local insight fallback
+continues to work.
 
 4. `npm run dev`; the app automatically switches to the Supabase backend
    (multi-tenant with row-level security; checkout and voiding run as

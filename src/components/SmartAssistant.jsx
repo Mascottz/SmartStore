@@ -21,6 +21,7 @@ import { api } from '../lib/backend';
 import { askAssistant, buildAssistantContext, canUseAssistant } from '../lib/assistant';
 
 const SUGGESTIONS = [
+  { label: 'Give me a store overview', value: 'Give me a store overview' },
   { label: 'How are sales today?', value: 'How are sales today?' },
   { label: 'What needs restocking?', value: 'What needs restocking?' },
   { label: 'What is selling best?', value: 'What is selling best?' },
@@ -69,7 +70,20 @@ export default function SmartAssistant() {
 function AssistantPanel() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, storeId, storeName, niche, role } = useAuth();
+  const {
+    user,
+    storeId,
+    storeName,
+    niche,
+    role,
+    plan,
+    billingCycle,
+    storeIsDemo,
+  } = useAuth();
+  const managementAccess = ['owner', 'admin', 'manager'].includes(role);
+  const teamAccess = ['owner', 'admin'].includes(role);
+  const isPharmacy = Boolean(niche.pharmacy);
+
   const { data: sales } = useStoreData(
     () => (storeId ? api.sales.list(storeId) : []),
     [storeId]
@@ -78,18 +92,47 @@ function AssistantPanel() {
     () => (storeId ? api.products.list(storeId) : []),
     [storeId]
   );
-  const { data: expenses } = useStoreData(
-    () => (storeId ? api.expenses.list(storeId) : []),
+  const { data: categories } = useStoreData(
+    () => (storeId ? api.categories.list(storeId) : []),
     [storeId]
+  );
+  const { data: expenses } = useStoreData(
+    () => (storeId && managementAccess ? api.expenses.list(storeId) : []),
+    [storeId, managementAccess]
   );
   const { data: creditPayments } = useStoreData(
     () => (storeId ? api.creditPayments.list(storeId) : []),
     [storeId]
   );
-  // Pharmacy Mode: batch aggregates power the expiry answers.
-  const isPharmacy = Boolean(niche.pharmacy);
+  const { data: voidLogs } = useStoreData(
+    () => (storeId && managementAccess ? api.voidLogs.list(storeId) : []),
+    [storeId, managementAccess]
+  );
+  const { data: team } = useStoreData(
+    () => (storeId && teamAccess ? api.team.list(storeId) : []),
+    [storeId, teamAccess]
+  );
   const { data: batches } = useStoreData(
     () => (storeId && isPharmacy ? api.batches.list(storeId) : []),
+    [storeId, isPharmacy]
+  );
+  const { data: suppliers } = useStoreData(
+    () =>
+      storeId && isPharmacy && managementAccess ? api.suppliers.list(storeId) : [],
+    [storeId, isPharmacy, managementAccess]
+  );
+  const { data: purchases } = useStoreData(
+    () =>
+      storeId && isPharmacy && managementAccess ? api.purchases.list(storeId) : [],
+    [storeId, isPharmacy, managementAccess]
+  );
+  const { data: prescriptions } = useStoreData(
+    () => (storeId && isPharmacy ? api.prescriptions.list(storeId) : []),
+    [storeId, isPharmacy]
+  );
+  const { data: dispensings } = useStoreData(
+    () =>
+      storeId && isPharmacy ? api.prescriptions.dispensings.list(storeId) : [],
     [storeId, isPharmacy]
   );
 
@@ -107,14 +150,44 @@ function AssistantPanel() {
         storeName,
         niche,
         role,
+        plan,
+        billingCycle,
+        storeIsDemo,
         currentPath: location.pathname,
         sales,
         products,
+        categories,
         expenses,
         creditPayments,
+        voidLogs,
+        team,
         batches,
+        suppliers,
+        purchases,
+        prescriptions,
+        dispensings,
       }),
-    [storeName, niche, role, location.pathname, sales, products, expenses, creditPayments, batches]
+    [
+      storeName,
+      niche,
+      role,
+      plan,
+      billingCycle,
+      storeIsDemo,
+      location.pathname,
+      sales,
+      products,
+      categories,
+      expenses,
+      creditPayments,
+      voidLogs,
+      team,
+      batches,
+      suppliers,
+      purchases,
+      prescriptions,
+      dispensings,
+    ]
   );
 
   // What the spoken answers need to know about this particular store:
