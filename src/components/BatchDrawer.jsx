@@ -1,6 +1,6 @@
 // src/components/BatchDrawer.jsx
 // Pharmacy Mode: the per-product batch manager. This is where pharmacy
-// stock actually lives — every delivery arrives as a batch with its own
+// stock actually lives - every delivery arrives as a batch with its own
 // number, expiry date, quantity, cost and supplier, and every sale is
 // allocated from these batches FEFO (soonest expiry first).
 //
@@ -175,7 +175,7 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
       await api.batches.update(batch.id, { status: next });
       toast.success(
         next === 'quarantined'
-          ? 'Batch quarantined — it can no longer be dispensed.'
+          ? 'Batch quarantined: it can no longer be dispensed.'
           : 'Batch restored to active stock.'
       );
     } catch (e) {
@@ -188,7 +188,7 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
     try {
       await api.batches.update(batch.id, { status: 'recalled' });
       toast.success(
-        'Batch marked recalled — it can no longer be dispensed. Trace where it went with the search action.'
+        'Batch marked recalled: it can no longer be dispensed. Trace where it went with the search action.'
       );
     } catch (e) {
       console.error(e);
@@ -197,7 +197,7 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
   };
 
   // Where did this batch go? Every receipt whose line items carry an
-  // allocation from this exact batch — the list a recall needs.
+  // allocation from this exact batch - the list a recall needs.
   const openTrace = async (batch) => {
     setTraceTarget(batch);
     setTraceResults(null);
@@ -503,7 +503,7 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
                           ) : (
                             <>
                               <td className="px-3 py-2.5 font-mono text-xs">
-                                {batch.batchNo || '—'}
+                                {batch.batchNo || '-'}
                               </td>
                               <td className="px-3 py-2.5">
                                 <span
@@ -526,7 +526,7 @@ export default function BatchDrawer({ product, batches = [], onClose }) {
                                 {fmtMoney(batch.costPrice)}
                               </td>
                               <td className="px-3 py-2.5 text-zinc-500">
-                                {batch.supplier || '—'}
+                                {batch.supplier || '-'}
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="flex justify-end gap-1">

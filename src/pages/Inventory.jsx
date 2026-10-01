@@ -139,7 +139,7 @@ export default function Inventory() {
 
   // Expiry watch: active bucketed by how soon each batch expires, with the
   // money tied up in each bucket. Expired stock is stock that cannot be
-  // sold — the number a pharmacist wants front and centre.
+  // sold - the number a pharmacist wants front and centre.
   const expiryWatch = useMemo(() => {
     if (!isPharmacy) return null;
     const byBucket = { expired: { units: 0, value: 0 }, d30: { units: 0, value: 0 }, d60: { units: 0, value: 0 }, d90: { units: 0, value: 0 } };
@@ -306,7 +306,7 @@ export default function Inventory() {
         isControlled: isPharmacy && Boolean(form.isControlled),
       };
 
-      // Pharmacy products open life with their first batch — stock and
+      // Pharmacy products open life with their first batch - stock and
       // expiry are batch-tracked from the very first unit.
       if (isPharmacy && !editingId) {
         const openingQty = Math.max(0, Math.floor(Number(form.stock) || 0));
@@ -472,7 +472,7 @@ export default function Inventory() {
         p.stock,
         p.expiryDate || '',
         (batchesByProduct.get(p.id) || [])
-          .map((b) => `${b.batchNo || '—'}:${b.qty}:${b.expiryDate || 'no expiry'}`)
+          .map((b) => `${b.batchNo || '-'}:${b.qty}:${b.expiryDate || 'no expiry'}`)
           .join(' | '),
       ]);
       downloadCsv(`${store?.name || 'inventory'}-export`, headers, rows);
@@ -599,7 +599,7 @@ export default function Inventory() {
               Expiry watch
               <HelpTip
                 label="Help: Expiry watch"
-                text="Every active batch bucketed by how soon it expires, with what that stock cost. Expired and quarantined batches are never dispensed — quarantine them from a product's batch drawer."
+                text="Every active batch bucketed by how soon it expires, with what that stock cost. Expired and quarantined batches are never dispensed: quarantine them from a product's batch drawer."
               />
             </h2>
             <p className="text-xs text-zinc-500">
@@ -729,7 +729,7 @@ export default function Inventory() {
                         {p.isControlled && (
                           <span
                             className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30"
-                            title="Controlled medicine — recorded in the controlled register"
+                            title="Controlled medicine - recorded in the controlled register"
                           >
                             CD
                           </span>
@@ -1235,7 +1235,7 @@ Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
                       <span className="text-[10px] font-bold text-red-600 dark:text-red-400 border border-red-500/30 rounded px-1">
                         Rx
                       </span>{' '}
-                      — the till asks for a prescription check before selling
+                      - the till asks for a prescription check before selling
                     </span>
                   </label>
                   <label className="flex items-center gap-2.5 text-sm cursor-pointer">
@@ -1251,7 +1251,7 @@ Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
                       <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 border border-purple-500/30 rounded px-1">
                         CD
                       </span>{' '}
-                      — every dispensing is written to the Controlled Register
+                      - every dispensing is written to the Controlled Register
                     </span>
                   </label>
                 </div>

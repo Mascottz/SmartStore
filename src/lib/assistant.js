@@ -98,7 +98,7 @@ export function buildAssistantContext({
     .filter((expense) => inWindow(expense.date || expense.createdAt, monthStart))
     .reduce((total, expense) => total + Number(expense.amount || 0), 0);
 
-  // Pharmacy Mode: batch aggregates only — no patient or prescription data
+  // Pharmacy Mode: batch aggregates only - no patient or prescription data
   // ever enters the assistant context. Expired and near-expiry stock is the
   // operational question StoreSense answers best.
   const pharmacy = niche?.pharmacy

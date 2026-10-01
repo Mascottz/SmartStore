@@ -80,7 +80,7 @@ describe('local adapter: pharmacy operations (Phase 2)', () => {
     const purchases = await localAdapter.purchases.list(store.id);
     expect(purchases).toHaveLength(1);
     expect(purchases[0].supplierId).toBeNull();
-    // The supplier name survives on the line — the trace stays readable.
+    // The supplier name survives on the line - the trace stays readable.
     expect(purchases[0].items[0].name).toBe('Amoxil 500mg');
   });
 

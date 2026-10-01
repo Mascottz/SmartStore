@@ -48,7 +48,7 @@ const categoryOf = (p) => (p?.category || '').trim() || 'General';
 export default function POS() {
   const { storeId, user, role, niche, store, storeName, firstSaleCompleted } = useAuth();
 
-  // Pharmacy Mode: the register dispenses from batches (FEFO — soonest
+  // Pharmacy Mode: the register dispenses from batches (FEFO - soonest
   // expiry first) and checks prescriptions for Rx items at the till.
   const isPharmacy = Boolean(niche.pharmacy);
 
@@ -90,7 +90,7 @@ export default function POS() {
 
   /**
    * How many units of each product can actually be dispensed right now.
-   * For batch-tracked medicines that is in-date, active stock — a shelf of
+   * For batch-tracked medicines that is in-date, active stock - a shelf of
    * expired or quarantined batches is "out of stock" no matter what the
    * rollup says.
    */
@@ -747,7 +747,7 @@ export default function POS() {
                     {p.isControlled && (
                       <span
                         className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 shrink-0"
-                        title="Controlled medicine — recorded in the controlled register"
+                        title="Controlled medicine - recorded in the controlled register"
                       >
                         CD
                       </span>
@@ -907,7 +907,7 @@ export default function POS() {
                       {Boolean(item.isControlled) && (
                         <span
                           className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 shrink-0"
-                          title="Controlled medicine — recorded in the controlled register"
+                          title="Controlled medicine - recorded in the controlled register"
                         >
                           CD
                         </span>
@@ -1089,7 +1089,7 @@ export default function POS() {
       />
 
       {/* Prescription check for Rx / controlled lines. SmartStore only
-          records that the check happened — the judgment is the
+          records that the check happened - the judgment is the
           pharmacist's. Controlled lines additionally name the verifying
           pharmacist for the controlled register. */}
       {showRxConfirm && (
@@ -1139,7 +1139,7 @@ export default function POS() {
                   </select>
                 ) : (
                   <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-xl px-3 py-2">
-                    No pharmacist is flagged on your team yet — the dispensing
+                    No pharmacist is flagged on your team yet - the dispensing
                     will be recorded without a named verifier. Flag licensed
                     pharmacists in Team so the controlled register shows who
                     signed off.
@@ -1166,7 +1166,7 @@ export default function POS() {
                 disabled={isCompleting}
                 className="flex-1 px-4 py-3 rounded-2xl bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 disabled:opacity-50"
               >
-                Prescription checked — dispense
+                Prescription checked - dispense
               </button>
             </div>
           </div>

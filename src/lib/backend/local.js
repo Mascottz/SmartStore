@@ -294,6 +294,7 @@ export const localAdapter = {
         userId,
         email: sanitize(email),
         role: 'owner',
+        isPharmacist: false,
         approvalStatus: 'approved',
         createdAt: new Date().toISOString(),
       });
@@ -351,6 +352,7 @@ export const localAdapter = {
         userId,
         email: sanitize(email),
         role: 'cashier',
+        isPharmacist: false,
         approvalStatus: memberApprovalStatus,
         createdAt: new Date().toISOString(),
       });

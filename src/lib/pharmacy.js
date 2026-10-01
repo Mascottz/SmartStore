@@ -1,7 +1,7 @@
 // src/lib/pharmacy.js
 // Pharmacy Mode domain logic, shared by the POS preview, the local
 // (localStorage) backend and the UI. The Supabase RPCs implement the same
-// rules in SQL — keep them in sync when changing anything here.
+// rules in SQL - keep them in sync when changing anything here.
 //
 // The core model: a pharmacy product's stock lives in *batches*. Each batch
 // carries its own batch number, expiry date, quantity and supplier. Selling
@@ -32,7 +32,7 @@ export function daysUntil(dateStr, today = new Date()) {
   return Math.round((target.getTime() - base.getTime()) / MS_PER_DAY);
 }
 
-/** A batch with no expiry date is never "expired" — it just sorts last. */
+/** A batch with no expiry date is never "expired" - it just sorts last. */
 export function isExpired(batch, today = new Date()) {
   const days = daysUntil(batch?.expiryDate, today);
   return days != null && days < 0;
@@ -79,7 +79,7 @@ export function sellableQty(batches, today = new Date()) {
 /**
  * Split `qty` across the product's batches FEFO. Returns the allocations
  * (each carrying enough batch identity for receipts, recalls and voids) and
- * how many units could not be covered — `remaining` > 0 means the sale must
+ * how many units could not be covered - `remaining` > 0 means the sale must
  * be refused or the quantity reduced.
  */
 export function allocateFefo(batches, qty, today = new Date()) {

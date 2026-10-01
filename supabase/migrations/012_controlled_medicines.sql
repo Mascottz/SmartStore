@@ -1,16 +1,16 @@
 -- ============================================================
 -- Pharmacy Mode Phase 3: controlled medicines & pharmacist oversight
 --
--- 1. products.is_controlled — the PCN-style flag for medicines that need a
+-- 1. products.is_controlled - the PCN-style flag for medicines that need a
 --    controlled-substance register (opioid analgesics, sedatives, etc.).
 --    Controlled medicines are also prescription-only in practice; is_rx and
 --    is_controlled are kept separate so the register and the Rx gate can
 --    evolve independently.
--- 2. sales.verified_by — the team member (a flagged pharmacist) who verified
+-- 2. sales.verified_by - the team member (a flagged pharmacist) who verified
 --    the prescription check for a sale containing prescription-only or
 --    controlled lines. SmartStore records who verified; the professional
 --    judgment stays with them.
--- 3. store_members.is_pharmacist — marks which team members are licensed
+-- 3. store_members.is_pharmacist - marks which team members are licensed
 --    pharmacists, so the POS can offer them as the verifying pharmacist and
 --    the Team page can flag them.
 --

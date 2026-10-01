@@ -1,4 +1,4 @@
--- SmartStore NG: Pharmacy Mode — batch-aware stock, FEFO dispensing
+-- SmartStore NG: Pharmacy Mode - batch-aware stock, FEFO dispensing
 --
 -- A pharmacy product's stock is no longer one number with one expiry date;
 -- it is a set of batches, each carrying its own batch number, expiry date,
@@ -9,8 +9,8 @@
 -- Backwards compatibility is deliberate: products.stock stays the sum of
 -- the product's active batches and products.expiry_date mirrors the
 -- earliest active batch expiry (maintained by the trigger below), so every
--- existing consumer — POS tiles, low-stock lists, mobile inventory,
--- reports, exports — keeps working unchanged. Non-pharmacy stores never
+-- existing consumer - POS tiles, low-stock lists, mobile inventory,
+-- reports, exports - keeps working unchanged. Non-pharmacy stores never
 -- grow batch rows and behave exactly as before.
 --
 -- The client-side rules live in src/lib/pharmacy.js; this migration is the
@@ -107,7 +107,7 @@ for each row execute function public.sync_product_stock_from_batches();
 -- and the data becomes batch-aware without anyone retyping anything.
 -- Products whose expiry has already passed stay 'active' on purpose: the
 -- stock remains visible, the POS refuses to dispense it, and the expiry
--- dashboard flags it for quarantine — which is exactly the conversation a
+-- dashboard flags it for quarantine - which is exactly the conversation a
 -- pharmacist needs to have with that shelf.
 insert into public.product_batches
   (store_id, product_id, batch_no, expiry_date, qty, cost_price, supplier, status)

@@ -13,8 +13,8 @@ backend is configured.
 
 - 🏪 **Multi-niche onboarding**: Supermarket, Boutique, Pharmacy, Restaurant, Salon/Services, Other
 - 💊 **Pharmacy Mode** (stores onboarded as a Pharmacy): medicines are tracked **batch by
-  batch** — each delivery carries its own batch number, expiry date, quantity, cost and
-  supplier — and sales dispense **FEFO** (first-expiry-first-out), so the soonest-expiring
+  batch** - each delivery carries its own batch number, expiry date, quantity, cost and
+  supplier - and sales dispense **FEFO** (first-expiry-first-out), so the soonest-expiring
   batch always sells first. The batch allocation is written into every sale line and
   printed on the receipt for traceability and recalls
   - **Inventory** grows a per-product batch drawer (receive stock, edit, quarantine,
@@ -23,34 +23,34 @@ backend is configured.
   - **POS** shows in-date stock on tiles (a shelf of expired or quarantined batches
     cannot be sold, even when the rollup is non-zero), previews the FEFO batches each
     cart line will be dispensed from, and gates prescription-only (**Rx**) medicines
-    behind a "prescription checked?" confirmation — SmartStore records the check, the
+    behind a "prescription checked?" confirmation - SmartStore records the check, the
     professional judgment stays with the pharmacist
   - **Dashboard** adds the expiry watch, and the StoreSense assistant answers expiry
-    questions from batch aggregates ("what's expiring soon?") — never clinical ones
+    questions from batch aggregates ("what's expiring soon?") - never clinical ones
   - **Medicine fields**: generic name, strength, dosage form, pack size and the Rx flag
   - **Suppliers & purchase receiving**: record who you buy from (Suppliers) and every
-    delivery against them (Purchases) — supplier, invoice/waybill reference, and lines of
+    delivery against them (Purchases) - supplier, invoice/waybill reference, and lines of
     medicine + quantity + batch number + expiry + unit cost. Each recorded line **becomes
     a batch in one transaction**, so stock arrives traced to source instead of by editing
     numbers; the purchase ledger keeps the delivery history (at-cost totals, what was
     received, by whom)
   - **Prescriptions with part-dispensing**: record the script (patient, prescriber,
     medicines and quantities), then dispense **fully or in part across visits**. Each
-    dispensing runs through the normal sale engine — FEFO allocation, receipt, stock
-    movement — and the script keeps a running balance per line until complete, with a
+    dispensing runs through the normal sale engine - FEFO allocation, receipt, stock
+    movement - and the script keeps a running balance per line until complete, with a
     dispensing audit trail linking every receipt (and its batches) back to the script.
     Payment at pickup is settled methods only (Cash / Transfer / POS); part-payment and
     credit sales go through the POS as usual
   - **Batch recall & trace**: any batch can be marked **recalled** (or quarantined) from
-    the batch drawer — it leaves sellable stock immediately — and a one-click **trace**
+    the batch drawer - it leaves sellable stock immediately - and a one-click **trace**
     lists every receipt that batch was dispensed on, with quantities, dates and cashier:
     the list a recall needs
   - **Controlled medicines & pharmacist oversight**: medicines can be flagged
     **controlled** (CD) alongside Rx. The till's prescription check then names the
     **verifying pharmacist** (team members flagged as licensed pharmacists in Team),
-    and every controlled dispensing lands in the **Controlled Register** — what left
+    and every controlled dispensing lands in the **Controlled Register** - what left
     the shelf, from which batch, for which patient (linked to the prescription when
-    there is one), who prescribed and who verified — searchable, exportable as CSV and
+    there is one), who prescribed and who verified - searchable, exportable as CSV and
     printable for inspection. Receipts mark CD lines and name the verifier
   - **Refill nudges**: open prescriptions with a phone number get a one-tap WhatsApp
     reminder (pre-written message listing the balance still owed), and the page header
@@ -108,7 +108,7 @@ backend is configured.
 - 🎬 **Public demo & marketing site**: a landing page with a Point of Sale showcase, an
   Owner Modes section (benefits & restrictions of free vs Owner Mode) and a one-click
   `/demo` page that seeds a fully populated store (as a yearly Owner Mode subscriber),
-  no sign-up needed — including a dedicated **Pharmacy Mode demo** (Healthway Pharmacy)
+  no sign-up needed - including a dedicated **Pharmacy Mode demo** (Healthway Pharmacy)
   stocked with realistic multi-batch medicines, an expired batch, a quarantined one,
   Rx dispensing history and the expiry watch live
 - 🚀 **Launch routing**: a fresh open in a browser tab always shows the landing page
@@ -146,7 +146,7 @@ npm run build
 
 With no env vars set, the app runs entirely on localStorage. For a pre-seeded
 store, click **“Try the demo store”** on the login screen, or open the public
-**`/demo`** page and choose **“Enter the demo store”** — or **“Try the Pharmacy
+**`/demo`** page and choose **“Enter the demo store”** - or **“Try the Pharmacy
 Mode demo”** for a fully stocked, batch-tracked pharmacy.
 
 ## Going live with Supabase

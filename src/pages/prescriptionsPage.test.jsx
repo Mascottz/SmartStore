@@ -1,6 +1,6 @@
 // The Prescriptions page: recording a script, dispensing part of it through
 // the sale engine, and watching the balance stay open. The api layer is
-// mocked here — the adapters' behaviour is pinned in pharmacyOperations.test.
+// mocked here - the adapters' behaviour is pinned in pharmacyOperations.test.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

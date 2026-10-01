@@ -64,7 +64,7 @@ export function notifyChange(topic = '*') {
 // Wrap all mutating namespaces so every successful write fires an event.
 // `extraTopics` is for writes that also change other collections (a credit
 // repayment moves the sale's amountPaid, for example). Namespaces may nest
-// (prescriptions.dispensings) — those pass through untouched.
+// (prescriptions.dispensings) - those pass through untouched.
 function withNotify(ns, topic, mutatingKeys, extraTopics = []) {
   const wrapped = {};
   for (const key of Object.keys(ns)) {

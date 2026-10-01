@@ -1,4 +1,4 @@
--- SmartStore NG: Pharmacy Mode Phase 2 — purchasing & prescriptions
+-- SmartStore NG: Pharmacy Mode Phase 2 - purchasing & prescriptions
 --
 -- Phase 1 (010) made stock batch-aware. This migration adds the operations
 -- around those batches:
@@ -15,7 +15,7 @@
 --                        audit trail a recall or inspector asks for
 --
 -- As everywhere in Pharmacy Mode: aggregate/operational data only. No
--- clinical notes, no diagnoses — the record says what was prescribed and
+-- clinical notes, no diagnoses - the record says what was prescribed and
 -- what was dispensed, never why.
 
 -- ============================================================ suppliers

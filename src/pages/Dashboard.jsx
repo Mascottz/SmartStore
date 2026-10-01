@@ -224,7 +224,7 @@ export default function Dashboard() {
       </div>
 
       {/* Pharmacy expiry watch: the first question of a pharmacist's
-          morning — what is expired or about to be. */}
+          morning - what is expired or about to be. */}
       {expiryWatch && (
         <section
           aria-label="Expiry watch"

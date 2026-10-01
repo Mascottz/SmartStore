@@ -159,15 +159,15 @@ export default function Suppliers() {
                         {s.name}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-zinc-500">{s.phone || '—'}</td>
-                    <td className="px-5 py-3 text-zinc-500">{s.email || '—'}</td>
+                    <td className="px-5 py-3 text-zinc-500">{s.phone || '-'}</td>
+                    <td className="px-5 py-3 text-zinc-500">{s.email || '-'}</td>
                     <td className="px-5 py-3 text-right">
                       <span className="text-xs font-semibold px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
                         {purchaseCountBySupplier.get(s.id) || 0}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-zinc-500 max-w-xs truncate">
-                      {s.notes || '—'}
+                      {s.notes || '-'}
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-1">

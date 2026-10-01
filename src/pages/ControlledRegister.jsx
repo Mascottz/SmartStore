@@ -4,7 +4,7 @@
 // Every dispensing of a controlled medicine, on one page: what left the
 // shelf, which batch it came from, who it went to, who verified the
 // prescription check and on which receipt. The register needs no table of
-// its own — it is a view over the sales ledger (items carry isControlled and
+// its own - it is a view over the sales ledger (items carry isControlled and
 // the FEFO batch allocation) joined to the prescription dispensing trail.
 //
 // This is a record book for inspection and recall, not a compliance
@@ -166,9 +166,9 @@ export default function ControlledRegister() {
                 .join(', ')
             )}</td>
             <td>${escapeHtml(e.patient)}</td>
-            <td>${escapeHtml(e.prescriber || '—')}</td>
-            <td>${escapeHtml(e.verifiedBy || '—')}</td>
-            <td>${escapeHtml(e.cashier || '—')}</td>
+            <td>${escapeHtml(e.prescriber || '-')}</td>
+            <td>${escapeHtml(e.verifiedBy || '-')}</td>
+            <td>${escapeHtml(e.cashier || '-')}</td>
           </tr>`
         )
       )
@@ -185,7 +185,7 @@ export default function ControlledRegister() {
         @media print { body { margin: 8mm; } }
       </style></head><body>
       <h1>Controlled medicines register</h1>
-      <p class="sub">${escapeHtml(storeName || '')} — printed ${escapeHtml(
+      <p class="sub">${escapeHtml(storeName || '')} - printed ${escapeHtml(
         new Date().toLocaleString('en-NG')
       )} · ${filtered.length} dispensing${filtered.length === 1 ? '' : 's'}</p>
       <table><thead><tr>
@@ -206,7 +206,7 @@ export default function ControlledRegister() {
             Controlled Register
             <HelpTip
               label="Help: Controlled Register"
-              text="Every dispensing of a controlled medicine: what left the shelf, from which batch, for which patient, and which pharmacist verified it. Built from your sales and prescription records — export it as CSV or print it for inspection."
+              text="Every dispensing of a controlled medicine: what left the shelf, from which batch, for which patient, and which pharmacist verified it. Built from your sales and prescription records - export it as CSV or print it for inspection."
             />
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
@@ -307,7 +307,7 @@ export default function ControlledRegister() {
                           {(Array.isArray(line.batches) ? line.batches : []).length > 0 && (
                             <span className="block text-[11px] text-zinc-500 font-mono">
                               {(Array.isArray(line.batches) ? line.batches : [])
-                                .map((b) => `${b.batchNo || '—'} ×${b.qty}`)
+                                .map((b) => `${b.batchNo || '-'} ×${b.qty}`)
                                 .join(' · ')}
                             </span>
                           )}
@@ -320,7 +320,7 @@ export default function ControlledRegister() {
                         <p className="text-[11px] text-zinc-500 font-mono">{e.rxCode}</p>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-zinc-500">{e.prescriber || '—'}</td>
+                    <td className="px-5 py-3 text-zinc-500">{e.prescriber || '-'}</td>
                     <td className="px-5 py-3">
                       {e.verifiedBy ? (
                         <span className="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">

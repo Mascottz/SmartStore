@@ -210,7 +210,7 @@ export default function Team() {
                       {isPharmacy && m.isPharmacist && (
                         <span
                           className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30"
-                          title="Licensed pharmacist — can be named as verifying prescription checks"
+                          title="Licensed pharmacist - can be named as verifying prescription checks"
                         >
                           <Pill className="w-3 h-3" />
                           Pharmacist
@@ -231,7 +231,7 @@ export default function Team() {
                                   : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:text-purple-500 hover:border-purple-500/40'
                               }`}
                               aria-label={`Toggle pharmacist flag for ${m.email}`}
-                              title="Flag licensed pharmacists — they can be named as verifying prescription checks at the till"
+                              title="Flag licensed pharmacists - they can be named as verifying prescription checks at the till"
                             >
                               <span className="inline-flex items-center gap-1">
                                 <Pill className="w-3 h-3" />

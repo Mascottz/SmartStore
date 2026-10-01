@@ -4,11 +4,11 @@
 // A prescription records what was prescribed (patient, prescriber, medicines
 // and quantities) and what has been dispensed against it. Dispensing runs
 // through the normal sale engine, so FEFO allocation, receipts, batch
-// traceability and voids all behave exactly like a till sale — the script
+// traceability and voids all behave exactly like a till sale - the script
 // simply advances its line quantities and keeps the audit trail.
 //
 // Deliberate scope: operational record-keeping only. No clinical notes, no
-// diagnoses, no dosage instructions — what and how much, never why.
+// diagnoses, no dosage instructions - what and how much, never why.
 import { useMemo, useState } from 'react';
 import {
   Plus,
@@ -253,8 +253,8 @@ export default function Prescriptions() {
       });
       toast.success(
         prescription.status === 'dispensed'
-          ? `Dispensed ${sale.receiptNo} — prescription ${dispenseTarget.code} complete.`
-          : `Dispensed ${sale.receiptNo} — ${dispenseTarget.code} stays open for the balance.`
+          ? `Dispensed ${sale.receiptNo}. Prescription ${dispenseTarget.code} complete.`
+          : `Dispensed ${sale.receiptNo}. ${dispenseTarget.code} stays open for the balance.`
       );
       setDispenseTarget(null);
     } catch (e) {
@@ -380,7 +380,7 @@ export default function Prescriptions() {
                         )}
                       </td>
                       <td className="px-5 py-3 text-zinc-500">
-                        {rx.prescriber || '—'}
+                        {rx.prescriber || '-'}
                       </td>
                       <td className="px-5 py-3">
                         <span
@@ -752,7 +752,7 @@ export default function Prescriptions() {
                   </select>
                 ) : (
                   <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-xl px-3 py-2">
-                    No pharmacist is flagged on your team yet — this dispensing
+                    No pharmacist is flagged on your team yet - this dispensing
                     will be recorded without a named verifier. Flag licensed
                     pharmacists in Team.
                   </p>
@@ -807,7 +807,7 @@ export default function Prescriptions() {
               </p>
               <p>
                 <span className="text-zinc-500">Prescriber:</span>{' '}
-                <span className="font-medium">{viewTarget.prescriber || '—'}</span>
+                <span className="font-medium">{viewTarget.prescriber || '-'}</span>
               </p>
               {viewTarget.patientPhone && (
                 <p>

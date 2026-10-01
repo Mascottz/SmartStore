@@ -174,7 +174,7 @@ describe('POS: pharmacy mode', () => {
 
     // Confirming the check completes the sale.
     await userEvent.click(
-      screen.getByRole('button', { name: 'Prescription checked — dispense' })
+      screen.getByRole('button', { name: 'Prescription checked - dispense' })
     );
     await waitFor(() => expect(api.sales.create).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('dialog', { name: 'Prescription check' })).toBeNull();
@@ -216,7 +216,7 @@ describe('POS: pharmacy mode', () => {
     expect(within(dialog).queryByText('cashier@healthway.ng (you)')).toBeNull();
 
     await userEvent.click(
-      within(dialog).getByRole('button', { name: 'Prescription checked — dispense' })
+      within(dialog).getByRole('button', { name: 'Prescription checked - dispense' })
     );
     await waitFor(() => expect(api.sales.create).toHaveBeenCalledTimes(1));
     const payload = api.sales.create.mock.calls[0][1];

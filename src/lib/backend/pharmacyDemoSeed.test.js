@@ -126,4 +126,30 @@ describe('pharmacy demo seed', () => {
 
     expect(second).toBe(first);
   });
+
+  it('never touches real accounts: a fresh pharmacy store starts completely blank', async () => {
+    // The seeded medicines, suppliers, deliveries and prescriptions belong to
+    // the demo store only. A real sign-up that onboards as a pharmacy must
+    // land on an empty store, not sample data.
+    const email = `real-${Date.now()}@example.com`;
+    await localAdapter.auth.signUp({ email, password: 'secret123' });
+    const user = await localAdapter.auth.getUser();
+    const store = await localAdapter.stores.create(user.id, email, {
+      name: 'My Community Pharmacy',
+      type: 'pharmacy',
+      categories: ['Prescription Drugs'],
+    });
+
+    expect(await localAdapter.products.list(store.id)).toEqual([]);
+    expect(await localAdapter.batches.list(store.id)).toEqual([]);
+    expect(await localAdapter.sales.list(store.id)).toEqual([]);
+    expect(await localAdapter.suppliers.list(store.id)).toEqual([]);
+    expect(await localAdapter.purchases.list(store.id)).toEqual([]);
+    expect(await localAdapter.prescriptions.list(store.id)).toEqual([]);
+    expect(await localAdapter.prescriptions.dispensings.list(store.id)).toEqual([]);
+
+    // No pharmacist flags either: the owner opts in from the Team page.
+    const team = await localAdapter.team.list(store.id);
+    expect(team.map((m) => m.isPharmacist)).toEqual([false]);
+  });
 });

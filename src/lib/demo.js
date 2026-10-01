@@ -181,7 +181,7 @@ function backdate(dbKey, collection, id, date) {
 }
 
 // ---------------------------------------------------------------------------
-// Pharmacy Mode demo: a stocked community pharmacy with real batch depth —
+// Pharmacy Mode demo: a stocked community pharmacy with real batch depth -
 // FEFO stock, a near-expiry antimalarial, an expired paracetamol batch the
 // expiry watch flags, a quarantined inhaler batch and Rx medicines.
 // ---------------------------------------------------------------------------
@@ -220,7 +220,7 @@ const PHARMACY_PRODUCTS = [
     packSize: 'pack of 1000',
     costPrice: 4000,
     salePrice: 5500,
-    // An expired batch on the shelf — exactly what the expiry watch is for.
+    // An expired batch on the shelf - exactly what the expiry watch is for.
     openingBatch: { qty: 150, batchNo: 'PCM-118', expiryDate: isoIn(-12), supplier: 'Juhel' },
     extraBatches: [{ qty: 300, batchNo: 'PCM-126', expiryDate: isoIn(85), supplier: 'Juhel' }],
   },
@@ -355,7 +355,7 @@ const PHARMACY_PRODUCTS = [
     costPrice: 3800,
     salePrice: 5200,
     openingBatch: { qty: 20, batchNo: 'SAL-03', expiryDate: isoIn(250), supplier: 'GSK' },
-    // One damaged delivery sits quarantined — visible, never dispensed.
+    // One damaged delivery sits quarantined - visible, never dispensed.
     extraBatches: [{ qty: 8, batchNo: 'SAL-01', expiryDate: isoIn(250), supplier: 'GSK', quarantine: true }],
   },
   {
@@ -442,7 +442,7 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
     }
 
     // Dispensing history across the last weeks. Sales allocate FEFO, so the
-    // near-expiry batches above drain first — the demo shows real rotation.
+    // near-expiry batches above drain first - the demo shows real rotation.
     const now = Date.now();
     const day = 24 * 60 * 60 * 1000;
     const sampleSales = [
@@ -458,7 +458,7 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
       { daysAgo: 34, picks: [0, 3], method: 'Cash' },
       { daysAgo: 48, picks: [2, 2, 2, 7], method: 'Cash' },
       // Phase 3: a walk-in controlled dispensing, verified by the
-      // pharmacist — the Controlled Register's bread and butter.
+      // pharmacist - the Controlled Register's bread and butter.
       { daysAgo: 6, picks: [12, 8], method: 'Cash', verifiedBy: PHARMACY_DEMO_EMAIL },
     ];
 
@@ -514,7 +514,7 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
     backdate('smartstore-db', 'sales', creditSale.id, new Date(now - 2 * day));
 
     // Phase 2: the supply chain behind those batches. Suppliers first, then
-    // two recorded deliveries — receiving stock now happens through the
+    // two recorded deliveries - receiving stock now happens through the
     // Purchases page, exactly like this.
     const supplierIds = {};
     for (const s of [
@@ -602,7 +602,7 @@ export async function loginOrCreatePharmacyDemo({ localOnly = false } = {}) {
       cashierEmail: PHARMACY_DEMO_EMAIL,
     });
 
-    // Phase 3: a fully dispensed controlled script with a named verifier —
+    // Phase 3: a fully dispensed controlled script with a named verifier -
     // the Controlled Register opens with real, patient-linked history.
     const cdRx = await target.prescriptions.create(store.id, {
       patientName: 'Mrs. Iyabo Ogun',

@@ -750,7 +750,7 @@ export const supabaseAdapter = {
       return mapPurchase(data);
     },
     async remove(id) {
-      // Ledger row only — the physical batches it created are managed from
+      // Ledger row only - the physical batches it created are managed from
       // the batch drawer, not by deleting records.
       const { error } = await supabase.from('purchases').delete().eq('id', id);
       ensure(error);
@@ -981,7 +981,7 @@ export const supabaseAdapter = {
       return mapMember(data);
     },
     // Phase 3: licensed-pharmacist flag, independent of role. Same trust line
-    // as role changes — the "owner updates team" RLS policy governs.
+    // as role changes - the "owner updates team" RLS policy governs.
     async setPharmacist(memberId, isPharmacist) {
       const { data, error } = await supabase
         .from('store_members')

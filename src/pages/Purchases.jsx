@@ -1,6 +1,6 @@
 // src/pages/Purchases.jsx
 // Pharmacy Mode Phase 2: recording deliveries. A purchase captures the
-// supplier, their paperwork reference and every line received — and each line
+// supplier, their paperwork reference and every line received - and each line
 // becomes a real batch (number, expiry, cost, supplier) in one transaction,
 // so stock never again "arrives" by editing a number.
 import { useMemo, useState } from 'react';
@@ -128,7 +128,7 @@ export default function Purchases() {
         receivedBy: user?.email || '',
       });
       toast.success(
-        `Delivery recorded — ${cleanLines.length} batch${cleanLines.length === 1 ? '' : 'es'} received into stock.`
+        `Delivery recorded - ${cleanLines.length} batch${cleanLines.length === 1 ? '' : 'es'} received into stock.`
       );
       setShowNew(false);
     } catch (e) {
@@ -158,7 +158,7 @@ export default function Purchases() {
             Purchases
             <HelpTip
               label="Help: Purchases"
-              text="Every recorded delivery: supplier, their invoice or waybill reference, and the batches it brought in. Recording a delivery is how pharmacy stock arrives — each line becomes a batch with its own number, expiry and cost."
+              text="Every recorded delivery: supplier, their invoice or waybill reference, and the batches it brought in. Recording a delivery is how pharmacy stock arrives - each line becomes a batch with its own number, expiry and cost."
             />
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
@@ -213,11 +213,11 @@ export default function Purchases() {
                     </td>
                     <td className="px-5 py-3 font-medium">
                       {p.supplierId
-                        ? supplierById.get(p.supplierId)?.name || '—'
-                        : p.items?.[0]?.supplier || '—'}
+                        ? supplierById.get(p.supplierId)?.name || '-'
+                        : p.items?.[0]?.supplier || '-'}
                     </td>
                     <td className="px-5 py-3 font-mono text-xs text-zinc-500">
-                      {p.reference || '—'}
+                      {p.reference || '-'}
                     </td>
                     <td className="px-5 py-3 text-right text-zinc-500">
                       {(p.items || []).length}
@@ -462,10 +462,10 @@ export default function Purchases() {
                     >
                       <td className="px-3 py-2.5">{item.name}</td>
                       <td className="px-3 py-2.5 font-mono text-xs">
-                        {item.batchNo || '—'}
+                        {item.batchNo || '-'}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-zinc-500">
-                        {item.expiryDate ? fmtDate(item.expiryDate) : '—'}
+                        {item.expiryDate ? fmtDate(item.expiryDate) : '-'}
                       </td>
                       <td className="px-3 py-2.5 text-right font-semibold">{item.qty}</td>
                       <td className="px-3 py-2.5 text-right text-zinc-500">
@@ -488,7 +488,7 @@ export default function Purchases() {
         title="Delete purchase record?"
         message={
           deleteTarget
-            ? 'Only the ledger row is removed. The batches this delivery created stay in stock — adjust or remove them from the batch drawer if the delivery itself was a mistake.'
+            ? 'Only the ledger row is removed. The batches this delivery created stay in stock: adjust or remove them from the batch drawer if the delivery itself was a mistake.'
             : ''
         }
         confirmLabel="Delete record"
