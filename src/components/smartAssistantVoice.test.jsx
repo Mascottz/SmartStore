@@ -11,12 +11,15 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import SmartAssistant from './SmartAssistant';
 
-const { auth } = vi.hoisted(() => ({ auth: { value: {} } }));
+const { auth, storeData } = vi.hoisted(() => ({
+  auth: { value: {} },
+  storeData: { value: [] },
+}));
 
 vi.mock('../context/AuthContext', () => ({ useAuth: () => auth.value }));
 
 vi.mock('../hooks/useStoreData', () => ({
-  useStoreData: () => ({ data: [], loading: false, reload: () => {} }),
+  useStoreData: () => ({ data: storeData.value, loading: false, reload: () => {} }),
 }));
 
 // Local backend keeps askAssistant on its offline path, so the answers are
@@ -60,6 +63,7 @@ const askSomething = (user) => user.click(screen.getByRole('button', { name: 'Ho
 
 beforeEach(() => {
   auth.value = ownerMode();
+  storeData.value = [];
   globalThis.__resetSpeech();
   localStorage.clear();
 });
@@ -75,14 +79,25 @@ describe('the spoken-replies control', () => {
     expect(spokenTexts()).toHaveLength(0);
   });
 
-  it('confirms out loud when switched on, which also unlocks audio on iOS', async () => {
+  it('names the store when switched on, which also unlocks audio on iOS', async () => {
+    auth.value = ownerMode({ storeName: 'Crown Jewel Supermarket' });
+    const user = userEvent.setup();
+    renderAssistant();
+    await open(user);
+    await user.click(screen.getByRole('button', { name: /read answers aloud/i }));
+
+    expect(spokenTexts()).toEqual(['Spoken replies are on for Crown Jewel Supermarket.']);
+    expect(screen.getByRole('button', { name: /turn off spoken replies/i })).toBeTruthy();
+  });
+
+  it('falls back to a plain confirmation before the store name is known', async () => {
+    auth.value = ownerMode({ storeName: '' });
     const user = userEvent.setup();
     renderAssistant();
     await open(user);
     await user.click(screen.getByRole('button', { name: /read answers aloud/i }));
 
     expect(spokenTexts()).toEqual(['Spoken replies are on.']);
-    expect(screen.getByRole('button', { name: /turn off spoken replies/i })).toBeTruthy();
   });
 
   it('never appears for a Shop Mode store, which has no assistant at all', async () => {
@@ -119,7 +134,7 @@ describe('what gets read aloud', () => {
     await user.click(screen.getByRole('button', { name: /read answers aloud/i }));
 
     // Only the confirmation; the welcome message is never auto-spoken.
-    expect(spokenTexts()).toEqual(['Spoken replies are on.']);
+    expect(spokenTexts()).toEqual(['Spoken replies are on for Ada Stores.']);
   });
 
   it('stays silent while spoken replies are off', async () => {
@@ -156,6 +171,68 @@ describe('replaying an answer', () => {
     expect(listen.length).toBeGreaterThanOrEqual(2);
 
     await user.click(listen[listen.length - 1]);
+    await waitFor(() => expect(spokenTexts()).toHaveLength(1));
+    expect(spokenTexts()[0]).toContain('naira');
+  });
+});
+
+describe('speaking this store\u2019s own catalogue', () => {
+  // The point of a store-aware voice: the live catalogue reaches the
+  // speech layer, so pack sizes and product codes are said correctly.
+  const demoCatalogue = [
+    { id: 'p1', name: 'Peak Milk 400g', sku: 'PK-400', stock: 4, salePrice: 2800 },
+    { id: 'p2', name: 'Coca-Cola 50cl', sku: 'CC-50', stock: 9, salePrice: 400 },
+  ];
+
+  it('says the pack sizes properly in a restock answer', async () => {
+    storeData.value = demoCatalogue;
+    const user = userEvent.setup();
+    renderAssistant();
+    await open(user);
+    await user.click(screen.getByRole('button', { name: /read answers aloud/i }));
+    globalThis.__resetSpeech();
+
+    await user.click(screen.getByRole('button', { name: 'What needs restocking?' }));
+
+    await waitFor(() => expect(spokenTexts()).toHaveLength(1));
+    const spoken = spokenTexts()[0];
+    expect(spoken).toContain('Peak Milk 400 grams (4 left)');
+    expect(spoken).toContain('Coca-Cola 50 centilitres (9 left)');
+
+    // The screen still shows the catalogue name exactly as stored.
+    expect(screen.getByText(/Peak Milk 400g \(4 left\)/)).toBeTruthy();
+  });
+
+  it('pronounces the store\u2019s own name from its live profile', async () => {
+    // Unit expansion alone would pass without the store context ever
+    // reaching the speech layer, because it is generic. The store name is
+    // context-only, so this is what actually proves the wiring.
+    auth.value = ownerMode({ storeName: 'KM Supermart' });
+    storeData.value = demoCatalogue;
+    const user = userEvent.setup();
+    renderAssistant();
+    await open(user);
+
+    // Replay the greeting, which names the store.
+    const listen = await screen.findAllByRole('button', { name: /read this answer aloud/i });
+    await user.click(listen[0]);
+
+    await waitFor(() => expect(spokenTexts()).toHaveLength(1));
+    expect(spokenTexts()[0]).toContain('K M Supermart');
+    // On screen it stays exactly as the owner typed it.
+    expect(screen.getByText(/any part of KM Supermart/)).toBeTruthy();
+  });
+
+  it('stays generic for a store with an empty catalogue', async () => {
+    storeData.value = [];
+    const user = userEvent.setup();
+    renderAssistant();
+    await open(user);
+    await user.click(screen.getByRole('button', { name: /read answers aloud/i }));
+    globalThis.__resetSpeech();
+
+    await askSomething(user);
+
     await waitFor(() => expect(spokenTexts()).toHaveLength(1));
     expect(spokenTexts()[0]).toContain('naira');
   });

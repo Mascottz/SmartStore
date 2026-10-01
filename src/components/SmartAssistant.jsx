@@ -16,6 +16,7 @@ import StoreSenseMark from './StoreSenseMark';
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { useSpeechOutput } from '../hooks/useSpeech';
+import { buildSpeechContext } from '../lib/speech';
 import { api } from '../lib/backend';
 import { askAssistant, buildAssistantContext, canUseAssistant } from '../lib/assistant';
 
@@ -69,7 +70,6 @@ function AssistantPanel() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, storeId, storeName, niche, role } = useAuth();
-  const voice = useSpeechOutput(user?.id);
   const { data: sales } = useStoreData(
     () => (storeId ? api.sales.list(storeId) : []),
     [storeId]
@@ -109,6 +109,15 @@ function AssistantPanel() {
       }),
     [storeName, niche, role, location.pathname, sales, products, expenses, creditPayments]
   );
+
+  // What the spoken answers need to know about this particular store:
+  // its live product codes and its name. Rebuilt only when the catalogue
+  // changes, not on every message.
+  const speechContext = useMemo(
+    () => buildSpeechContext({ storeName, niche, products }),
+    [storeName, niche, products]
+  );
+  const voice = useSpeechOutput(user?.id, speechContext);
 
   // Replace the optimistic greeting once the store context is known.
   useEffect(() => {

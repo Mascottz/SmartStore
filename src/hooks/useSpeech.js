@@ -6,8 +6,12 @@
 // permission, so turning spoken replies on cannot fail or prompt the user.
 //
 // Usage:
-//   const voice = useSpeechOutput(user?.id);
+//   const voice = useSpeechOutput(user?.id, speechContext);
 //   if (voice.enabled) voice.speakMessage(message.id, message.text);
+//
+// `speechContext` comes from buildSpeechContext() and is what makes the
+// spoken answers store aware: this store's product codes and name are
+// pronounced properly instead of being read as words.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   cancelSpeech,
@@ -30,7 +34,7 @@ function needsKeepalive() {
   return /Chrome|Chromium|Edg/i.test(ua);
 }
 
-export function useSpeechOutput(userId) {
+export function useSpeechOutput(userId, speechContext = null) {
   const supported = isSpeechOutputSupported();
 
   const [enabled, setEnabled] = useState(false);
@@ -41,6 +45,10 @@ export function useSpeechOutput(userId) {
   const keepaliveRef = useRef(null);
   const enabledRef = useRef(false);
   enabledRef.current = enabled;
+  // Held in a ref so a catalogue reload does not rebuild every callback
+  // (and so an answer always speaks against the latest product codes).
+  const contextRef = useRef(speechContext);
+  contextRef.current = speechContext;
 
   const clearKeepalive = useCallback(() => {
     if (keepaliveRef.current) {
@@ -103,7 +111,11 @@ export function useSpeechOutput(userId) {
         setSpeakingId((current) => (current === id ? null : current));
       };
 
-      const started = speak(text, { onEnd: finish, onError: finish });
+      const started = speak(text, {
+        onEnd: finish,
+        onError: finish,
+        context: contextRef.current,
+      });
       if (!started) {
         setSpeakingId(null);
         return;
@@ -137,8 +149,10 @@ export function useSpeechOutput(userId) {
   /**
    * Flip spoken replies on or off.
    *
-   * Turning them ON speaks a short confirmation. That is not decoration:
-   * iOS Safari only unlocks speech synthesis inside a user gesture, so the
+   * Turning them ON speaks a short confirmation naming the store, so the
+   * owner hears straight away whose shop StoreSense is reporting on - and
+   * hears how it will say that name. That is also not decoration: iOS
+   * Safari only unlocks speech synthesis inside a user gesture, so the
    * confirmation is what makes the *next* answer audible. Turning them off
    * stops anything in progress immediately.
    */
@@ -148,7 +162,11 @@ export function useSpeechOutput(userId) {
       const next = !current;
       writeStoredVoicePref(userId, next);
       if (next) {
-        speakMessage('voice-on', 'Spoken replies are on.');
+        const store = contextRef.current?.storeName;
+        speakMessage(
+          'voice-on',
+          store ? `Spoken replies are on for ${store}.` : 'Spoken replies are on.'
+        );
       } else {
         clearKeepalive();
         cancelSpeech();
