@@ -63,19 +63,24 @@ export function notifyChange(topic = '*') {
 
 // Wrap all mutating namespaces so every successful write fires an event.
 // `extraTopics` is for writes that also change other collections (a credit
-// repayment moves the sale's amountPaid, for example).
+// repayment moves the sale's amountPaid, for example). Namespaces may nest
+// (prescriptions.dispensings) - those pass through untouched.
 function withNotify(ns, topic, mutatingKeys, extraTopics = []) {
   const wrapped = {};
   for (const key of Object.keys(ns)) {
-    if (mutatingKeys.includes(key)) {
-      wrapped[key] = async (...args) => {
-        const result = await ns[key](...args);
-        notifyChange(topic);
-        extraTopics.forEach((t) => notifyChange(t));
-        return result;
-      };
+    if (typeof ns[key] === 'function') {
+      if (mutatingKeys.includes(key)) {
+        wrapped[key] = async (...args) => {
+          const result = await ns[key](...args);
+          notifyChange(topic);
+          extraTopics.forEach((t) => notifyChange(t));
+          return result;
+        };
+      } else {
+        wrapped[key] = ns[key].bind(ns);
+      }
     } else {
-      wrapped[key] = ns[key].bind(ns);
+      wrapped[key] = ns[key];
     }
   }
   return wrapped;
@@ -86,8 +91,28 @@ export const api = {
   auth: backend.auth,
   stores: withNotify(backend.stores, 'stores', ['create', 'update', 'joinWithCode']),
   categories: withNotify(backend.categories, 'categories', ['add', 'remove']),
-  products: withNotify(backend.products, 'products', ['create', 'update', 'remove']),
-  sales: withNotify(backend.sales, 'sales', ['create', 'void']),
+  // Pharmacy products are created with (and removed with) their batches, so
+  // product writes also refresh batch listeners.
+  products: withNotify(backend.products, 'products', ['create', 'update', 'remove'], ['batches']),
+  // Batch writes move the product rollup (stock + earliest expiry), so they
+  // refresh product listeners too.
+  batches: withNotify(backend.batches, 'batches', ['add', 'update', 'remove'], ['products']),
+  sales: withNotify(backend.sales, 'sales', ['create', 'void'], ['products', 'batches']),
+  // Purchases receive stock (new batches + product rollups)…
+  purchases: withNotify(
+    backend.purchases,
+    'purchases',
+    ['create', 'remove'],
+    ['batches', 'products']
+  ),
+  // …prescription dispensings create sales, move batches and products.
+  prescriptions: withNotify(
+    backend.prescriptions,
+    'prescriptions',
+    ['create', 'cancel', 'remove', 'dispense'],
+    ['sales', 'products', 'batches']
+  ),
+  suppliers: withNotify(backend.suppliers, 'suppliers', ['create', 'update', 'remove'], ['purchases']),
   // Repayments also change the sale's amountPaid, so notify both topics.
   creditPayments: withNotify(backend.creditPayments, 'creditPayments', ['add', 'remove'], ['sales']),
   expenses: withNotify(backend.expenses, 'expenses', ['create', 'remove']),
@@ -95,6 +120,7 @@ export const api = {
   team: withNotify(backend.team, 'team', [
     'updateRole',
     'updateApproval',
+    'setPharmacist',
     'remove',
   ]),
   admin: withNotify(backend.admin, 'admin', [

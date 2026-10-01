@@ -11,6 +11,7 @@ import {
   Monitor,
   MonitorSmartphone,
   Package,
+  Pill,
   PlayCircle,
   Plus,
   Receipt,
@@ -29,6 +30,11 @@ import StoreSenseMark from '../components/StoreSenseMark';
 const features = [
   ['POS Register', 'Ring up sales quickly with a clean, reliable register.', ShoppingCart],
   ['Inventory', 'Know what is in stock, what is moving, and what needs attention.', Package],
+  [
+    'Pharmacy Mode',
+    'Batch-tracked medicines with expiry dates, FEFO dispensing, prescriptions, suppliers and a controlled-medicines register.',
+    Pill,
+  ],
   ['Reports', 'Turn daily sales into clear decisions with simple reports.', BarChart3],
   [
     'StoreSense',
@@ -61,7 +67,7 @@ const businessTypes = [
 
 const stats = [
   ['6', 'business niches'],
-  ['12+', 'powerful features'],
+  ['20+', 'powerful features'],
   ['\u20A60', 'starting price'],
   ['24/7', 'clarity and control'],
 ];
@@ -241,6 +247,66 @@ export default function Landing() {
               </div>
             ))}
           </div>
+          {/* Pharmacy Mode */}
+          <div className="mt-16 overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white p-6 sm:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
+                    <Pill className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                      For community pharmacies
+                    </p>
+                    <h3 className="text-xl font-bold text-zinc-900 sm:text-2xl">
+                      Pharmacy Mode
+                    </h3>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-zinc-600">
+                  Onboard as a pharmacy and the whole app works the way a dispensary
+                  does: medicines are tracked batch by batch, the till dispenses the
+                  soonest-expiring stock first, and every receipt names its batches.
+                </p>
+                <ul className="mt-5 grid gap-x-6 gap-y-2.5 text-sm text-zinc-700 sm:grid-cols-2">
+                  {[
+                    'Batch-tracked stock with expiry watch',
+                    'FEFO dispensing, expired stock blocked',
+                    'Rx gate and prescription checks',
+                    'Prescriptions with part-dispensing',
+                    'Suppliers and delivery receiving (GRN)',
+                    'Batch recall with receipt-level tracing',
+                    'Controlled-medicines register',
+                    'Pharmacist verification and refill nudges',
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="shrink-0 rounded-2xl border border-emerald-200 bg-white p-5 text-center shadow-sm lg:w-60">
+                <p className="text-sm font-semibold text-zinc-900">
+                  See it with data
+                </p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                  The Healthway Pharmacy demo comes stocked with batches,
+                  prescriptions and register history. No sign-up needed.
+                </p>
+                <Link
+                  to="/demo"
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+                >
+                  <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                  Try the pharmacy demo
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* StoreSense band */}
           <div className="mt-8 overflow-hidden rounded-3xl border border-emerald-200 bg-emerald-50/70 p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-4">

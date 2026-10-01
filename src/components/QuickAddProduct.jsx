@@ -39,6 +39,10 @@ export default function QuickAddProduct({
   onCreated,
   onCancel,
 }) {
+  // Pharmacy quick adds open the medicine as its first batch and can flag
+  // it prescription-only in the same breath.
+  const isPharmacy = Boolean(niche.pharmacy);
+
   const [form, setForm] = useState({
     name: '',
     sku: barcode || '',
@@ -49,6 +53,9 @@ export default function QuickAddProduct({
     // one unit, required for the stock-tracked sale to go through.
     stock: niche.trackStock ? '1' : '',
     expiryDate: '',
+    batchNo: '',
+    isRx: false,
+    isControlled: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -98,6 +105,20 @@ export default function QuickAddProduct({
         salePrice,
         stock,
         expiryDate: niche.hasExpiry && form.expiryDate ? form.expiryDate : null,
+        isRx: isPharmacy && Boolean(form.isRx),
+        isControlled: isPharmacy && Boolean(form.isControlled),
+        // Pharmacy: the scanned pack becomes the medicine's opening batch.
+        ...(isPharmacy
+          ? {
+              openingBatch: {
+                qty: stock,
+                batchNo: sanitize(form.batchNo || '') || 'OPENING',
+                expiryDate: form.expiryDate || null,
+                costPrice,
+                supplier: '',
+              },
+            }
+          : {}),
       });
 
       // Keep the onboarding flag in sync with the Inventory page.
@@ -222,7 +243,11 @@ export default function QuickAddProduct({
           {(niche.trackStock || niche.hasExpiry) && (
             <div className="grid grid-cols-2 gap-3">
               {niche.trackStock && (
-                <Field label="Stock quantity">
+                <Field
+                  label={
+                    isPharmacy ? 'Quantity (first batch)' : 'Stock quantity'
+                  }
+                >
                   <input
                     type="number"
                     className={inputCls}
@@ -244,6 +269,52 @@ export default function QuickAddProduct({
                   />
                 </Field>
               )}
+              {isPharmacy && (
+                <Field label="Batch no. (optional)">
+                  <input
+                    className={inputCls}
+                    value={form.batchNo}
+                    onChange={(e) => setForm({ ...form, batchNo: e.target.value })}
+                    placeholder="From the carton"
+                    maxLength={60}
+                  />
+                </Field>
+              )}
+            </div>
+          )}
+
+          {isPharmacy && (
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isRx}
+                  onChange={(e) => setForm({ ...form, isRx: e.target.checked })}
+                  className="w-4 h-4 accent-emerald-500"
+                  aria-label="Prescription-only medicine"
+                />
+                <span>
+                  Prescription-only{' '}
+                  <span className="text-[10px] font-bold text-red-600 dark:text-red-400 border border-red-500/30 rounded px-1">
+                    Rx
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isControlled}
+                  onChange={(e) => setForm({ ...form, isControlled: e.target.checked })}
+                  className="w-4 h-4 accent-emerald-500"
+                  aria-label="Controlled medicine"
+                />
+                <span>
+                  Controlled{' '}
+                  <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 border border-purple-500/30 rounded px-1">
+                    CD
+                  </span>
+                </span>
+              </label>
             </div>
           )}
 

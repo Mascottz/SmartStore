@@ -83,6 +83,7 @@ export function printReceipt(sale = {}, options = {}) {
     customerName = '',
     cashier = '',
     cashierRole = '',
+    verifiedBy = '',
     status = 'completed',
   } = sale;
   const items = Array.isArray(suppliedItems) ? suppliedItems : [];
@@ -104,18 +105,35 @@ export function printReceipt(sale = {}, options = {}) {
     .map((item) => {
       const qty = Number(item.qty) || 0;
       const lineTotal = item.lineTotal ?? item.price * qty;
+      // Pharmacy lines carry the FEFO allocation; printing batch numbers
+      // and expiry dates keeps every dispensed unit traceable.
+      const batches = Array.isArray(item.batches) ? item.batches : [];
+      const batchText = batches
+        .map((b) => {
+          const bits = [];
+          if (b.batchNo) bits.push(String(b.batchNo));
+          if (b.expiryDate) bits.push(`exp ${String(b.expiryDate).slice(0, 10)}`);
+          if (bits.length) bits.push(`x ${Number(b.qty) || 0}`);
+          return bits.join(' ');
+        })
+        .filter(Boolean)
+        .join(' · ');
+      const sub = `${qty} x ${money(item.price)}${batchText ? ` · ${batchText}` : ''}`;
+      const rxMark = item.isRx || item.is_rx ? ' [Rx]' : '';
+      const cdMark = item.isControlled || item.is_controlled ? ' [CD]' : '';
       return `
         <tr class="line">
-          <td class="name">${escapeHtml(item.name)}</td>
+          <td class="name">${escapeHtml(`${item.name}${rxMark}${cdMark}`)}</td>
           <td class="amt">${escapeHtml(money(lineTotal))}</td>
         </tr>
         <tr class="sub">
-          <td colspan="2">${escapeHtml(`${qty} x ${money(item.price)}`)}</td>
+          <td colspan="2">${escapeHtml(sub)}</td>
         </tr>`;
     })
     .join('');
 
   const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  const hasRx = items.some((item) => item.isRx || item.is_rx);
 
   // 'Served by: email (role)' when the caller knows the cashier's role; older
   // callers that only pass an email (or whose role lookup fails) still print
@@ -165,6 +183,11 @@ export function printReceipt(sale = {}, options = {}) {
         margin-bottom: 2px;
       }
       .rule { border: 0; border-top: 1px dashed #000; margin: 9px 0; }
+      .rx-note {
+        margin-top: 6px;
+        font-size: ${t.summary}px;
+        font-style: italic;
+      }
       .meta { width: 100%; font-size: ${t.meta}px; }
       .meta th,
       .meta td { padding: 3px 0; vertical-align: top; }
@@ -294,6 +317,8 @@ export function printReceipt(sale = {}, options = {}) {
         </tr>
       </tbody>
     </table>
+    ${hasRx ? `
+    <p class="rx-note">Prescription item${items.filter((i) => i.isRx || i.is_rx).length === 1 ? '' : 's'} dispensed after prescription check.${verifiedBy ? ` Verified by ${escapeHtml(verifiedBy)} (pharmacist).` : ''}</p>` : ''}
     <hr class="rule" />
     <p class="footer">${escapeHtml(footer)}</p>
     <script>

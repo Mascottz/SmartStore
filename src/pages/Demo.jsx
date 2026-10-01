@@ -11,14 +11,18 @@ import {
   ArrowRight,
   BarChart3,
   BookUser,
+  ClipboardList,
   Loader2,
   Package,
+  Pill,
   PlayCircle,
   Receipt,
+  ScrollText,
   ShoppingCart,
+  Truck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { loginOrCreateDemo } from '../lib/demo';
+import { loginOrCreateDemo, loginOrCreatePharmacyDemo } from '../lib/demo';
 import { bootDemoSandbox, isDemoBackend } from '../lib/backend';
 import { useAuth } from '../context/AuthContext';
 import logo from '/logo-smartstore.png';
@@ -30,28 +34,57 @@ const HIGHLIGHTS = [
   ['Manage inventory', 'Products, categories and stock levels you can edit on the spot.', Package],
 ];
 
+const PHARMACY_HIGHLIGHTS = [
+  [
+    'Dispense from batches',
+    'Medicines tracked batch-by-batch; the till always dispenses the soonest-expiring stock first and prints the batch on the receipt.',
+    Pill,
+  ],
+  [
+    'Work the dispensing book',
+    'Prescriptions you can dispense in parts across visits, with an audit trail linking every receipt back to the script.',
+    ClipboardList,
+  ],
+  [
+    'Receive a delivery',
+    'Suppliers and purchase records: each delivery line becomes a batch with its number, expiry and cost in one go.',
+    Truck,
+  ],
+  [
+    'Trace and recall',
+    'Mark any batch recalled and see exactly which receipts it was dispensed on. Controlled medicines land in a register with the verifying pharmacist.',
+    ScrollText,
+  ],
+];
+
 export default function Demo() {
   const navigate = useNavigate();
   const { refreshMembership } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(null); // null | 'supermarket' | 'pharmacy'
 
-  const enterDemo = async () => {
-    setLoading(true);
+  const enterDemo = async (kind = 'supermarket') => {
+    setLoading(kind);
+    const seed =
+      kind === 'pharmacy' ? loginOrCreatePharmacyDemo : loginOrCreateDemo;
     try {
       if (isDemoBackend) {
-        await loginOrCreateDemo();
+        await seed();
         await refreshMembership();
-        toast.success('Welcome to the demo store');
+        toast.success(
+          kind === 'pharmacy' ? 'Welcome to the pharmacy demo' : 'Welcome to the demo store'
+        );
         navigate('/dashboard', { replace: true });
       } else {
-        await loginOrCreateDemo({ localOnly: true });
-        toast.success('Welcome to the demo store');
+        await seed({ localOnly: true });
+        toast.success(
+          kind === 'pharmacy' ? 'Welcome to the pharmacy demo' : 'Welcome to the demo store'
+        );
         bootDemoSandbox('/dashboard');
       }
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Could not start the demo. Please try again.');
-      setLoading(false);
+      setLoading(null);
     }
   };
 
@@ -84,22 +117,40 @@ export default function Demo() {
             Try the full app with a <span className="text-emerald-600">demo store.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-zinc-600">
-            We have set up Demo Supermart with products, past sales, expenses and a live Credit Book.
+            We have set up Demo Supermart with products, past sales, expenses and a live
+            Credit Book. Or step into Healthway Pharmacy, where medicines are stocked
+            batch-by-batch with expiry tracking, prescription checks, suppliers,
+            deliveries, a controlled-medicines register and one-tap recall tracing.
             Jump in and explore every feature in seconds.
           </p>
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <button
-              onClick={enterDemo}
-              disabled={loading}
+              onClick={() => enterDemo('supermarket')}
+              disabled={Boolean(loading)}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-7 py-3.5 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 disabled:opacity-60 sm:w-auto"
             >
-              {loading ? (
+              {loading === 'supermarket' ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Setting up your demo...
                 </>
               ) : (
                 <>
                   <PlayCircle className="h-4 w-4" aria-hidden="true" /> Enter the demo store
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => enterDemo('pharmacy')}
+              disabled={Boolean(loading)}
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-emerald-600/40 bg-emerald-50 px-7 py-3.5 font-semibold text-emerald-800 transition-colors hover:border-emerald-500 hover:bg-emerald-100 disabled:opacity-60 sm:w-auto"
+            >
+              {loading === 'pharmacy' ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Setting up the pharmacy...
+                </>
+              ) : (
+                <>
+                  <Pill className="h-4 w-4" aria-hidden="true" /> Try the Pharmacy Mode demo
                 </>
               )}
             </button>
@@ -129,6 +180,35 @@ export default function Demo() {
               <p className="mt-2 text-sm leading-6 text-zinc-600">{text}</p>
             </div>
           ))}
+        </div>
+
+        <div className="mt-16">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white">
+              <Pill className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-zinc-900">Inside the pharmacy demo</h2>
+              <p className="text-sm text-zinc-500">
+                Healthway Pharmacy is stocked the way a real one is. Everything below is
+                live in the demo store.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {PHARMACY_HIGHLIGHTS.map(([title, text, Icon]) => (
+              <div
+                key={title}
+                className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-6 transition-all hover:border-emerald-400 hover:shadow-[0_12px_32px_-16px_rgba(5,150,105,0.25)]"
+              >
+                <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <h3 className="font-semibold text-zinc-900">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">{text}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
 

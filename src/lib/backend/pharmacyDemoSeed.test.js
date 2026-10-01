@@ -1,0 +1,155 @@
+// The Healthway Pharmacy demo seed: it must land as a fully stocked,
+// batch-tracked pharmacy whose historical sales all cleared FEFO, with the
+// expiry watch having something real to say.
+import { beforeEach, describe, expect, it } from 'vitest';
+import { localAdapter } from './local';
+import { loginOrCreatePharmacyDemo } from '../demo';
+
+describe('pharmacy demo seed', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('seeds a pharmacy store with batches, sales and expiry situations', async () => {
+    await loginOrCreatePharmacyDemo();
+
+    const membership = await localAdapter.stores.getMyMembership(
+      (await localAdapter.auth.getUser()).id
+    );
+    expect(membership.store.type).toBe('pharmacy');
+    expect(membership.role).toBe('owner');
+
+    const storeId = membership.store.id;
+    const products = await localAdapter.products.list(storeId);
+    const batches = await localAdapter.batches.list(storeId);
+    const sales = await localAdapter.sales.list(storeId);
+
+    // Every medicine opened with a batch, several with more than one.
+    expect(products.length).toBeGreaterThanOrEqual(10);
+    expect(batches.length).toBeGreaterThan(products.length);
+    products.forEach((p) => {
+      const own = batches.filter((b) => b.productId === p.id);
+      expect(own.length).toBeGreaterThanOrEqual(1);
+    });
+
+    // The demo's teaching moments: an expired batch, a quarantined one,
+    // and Rx medicines that gate the till.
+    expect(batches.some((b) => b.expiryDate < new Date().toISOString().slice(0, 10))).toBe(true);
+    expect(batches.some((b) => b.status === 'quarantined')).toBe(true);
+    expect(products.some((p) => p.isRx)).toBe(true);
+
+    // Historical sales recorded FEFO allocations and left stock consistent.
+    expect(sales.length).toBeGreaterThan(5);
+    const withAllocations = sales.filter((s) =>
+      (s.items || []).some((i) => Array.isArray(i.batches) && i.batches.length > 0)
+    );
+    expect(withAllocations.length).toBeGreaterThan(0);
+    products.forEach((p) => {
+      const rollup = batches
+        .filter((b) => b.productId === p.id && b.status === 'active')
+        .reduce((sum, b) => sum + (Number(b.qty) || 0), 0);
+      expect(p.stock).toBe(rollup);
+    });
+
+    // Phase 2: the supply chain and a live part-dispensed prescription.
+    const suppliers = await localAdapter.suppliers.list(storeId);
+    const purchases = await localAdapter.purchases.list(storeId);
+    expect(suppliers.length).toBeGreaterThanOrEqual(3);
+    expect(purchases.length).toBeGreaterThanOrEqual(2);
+    purchases.forEach((p) => {
+      expect(p.total).toBe(p.items.reduce((s, i) => s + i.lineTotal, 0));
+      // Every delivery line created a real, active batch.
+      p.items.forEach((line) => {
+        const batch = batches.find((b) => b.id === line.batchId);
+        expect(batch).toBeTruthy();
+        expect(batch.qty).toBeGreaterThanOrEqual(line.qty); // minus any sales since
+        expect(batch.supplier).toBe(suppliers.find((s) => s.id === p.supplierId)?.name || '');
+      });
+    });
+
+    const prescriptions = await localAdapter.prescriptions.list(storeId);
+    expect(prescriptions.length).toBeGreaterThanOrEqual(2);
+    // The part-dispensed script stays open with a balance still owed...
+    const rx = prescriptions.find((r) => r.patientName === 'Mr. Musa Ibrahim');
+    expect(rx).toBeTruthy();
+    expect(rx.status).toBe('open');
+    const dispensedLine = rx.items.find((i) => i.dispensedQty > 0);
+    expect(dispensedLine).toBeTruthy();
+    expect(rx.items.some((i) => i.dispensedQty < i.prescribedQty)).toBe(true);
+
+    // ...and the controlled script closed fully, with a named verifier on
+    // its dispensing for the controlled register.
+    const cdRx = prescriptions.find((r) => r.patientName === 'Mrs. Iyabo Ogun');
+    expect(cdRx).toBeTruthy();
+    expect(cdRx.status).toBe('dispensed');
+
+    const dispensings = await localAdapter.prescriptions.dispensings.list(storeId);
+    expect(dispensings.length).toBeGreaterThanOrEqual(2);
+    // The dispensing audit trail carries the receipt's batch allocations.
+    expect(dispensings[0].items[0].batches.length).toBeGreaterThan(0);
+    expect(sales.some((s) => s.receiptNo === dispensings[0].receiptNo)).toBe(true);
+
+    // Phase 3: controlled medicines exist and their dispensings carry the
+    // verifying pharmacist + batch allocation for the register.
+    expect(products.some((p) => p.isControlled)).toBe(true);
+    const controlledSales = sales.filter((s) =>
+      (s.items || []).some((i) => i.isControlled)
+    );
+    expect(controlledSales.length).toBeGreaterThanOrEqual(2);
+    controlledSales.forEach((s) => {
+      expect(s.verifiedBy).toBeTruthy();
+      s.items
+        .filter((i) => i.isControlled)
+        .forEach((i) => expect(i.batches.length).toBeGreaterThan(0));
+    });
+
+    // The team carries a flagged pharmacist for till verification.
+    const team = await localAdapter.team.list(storeId);
+    expect(team.some((m) => m.isPharmacist)).toBe(true);
+  });
+
+  it('is idempotent: a second login reuses the seeded store untouched', async () => {
+    await loginOrCreatePharmacyDemo();
+    const first = (await localAdapter.sales.list(
+      (await localAdapter.stores.getMyMembership(
+        (await localAdapter.auth.getUser()).id
+      )).store.id
+    )).length;
+
+    await localAdapter.auth.signOut();
+    await loginOrCreatePharmacyDemo();
+    const second = (await localAdapter.sales.list(
+      (await localAdapter.stores.getMyMembership(
+        (await localAdapter.auth.getUser()).id
+      )).store.id
+    )).length;
+
+    expect(second).toBe(first);
+  });
+
+  it('never touches real accounts: a fresh pharmacy store starts completely blank', async () => {
+    // The seeded medicines, suppliers, deliveries and prescriptions belong to
+    // the demo store only. A real sign-up that onboards as a pharmacy must
+    // land on an empty store, not sample data.
+    const email = `real-${Date.now()}@example.com`;
+    await localAdapter.auth.signUp({ email, password: 'secret123' });
+    const user = await localAdapter.auth.getUser();
+    const store = await localAdapter.stores.create(user.id, email, {
+      name: 'My Community Pharmacy',
+      type: 'pharmacy',
+      categories: ['Prescription Drugs'],
+    });
+
+    expect(await localAdapter.products.list(store.id)).toEqual([]);
+    expect(await localAdapter.batches.list(store.id)).toEqual([]);
+    expect(await localAdapter.sales.list(store.id)).toEqual([]);
+    expect(await localAdapter.suppliers.list(store.id)).toEqual([]);
+    expect(await localAdapter.purchases.list(store.id)).toEqual([]);
+    expect(await localAdapter.prescriptions.list(store.id)).toEqual([]);
+    expect(await localAdapter.prescriptions.dispensings.list(store.id)).toEqual([]);
+
+    // No pharmacist flags either: the owner opts in from the Team page.
+    const team = await localAdapter.team.list(store.id);
+    expect(team.map((m) => m.isPharmacist)).toEqual([false]);
+  });
+});

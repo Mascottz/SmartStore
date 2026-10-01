@@ -11,6 +11,8 @@ import {
   Wallet,
   Tag,
   TrendingUp,
+  Layers,
+  Pill,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -23,15 +25,37 @@ import { generateSku } from '../lib/sku';
 import { canUseAssistant } from '../lib/assistant';
 import { parseStoreSenseInventory, isStoreSenseRowReady } from '../lib/storeSenseInventory';
 import { downloadCsv } from '../lib/exportCsv';
+import {
+  EXPIRY_BUCKETS,
+  daysUntil,
+  earliestActiveExpiry,
+  sellableQty,
+} from '../lib/pharmacy';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StoreSenseMark from '../components/StoreSenseMark';
 import HelpTip from '../components/HelpTip';
+import BatchDrawer from '../components/BatchDrawer';
 
 const LOW_STOCK_THRESHOLD = 50;
 
 // Money with the sign out front; "-₦300" reads better on the profit tile
 // than the "₦-300" fmtMoney would build for a negative number.
 const fmtSignedMoney = (n) => (n < 0 ? `-${fmtMoney(Math.abs(n))}` : fmtMoney(n));
+
+const DOSAGE_FORMS = [
+  'Tablet',
+  'Capsule',
+  'Syrup',
+  'Suspension',
+  'Injection',
+  'Cream',
+  'Ointment',
+  'Drops',
+  'Inhaler',
+  'Suppository',
+  'Sachet',
+  'Other',
+];
 
 const emptyForm = {
   name: '',
@@ -41,10 +65,22 @@ const emptyForm = {
   salePrice: '',
   stock: '',
   expiryDate: '',
+  genericName: '',
+  strength: '',
+  dosageForm: '',
+  packSize: '',
+  isRx: false,
+  isControlled: false,
+  batchNo: '',
+  supplier: '',
 };
 
 export default function Inventory() {
   const { storeId, niche, store, plan, storeIsDemo } = useAuth();
+
+  // Pharmacy Mode: stock lives in batches, and this page grows the batch
+  // drawer, medicine fields and the expiry watch strip.
+  const isPharmacy = Boolean(niche.pharmacy);
 
   const { data: products, loading } = useStoreData(
     () => (storeId ? api.products.list(storeId) : []),
@@ -53,6 +89,10 @@ export default function Inventory() {
   const { data: categories } = useStoreData(
     () => (storeId ? api.categories.list(storeId) : []),
     [storeId]
+  );
+  const { data: batches } = useStoreData(
+    () => (storeId && isPharmacy ? api.batches.list(storeId) : []),
+    [storeId, isPharmacy]
   );
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,6 +115,48 @@ export default function Inventory() {
     () => (storeSenseDraft?.rows || []).filter(isStoreSenseRowReady),
     [storeSenseDraft]
   );
+
+  const [batchProduct, setBatchProduct] = useState(null);
+
+  // The row being edited, for the read-only stock note in the modal.
+  const editingProduct = useMemo(
+    () => (editingId ? products.find((p) => p.id === editingId) || null : null),
+    [products, editingId]
+  );
+
+  // productId → its batches, so table rows and the drawer read one map.
+  const batchesByProduct = useMemo(() => {
+    const map = new Map();
+    if (isPharmacy) {
+      (batches || []).forEach((b) => {
+        const list = map.get(b.productId) || [];
+        list.push(b);
+        map.set(b.productId, list);
+      });
+    }
+    return map;
+  }, [batches, isPharmacy]);
+
+  // Expiry watch: active bucketed by how soon each batch expires, with the
+  // money tied up in each bucket. Expired stock is stock that cannot be
+  // sold - the number a pharmacist wants front and centre.
+  const expiryWatch = useMemo(() => {
+    if (!isPharmacy) return null;
+    const byBucket = { expired: { units: 0, value: 0 }, d30: { units: 0, value: 0 }, d60: { units: 0, value: 0 }, d90: { units: 0, value: 0 } };
+    const today = new Date();
+    (batches || []).forEach((b) => {
+      if ((b.status || 'active') !== 'active') return;
+      const days = daysUntil(b.expiryDate, today);
+      if (days == null) return;
+      const qty = Number(b.qty) || 0;
+      if (qty <= 0) return;
+      const bucket = days < 0 ? 'expired' : days <= 30 ? 'd30' : days <= 60 ? 'd60' : 'd90';
+      byBucket[bucket].units += qty;
+      byBucket[bucket].value += qty * (Number(b.costPrice) || 0);
+    });
+    const atRisk = byBucket.expired.value + byBucket.d30.value + byBucket.d60.value + byBucket.d90.value;
+    return { byBucket, atRisk };
+  }, [batches, isPharmacy]);
 
   const filtered = useMemo(() => {
     const term = debouncedSearch.toLowerCase();
@@ -172,6 +254,14 @@ export default function Inventory() {
       salePrice: String(p.salePrice ?? ''),
       stock: String(p.stock ?? ''),
       expiryDate: p.expiryDate || '',
+      genericName: p.genericName || '',
+      strength: p.strength || '',
+      dosageForm: p.dosageForm || '',
+      packSize: p.packSize || '',
+      isRx: Boolean(p.isRx),
+      isControlled: Boolean(p.isControlled),
+      batchNo: '',
+      supplier: '',
     });
     setShowModal(true);
   };
@@ -208,7 +298,38 @@ export default function Inventory() {
         salePrice,
         stock: niche.trackStock ? Math.max(0, Math.floor(Number(form.stock) || 0)) : 0,
         expiryDate: niche.hasExpiry && form.expiryDate ? form.expiryDate : null,
+        genericName: sanitize(form.genericName || ''),
+        strength: sanitize(form.strength || ''),
+        dosageForm: sanitize(form.dosageForm || ''),
+        packSize: sanitize(form.packSize || ''),
+        isRx: isPharmacy && Boolean(form.isRx),
+        isControlled: isPharmacy && Boolean(form.isControlled),
       };
+
+      // Pharmacy products open life with their first batch - stock and
+      // expiry are batch-tracked from the very first unit.
+      if (isPharmacy && !editingId) {
+        const openingQty = Math.max(0, Math.floor(Number(form.stock) || 0));
+        payload.openingBatch = openingQty
+          ? {
+              qty: openingQty,
+              batchNo: sanitize(form.batchNo || '') || 'OPENING',
+              expiryDate: form.expiryDate || null,
+              supplier: sanitize(form.supplier || ''),
+              costPrice,
+            }
+          : null;
+        payload.stock = 0;
+        payload.expiryDate = null;
+      }
+
+      // Editing a medicine: batches own stock and expiry, so this dialog
+      // never writes them (the batch drawer does).
+      if (isPharmacy && editingId) {
+        delete payload.stock;
+        delete payload.expiryDate;
+      }
+
       if (editingId) {
         await api.products.update(editingId, payload);
         toast.success(
@@ -251,14 +372,30 @@ export default function Inventory() {
         }
         usedSkus.add(sku.toLowerCase());
 
+        const rowStock = niche.trackStock
+          ? Math.max(0, Math.floor(Number(row.stock) || 0))
+          : 0;
         await api.products.create(storeId, {
           name: cleanName,
           sku,
           category: sanitize(row.category) || 'General',
           costPrice: Math.max(0, Number(row.costPrice) || 0),
           salePrice: Math.max(0, Number(row.salePrice) || 0),
-          stock: niche.trackStock ? Math.max(0, Math.floor(Number(row.stock) || 0)) : 0,
+          stock: rowStock,
           expiryDate: niche.hasExpiry && row.expiryDate ? row.expiryDate : null,
+          // Pasted pharmacy lists carry one expiry per line, which becomes
+          // the product's opening batch.
+          ...(isPharmacy && rowStock > 0
+            ? {
+                openingBatch: {
+                  qty: rowStock,
+                  batchNo: 'OPENING',
+                  expiryDate: row.expiryDate || null,
+                  costPrice: Math.max(0, Number(row.costPrice) || 0),
+                  supplier: '',
+                },
+              }
+            : {}),
         });
       }
 
@@ -292,12 +429,56 @@ export default function Inventory() {
   };
 
   const isExpiringSoon = (p) => {
-    if (!p.expiryDate) return false;
-    const days = (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
-    return days < 90;
+    // Pharmacy expiry comes from the batches (products.expiryDate mirrors
+    // the earliest active batch, but batches are the truth).
+    const expiry = isPharmacy
+      ? earliestActiveExpiry(batchesByProduct.get(p.id)) || p.expiryDate
+      : p.expiryDate;
+    if (!expiry) return false;
+    const days = daysUntil(expiry);
+    return days != null && days < 90;
   };
 
   const handleExport = () => {
+    if (isPharmacy) {
+      const headers = [
+        'Name',
+        'Generic',
+        'Strength',
+        'Form',
+        'Pack Size',
+        'Rx',
+        'Controlled',
+        'SKU',
+        'Category',
+        'Cost Price',
+        'Selling Price',
+        'Stock',
+        'Earliest Expiry',
+        'Batches',
+      ];
+      const rows = products.map((p) => [
+        p.name,
+        p.genericName || '',
+        p.strength || '',
+        p.dosageForm || '',
+        p.packSize || '',
+        p.isRx ? 'Yes' : 'No',
+        p.isControlled ? 'Yes' : 'No',
+        p.sku,
+        p.category,
+        p.costPrice,
+        p.salePrice,
+        p.stock,
+        p.expiryDate || '',
+        (batchesByProduct.get(p.id) || [])
+          .map((b) => `${b.batchNo || '-'}:${b.qty}:${b.expiryDate || 'no expiry'}`)
+          .join(' | '),
+      ]);
+      downloadCsv(`${store?.name || 'inventory'}-export`, headers, rows);
+      toast.success('Exported to CSV');
+      return;
+    }
     const headers = niche.trackStock
       ? ['Name', 'SKU', 'Category', 'Cost Price', 'Selling Price', 'Stock']
       : ['Name', 'SKU', 'Category', 'Cost Price', 'Selling Price'];
@@ -314,8 +495,13 @@ export default function Inventory() {
     <div className="p-4 md:p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
             {niche.itemNounPlural === 'Products' ? 'Inventory' : niche.itemNounPlural}
+            {isPharmacy && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                <Pill className="w-3 h-3" /> Pharmacy Mode
+              </span>
+            )}
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
             {products.length} {niche.itemNounPlural.toLowerCase()}
@@ -324,6 +510,13 @@ export default function Inventory() {
             )}
             {niche.trackStock && lowStockCount > 0 && (
               <span className="text-amber-500"> &middot; {lowStockCount} low stock</span>
+            )}
+            {expiryWatch && expiryWatch.byBucket.expired.units > 0 && (
+              <span className="text-red-500">
+                {' '}
+                &middot; {expiryWatch.byBucket.expired.units} unit
+                {expiryWatch.byBucket.expired.units === 1 ? '' : 's'} expired
+              </span>
             )}
           </p>
         </div>
@@ -392,6 +585,66 @@ export default function Inventory() {
         </section>
       )}
 
+      {/* Pharmacy expiry watch: what is expired or about to, and the money
+          tied up in it. Sits above the table because it is the question a
+          pharmacist asks first every morning. */}
+      {expiryWatch && products.length > 0 && (
+        <section
+          aria-label="Expiry watch"
+          className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 mb-6"
+        >
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              Expiry watch
+              <HelpTip
+                label="Help: Expiry watch"
+                text="Every active batch bucketed by how soon it expires, with what that stock cost. Expired and quarantined batches are never dispensed: quarantine them from a product's batch drawer."
+              />
+            </h2>
+            <p className="text-xs text-zinc-500">
+              {fmtMoney(expiryWatch.atRisk)} at risk
+            </p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {EXPIRY_BUCKETS.map((bucket) => {
+              const data = expiryWatch.byBucket[bucket.key];
+              const isRed = bucket.tone === 'red';
+              const empty = data.units === 0;
+              return (
+                <div
+                  key={bucket.key}
+                  className={`rounded-xl border p-3 ${
+                    empty
+                      ? 'border-zinc-200 dark:border-zinc-800 opacity-60'
+                      : isRed
+                        ? 'border-red-500/30 bg-red-500/5'
+                        : 'border-amber-500/30 bg-amber-500/5'
+                  }`}
+                >
+                  <p
+                    className={`text-[11px] font-semibold uppercase tracking-wide ${
+                      empty
+                        ? 'text-zinc-400'
+                        : isRed
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-amber-600 dark:text-amber-400'
+                    }`}
+                  >
+                    {bucket.label}
+                  </p>
+                  <p className="text-lg font-bold mt-0.5">
+                    {data.units.toLocaleString('en-NG')}
+                    <span className="text-xs font-normal text-zinc-500"> units</span>
+                  </p>
+                  <p className="text-[11px] text-zinc-500">{fmtMoney(data.value)} at cost</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Search & sort */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
@@ -449,12 +702,46 @@ export default function Inventory() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => (
+                filtered.map((p) => {
+                  const productBatches = batchesByProduct.get(p.id) || [];
+                  const sellable = isPharmacy
+                    ? productBatches.length > 0
+                      ? sellableQty(productBatches)
+                      : Number(p.stock) || 0
+                    : Number(p.stock) || 0;
+                  const blocked = (Number(p.stock) || 0) - sellable;
+                  return (
                   <tr
                     key={p.id}
                     className="border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
                   >
-                    <td className="px-5 py-3 font-medium">{p.name}</td>
+                    <td className="px-5 py-3 font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate">{p.name}</span>
+                        {p.isRx && (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30"
+                            title="Prescription-only"
+                          >
+                            Rx
+                          </span>
+                        )}
+                        {p.isControlled && (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30"
+                            title="Controlled medicine - recorded in the controlled register"
+                          >
+                            CD
+                          </span>
+                        )}
+                      </div>
+                      {isPharmacy && (p.strength || p.dosageForm || p.genericName) && (
+                        <p className="text-[11px] text-zinc-500 mt-0.5">
+                          {[p.strength, p.dosageForm, p.packSize].filter(Boolean).join(' ')}
+                          {p.genericName ? `${p.strength || p.dosageForm ? ' · ' : ''}${p.genericName}` : ''}
+                        </p>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-zinc-500">{p.sku || '-'}</td>
                     <td className="px-5 py-3">
                       <span className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
@@ -478,6 +765,11 @@ export default function Inventory() {
                         >
                           {p.stock ?? 0}
                         </span>
+                        {isPharmacy && blocked > 0 && (
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                            {sellable} in-date
+                          </p>
+                        )}
                       </td>
                     )}
                     {niche.hasExpiry && (
@@ -490,10 +782,25 @@ export default function Inventory() {
                           {isExpiringSoon(p) && <AlertTriangle className="w-3 h-3" />}
                           {fmtDate(p.expiryDate)}
                         </span>
+                        {isPharmacy && productBatches.length > 1 && (
+                          <p className="text-[10px] text-zinc-400 mt-0.5">
+                            {productBatches.length} batches
+                          </p>
+                        )}
                       </td>
                     )}
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-1">
+                        {isPharmacy && (
+                          <button
+                            onClick={() => setBatchProduct(p)}
+                            className="p-2 rounded-xl text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            aria-label={`Manage batches for ${p.name}`}
+                            title="Batches & expiry"
+                          >
+                            <Layers className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => openEdit(p)}
                           className="p-2 rounded-xl text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -511,7 +818,8 @@ export default function Inventory() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -862,8 +1170,95 @@ Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
                 </Field>
               </div>
 
+              {isPharmacy && (
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">
+                    Medicine details
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Generic name">
+                      <input
+                        className={inputCls}
+                        value={form.genericName}
+                        onChange={(e) => setForm({ ...form, genericName: e.target.value })}
+                        placeholder="e.g. Amoxicillin"
+                        aria-label="Generic name"
+                        maxLength={200}
+                      />
+                    </Field>
+                    <Field label="Strength">
+                      <input
+                        className={inputCls}
+                        value={form.strength}
+                        onChange={(e) => setForm({ ...form, strength: e.target.value })}
+                        placeholder="e.g. 500 mg"
+                        aria-label="Strength"
+                        maxLength={60}
+                      />
+                    </Field>
+                    <Field label="Dosage form">
+                      <select
+                        className={inputCls}
+                        value={form.dosageForm}
+                        onChange={(e) => setForm({ ...form, dosageForm: e.target.value })}
+                        aria-label="Dosage form"
+                      >
+                        <option value="">Select...</option>
+                        {DOSAGE_FORMS.map((f) => (
+                          <option key={f} value={f}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Pack size">
+                      <input
+                        className={inputCls}
+                        value={form.packSize}
+                        onChange={(e) => setForm({ ...form, packSize: e.target.value })}
+                        placeholder="e.g. pack of 100"
+                        aria-label="Pack size"
+                        maxLength={60}
+                      />
+                    </Field>
+                  </div>
+                  <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.isRx}
+                      onChange={(e) => setForm({ ...form, isRx: e.target.checked })}
+                      className="w-4 h-4 accent-emerald-500"
+                      aria-label="Prescription-only medicine"
+                    />
+                    <span>
+                      Prescription-only{' '}
+                      <span className="text-[10px] font-bold text-red-600 dark:text-red-400 border border-red-500/30 rounded px-1">
+                        Rx
+                      </span>{' '}
+                      - the till asks for a prescription check before selling
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.isControlled}
+                      onChange={(e) => setForm({ ...form, isControlled: e.target.checked })}
+                      className="w-4 h-4 accent-emerald-500"
+                      aria-label="Controlled medicine"
+                    />
+                    <span>
+                      Controlled{' '}
+                      <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 border border-purple-500/30 rounded px-1">
+                        CD
+                      </span>{' '}
+                      - every dispensing is written to the Controlled Register
+                    </span>
+                  </label>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
-                {niche.trackStock && (
+                {niche.trackStock && !isPharmacy && (
                   <Field label="Stock quantity">
                     <input
                       type="number"
@@ -876,7 +1271,7 @@ Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
                     />
                   </Field>
                 )}
-                {niche.hasExpiry && (
+                {niche.hasExpiry && !isPharmacy && (
                   <Field label="Expiry date">
                     <input
                       type="date"
@@ -887,7 +1282,75 @@ Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
                     />
                   </Field>
                 )}
+                {isPharmacy && !editingId && (
+                  <Field
+                    label="Opening quantity"
+                    help="Medicine stock is tracked in batches. This becomes the product's first batch; receive new deliveries from the batch drawer on the inventory row."
+                  >
+                    <input
+                      type="number"
+                      className={inputCls}
+                      value={form.stock}
+                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                      placeholder="0"
+                      aria-label="Opening stock quantity"
+                      min="0"
+                    />
+                  </Field>
+                )}
+                {isPharmacy && !editingId && (
+                  <Field label="Expiry date (first batch)">
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={form.expiryDate}
+                      onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
+                      aria-label="First batch expiry date"
+                    />
+                  </Field>
+                )}
+                {isPharmacy && !editingId && (
+                  <Field label="Batch no. (optional)">
+                    <input
+                      className={inputCls}
+                      value={form.batchNo}
+                      onChange={(e) => setForm({ ...form, batchNo: e.target.value })}
+                      placeholder="From the carton, e.g. B-2419"
+                      aria-label="Batch number"
+                      maxLength={60}
+                    />
+                  </Field>
+                )}
+                {isPharmacy && !editingId && (
+                  <Field label="Supplier (optional)">
+                    <input
+                      className={inputCls}
+                      value={form.supplier}
+                      onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                      placeholder="e.g. Emzor"
+                      aria-label="Supplier"
+                      maxLength={120}
+                    />
+                  </Field>
+                )}
               </div>
+
+              {isPharmacy && editingId && (
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4 text-sm text-zinc-600 dark:text-zinc-300">
+                  <p className="font-semibold text-sm">
+                    Stock: {editingProduct?.stock ?? 0} units ·{' '}
+                    {editingProduct?.expiryDate
+                      ? `earliest expiry ${fmtDate(editingProduct.expiryDate)}`
+                      : 'no expiry recorded'}
+                  </p>
+                  <p className="text-xs mt-1 text-zinc-500 dark:text-zinc-400">
+                    Medicine stock is managed per batch (FEFO). Close this dialog and use
+                    the <Layers className="w-3 h-3 inline -mt-0.5" /> batches action on
+                    the product's row to receive stock, quarantine a batch or fix an
+                    expiry date.
+                  </p>
+                </div>
+              )}
             </div>
 
             <button
@@ -911,6 +1374,15 @@ Golden Penny Spaghetti sku GPS-500 price 850 qty 12`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {/* Pharmacy batch drawer */}
+      {batchProduct && (
+        <BatchDrawer
+          product={batchProduct}
+          batches={batches || []}
+          onClose={() => setBatchProduct(null)}
+        />
+      )}
     </div>
   );
 }

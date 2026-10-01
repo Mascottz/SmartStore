@@ -8,9 +8,10 @@ import userEvent from '@testing-library/user-event';
 
 import Demo from './Demo';
 
-const { navigate, loginOrCreateDemo, refreshMembership, bootDemoSandbox, backendFlags } = vi.hoisted(() => ({
+const { navigate, loginOrCreateDemo, loginOrCreatePharmacyDemo, refreshMembership, bootDemoSandbox, backendFlags } = vi.hoisted(() => ({
   navigate: vi.fn(),
   loginOrCreateDemo: vi.fn(async () => ({ id: 'demo-user' })),
+  loginOrCreatePharmacyDemo: vi.fn(async () => ({ id: 'pharmacy-demo-user' })),
   refreshMembership: vi.fn(async () => {}),
   bootDemoSandbox: vi.fn(),
   backendFlags: { isDemoBackend: true },
@@ -25,7 +26,7 @@ vi.mock('react-router-dom', () => ({
   ),
 }));
 
-vi.mock('../lib/demo', () => ({ loginOrCreateDemo }));
+vi.mock('../lib/demo', () => ({ loginOrCreateDemo, loginOrCreatePharmacyDemo }));
 
 vi.mock('../lib/backend', () => ({
   // Getter so each test can flip the backend (local demo vs Supabase) before
