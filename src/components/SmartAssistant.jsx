@@ -3,15 +3,20 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   Bot,
+  CircleStop,
   Crown,
   Lock,
   LoaderCircle,
   Send,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 import StoreSenseMark from './StoreSenseMark';
 import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
+import { useSpeechOutput } from '../hooks/useSpeech';
+import { buildSpeechContext } from '../lib/speech';
 import { api } from '../lib/backend';
 import { askAssistant, buildAssistantContext, canUseAssistant } from '../lib/assistant';
 
@@ -64,7 +69,7 @@ export default function SmartAssistant() {
 function AssistantPanel() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { storeId, storeName, niche, role } = useAuth();
+  const { user, storeId, storeName, niche, role } = useAuth();
   const { data: sales } = useStoreData(
     () => (storeId ? api.sales.list(storeId) : []),
     [storeId]
@@ -112,6 +117,15 @@ function AssistantPanel() {
     [storeName, niche, role, location.pathname, sales, products, expenses, creditPayments, batches]
   );
 
+  // What the spoken answers need to know about this particular store:
+  // its live product codes and its name. Rebuilt only when the catalogue
+  // changes, not on every message.
+  const speechContext = useMemo(
+    () => buildSpeechContext({ storeName, niche, products }),
+    [storeName, niche, products]
+  );
+  const voice = useSpeechOutput(user?.id, speechContext);
+
   // Replace the optimistic greeting once the store context is known.
   useEffect(() => {
     setMessages((current) =>
@@ -132,6 +146,8 @@ function AssistantPanel() {
     const clean = String(value || '').trim();
     if (!clean || isThinking) return;
 
+    // A new question supersedes the previous answer; stop reading it out.
+    voice.stop();
     setQuestion('');
     setMessages((current) => [
       ...current,
@@ -140,10 +156,11 @@ function AssistantPanel() {
     setIsThinking(true);
 
     const result = await askAssistant(clean, context);
+    const replyId = `assistant-${Date.now()}`;
     setMessages((current) => [
       ...current,
       {
-        id: `assistant-${Date.now()}`,
+        id: replyId,
         from: 'assistant',
         text: result.answer,
         mode: result.mode,
@@ -152,6 +169,9 @@ function AssistantPanel() {
     ]);
     setIsThinking(false);
     if (!isOpen) setHasNewReply(true);
+    // Only answers to a real question are read aloud; the opening greeting
+    // never is, so nothing talks at you just for opening the panel.
+    voice.speakIfEnabled(replyId, result.answer);
   };
 
   const handleSubmit = (event) => {
@@ -167,6 +187,8 @@ function AssistantPanel() {
   const closeAssistant = () => {
     setIsOpen(false);
     setHasNewReply(false);
+    // Closing the panel is the universal "stop talking" gesture.
+    voice.stop();
   };
 
   const onAction = (action) => {
@@ -208,25 +230,47 @@ function AssistantPanel() {
                 <p className="mt-0.5 text-[11px] text-emerald-50/80">Your SmartStore co-pilot</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={closeAssistant}
-              className="rounded-xl p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-              aria-label="Close assistant"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-0.5">
+              {voice.supported && (
+                <button
+                  type="button"
+                  onClick={voice.toggle}
+                  className={`rounded-xl p-2 transition-colors hover:bg-white/10 hover:text-white ${
+                    voice.enabled ? 'bg-white/15 text-white' : 'text-white/80'
+                  }`}
+                  aria-label={voice.enabled ? 'Turn off spoken replies' : 'Read answers aloud'}
+                  aria-pressed={voice.enabled}
+                  title={voice.enabled ? 'Spoken replies are on' : 'Read answers aloud'}
+                >
+                  {voice.enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={closeAssistant}
+                className="rounded-xl p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Close assistant"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-emerald-50/85">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-200" />
-            <span>{isOnAssistantDestination ? 'I can explain what you are seeing here.' : 'Ask StoreSense about live store data or how to use SmartStore.'}</span>
+            <span>
+              {voice.enabled
+                ? 'Spoken replies are on. I will read each answer aloud.'
+                : isOnAssistantDestination
+                  ? 'I can explain what you are seeing here.'
+                  : 'Ask StoreSense about live store data or how to use SmartStore.'}
+            </span>
           </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-[13rem] flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
             {messages.map((message) => (
-              <Message key={message.id} message={message} onAction={onAction} />
+              <Message key={message.id} message={message} onAction={onAction} voice={voice} />
             ))}
             {isThinking && (
               <div className="flex items-start gap-2.5">
@@ -429,7 +473,7 @@ function AssistantUpgradePrompt() {
   );
 }
 
-function Message({ message, onAction }) {
+function Message({ message, onAction, voice }) {
   if (message.from === 'user') {
     return (
       <div className="flex justify-end">
@@ -449,16 +493,42 @@ function Message({ message, onAction }) {
         <div className="rounded-2xl rounded-tl-md bg-zinc-100 px-3.5 py-2.5 text-sm leading-relaxed text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
           {message.text}
         </div>
-        {message.action && (
-          <button
-            type="button"
-            onClick={() => onAction(message.action)}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 px-3 py-1.5 text-[11px] font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/10 dark:text-emerald-400"
-          >
-            {message.action.label}
-            <ArrowRight className="h-3 w-3" />
-          </button>
-        )}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {message.action && (
+            <button
+              type="button"
+              onClick={() => onAction(message.action)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 px-3 py-1.5 text-[11px] font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/10 dark:text-emerald-400"
+            >
+              {message.action.label}
+              <ArrowRight className="h-3 w-3" />
+            </button>
+          )}
+          {/* Replay works whether or not answers are spoken automatically,
+              so a missed number can always be heard again. */}
+          {voice?.supported &&
+            (voice.speakingId === message.id ? (
+              <button
+                type="button"
+                onClick={voice.stop}
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-600 transition-colors dark:text-emerald-400"
+                aria-label="Stop reading this answer"
+              >
+                <CircleStop className="h-3 w-3" />
+                Stop
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => voice.speakMessage(message.id, message.text)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-[11px] font-semibold text-zinc-500 transition-colors hover:border-emerald-500/40 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:text-emerald-400"
+                aria-label="Read this answer aloud"
+              >
+                <Volume2 className="h-3 w-3" />
+                Listen
+              </button>
+            ))}
+        </div>
         {message.mode === 'ai' && <p className="mt-1 text-[10px] text-zinc-400">AI response</p>}
       </div>
     </div>

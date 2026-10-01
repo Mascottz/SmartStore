@@ -96,7 +96,30 @@ backend is configured.
   can guide raw inventory entry with SKU generation, and links into the
   relevant screen. It works offline with local
   insights and can use an optional server-side Gemini endpoint when
-  `GOOGLE_API_KEY` is configured. Shop Mode (free) stores see a locked "StoreSense"
+  `GOOGLE_API_KEY` is configured.
+  **Spoken replies**: a speaker button in the StoreSense header makes it read
+  each answer aloud, and every answer keeps a "Listen" button so a number can
+  be replayed. This is output only — there is no microphone, no permission
+  prompt and no extra cost: it uses the browser's built-in on-device speech,
+  so it works offline and in demo mode exactly like the text answers do.
+  The spoken replies are **store aware**. StoreSense knows whose shop it is
+  reporting on: switching spoken replies on says *"Spoken replies are on for
+  Crown Jewel Supermarket"*, and the name is pronounced the way its owner
+  says it. A plain name like "Crown Jewel Supermarket" is read exactly as
+  typed, while the shapes speech engines get wrong are fixed — initials are
+  spelled ("KM Supermart" → "K M Supermart"), "&" is read "and" ("J&J
+  Minimart" → "J and J Minimart"), and "Ltd"/"PLC"/"Nig." are expanded. An
+  all-caps name is treated as shouting, not initials, so "ADA STORES" is
+  left alone. The store's live catalogue is used too: shelf units are said
+  in full ("Peak Milk 400g" → "Peak Milk 400 grams", "Coca-Cola 50cl" → "50
+  centilitres") and the store's own product codes are spelled so they can be
+  written down ("PK-400" → "P K, 4 0 0"). Only codes that really exist in
+  the catalogue are spelled, so "COVID-19" is left alone. Amounts and app
+  terms are re-phrased too ("₦12,400" → "12400 naira", "POS" → "P O S").
+  None of this changes what an answer *says* — the screen stays the source
+  of truth and the two never disagree on a number. The opening greeting
+  is never read aloud, and the choice is remembered per account per device.
+  Shop Mode (free) stores see a locked "StoreSense"
   button that explains the feature and links to the upgrade; the gate is
   enforced in the UI **and** server-side in `api/assistant.js`, which reads the
   caller's plan from the database instead of trusting the request
@@ -137,9 +160,11 @@ npm test    # vitest + jsdom: POS category/pagination behaviour, POS partial &
             # two-way owner modes (monitoring/transactional + device detection
             # + free plan untouched, end-to-end through the real app), the
             # mobile inventory page, Shop Mode team limits, StoreSense inventory
-            # intake, and the StoreSense Owner Mode gate (locked upgrade prompt
+            # intake, the StoreSense Owner Mode gate (locked upgrade prompt
             # on Shop Mode, the real assistant for every role on Owner Mode and
-            # in the demo store)
+            # in the demo store), and StoreSense spoken replies (store-name
+            # pronunciation, catalogue units & product codes, naira phrasing,
+            # silence unless asked, per-account recall)
 npm run lint
 npm run build
 ```
