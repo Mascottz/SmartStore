@@ -86,4 +86,29 @@ describe('printReceipt', () => {
     expect(written).toContain('>ada@shop.com</td>');
     expect(written).not.toContain('ada@shop.com (');
   });
+
+  it('prints batch numbers and expiry dates on pharmacy lines', () => {
+    printReceipt({
+      ...sale,
+      items: [
+        {
+          name: 'Amoxil 500mg Caps',
+          qty: 25,
+          price: 4500,
+          lineTotal: 112500,
+          isRx: true,
+          batches: [
+            { batchNo: 'AMX-2419', expiryDate: '2026-11-15', qty: 20 },
+            { batchNo: 'AMX-2501', expiryDate: '2027-07-28', qty: 5 },
+          ],
+        },
+      ],
+    });
+    // [Rx] marks the prescription-only line…
+    expect(written).toContain('Amoxil 500mg Caps [Rx]');
+    // …and the FEFO allocation is printed for traceability.
+    expect(written).toContain('AMX-2419 exp 2026-11-15 x 20');
+    expect(written).toContain('AMX-2501 exp 2027-07-28 x 5');
+    expect(written).toContain('Prescription item dispensed after prescription check.');
+  });
 });

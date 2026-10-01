@@ -62,6 +62,10 @@ export const NICHES = [
     trackStock: true,
     hasExpiry: true,
     hasBarcode: true,
+    // Pharmacy Mode: stock is tracked in batches (batch number, expiry,
+    // supplier per delivery), sales allocate FEFO, and prescription-only
+    // items get a dispensing check at the till.
+    pharmacy: true,
     categories: [
       'Prescription Drugs',
       'Over-the-Counter',

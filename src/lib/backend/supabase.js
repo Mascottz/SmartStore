@@ -37,7 +37,28 @@ const mapProduct = (p) =>
     salePrice: Number(p.sale_price || 0),
     stock: Number(p.stock || 0),
     expiryDate: p.expiry_date || null,
+    genericName: p.generic_name || '',
+    strength: p.strength || '',
+    dosageForm: p.dosage_form || '',
+    packSize: p.pack_size || '',
+    isRx: Boolean(p.is_rx),
     createdAt: p.created_at,
+  };
+
+// Pharmacy batch row (010_pharmacy_mode.sql) → client shape.
+const mapBatch = (b) =>
+  b && {
+    id: b.id,
+    storeId: b.store_id,
+    productId: b.product_id,
+    batchNo: b.batch_no || '',
+    expiryDate: b.expiry_date || null,
+    qty: Number(b.qty || 0),
+    costPrice: Number(b.cost_price || 0),
+    supplier: b.supplier || '',
+    status: b.status || 'active',
+    receivedAt: b.received_at,
+    createdAt: b.created_at,
   };
 
 const mapSale = (s) =>
@@ -307,6 +328,36 @@ export const supabaseAdapter = {
     async create(storeId, d) {
       const cleanName = clamp(sanitize(d.name), 200);
       if (!cleanName) throw new Error('Product name is required.');
+
+      // Pharmacy products are created through an RPC so the product and its
+      // opening batch land atomically, and the batch trigger folds the
+      // opening quantity into products.stock server-side.
+      if (d.openingBatch && Math.floor(Number(d.openingBatch.qty) || 0) > 0) {
+        const b = d.openingBatch;
+        const { data, error } = await supabase.rpc('create_pharmacy_product', {
+          p_store_id: storeId,
+          p_name: cleanName,
+          p_sku: clamp(sanitize(d.sku || ''), 50),
+          p_category: clamp(sanitize(d.category || 'General'), 100),
+          p_cost_price: Math.max(0, Number(d.costPrice) || 0),
+          p_sale_price: Math.max(0, Number(d.salePrice) || 0),
+          p_generic_name: clamp(sanitize(d.genericName || ''), 200),
+          p_strength: clamp(sanitize(d.strength || ''), 60),
+          p_dosage_form: clamp(sanitize(d.dosageForm || ''), 60),
+          p_pack_size: clamp(sanitize(d.packSize || ''), 60),
+          p_is_rx: Boolean(d.isRx),
+          p_batch: {
+            batchNo: clamp(sanitize(b.batchNo || ''), 60) || 'OPENING',
+            expiryDate: b.expiryDate || null,
+            qty: Math.max(0, Math.floor(Number(b.qty) || 0)),
+            costPrice: Math.max(0, Number(b.costPrice) || 0),
+            supplier: clamp(sanitize(b.supplier || ''), 120),
+          },
+        });
+        ensure(error);
+        return mapProduct(data);
+      }
+
       const { data, error } = await supabase
         .from('products')
         .insert({
@@ -318,6 +369,11 @@ export const supabaseAdapter = {
           sale_price: Math.max(0, Number(d.salePrice) || 0),
           stock: Math.max(0, Math.floor(Number(d.stock) || 0)),
           expiry_date: d.expiryDate || null,
+          generic_name: clamp(sanitize(d.genericName || ''), 200),
+          strength: clamp(sanitize(d.strength || ''), 60),
+          dosage_form: clamp(sanitize(d.dosageForm || ''), 60),
+          pack_size: clamp(sanitize(d.packSize || ''), 60),
+          is_rx: Boolean(d.isRx),
         })
         .select()
         .single();
@@ -333,6 +389,11 @@ export const supabaseAdapter = {
       if (patch.salePrice !== undefined) row.sale_price = patch.salePrice;
       if (patch.stock !== undefined) row.stock = patch.stock;
       if (patch.expiryDate !== undefined) row.expiry_date = patch.expiryDate;
+      if (patch.genericName !== undefined) row.generic_name = patch.genericName;
+      if (patch.strength !== undefined) row.strength = patch.strength;
+      if (patch.dosageForm !== undefined) row.dosage_form = patch.dosageForm;
+      if (patch.packSize !== undefined) row.pack_size = patch.packSize;
+      if (patch.isRx !== undefined) row.is_rx = patch.isRx;
       const { data, error } = await supabase
         .from('products')
         .update(row)
@@ -345,6 +406,68 @@ export const supabaseAdapter = {
     async remove(id) {
       const { error } = await supabase.from('products').delete().eq('id', id);
       ensure(error);
+    },
+  },
+
+  // Pharmacy batches. Writes go straight through RLS (managers and above);
+  // the sync trigger keeps products.stock / expiry_date consistent after
+  // every change, mirroring the local adapter.
+  batches: {
+    async list(storeId) {
+      const { data, error } = await supabase
+        .from('product_batches')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('expiry_date', { ascending: true, nullsFirst: false })
+        .order('received_at', { ascending: true });
+      ensure(error);
+      return data.map(mapBatch);
+    },
+    async add(storeId, d) {
+      const qty = Math.floor(Number(d.qty) || 0);
+      if (qty < 1) throw new Error('Received quantity must be at least 1.');
+      const { data, error } = await supabase
+        .from('product_batches')
+        .insert({
+          store_id: storeId,
+          product_id: d.productId,
+          batch_no: clamp(sanitize(d.batchNo || ''), 60) || 'OPENING',
+          expiry_date: d.expiryDate || null,
+          qty,
+          cost_price: Math.max(0, Number(d.costPrice) || 0),
+          supplier: clamp(sanitize(d.supplier || ''), 120),
+        })
+        .select()
+        .single();
+      ensure(error);
+      return mapBatch(data);
+    },
+    async update(id, patch) {
+      const row = {};
+      if (patch.batchNo !== undefined) row.batch_no = patch.batchNo;
+      if (patch.expiryDate !== undefined) row.expiry_date = patch.expiryDate;
+      if (patch.qty !== undefined) row.qty = Math.max(0, Math.floor(Number(patch.qty) || 0));
+      if (patch.costPrice !== undefined) row.cost_price = patch.costPrice;
+      if (patch.supplier !== undefined) row.supplier = patch.supplier;
+      if (patch.status !== undefined) {
+        if (!['active', 'quarantined', 'recalled'].includes(patch.status)) {
+          throw new Error('Invalid batch status.');
+        }
+        row.status = patch.status;
+      }
+      const { data, error } = await supabase
+        .from('product_batches')
+        .update(row)
+        .eq('id', id)
+        .select()
+        .single();
+      ensure(error);
+      return mapBatch(data);
+    },
+    async remove(id) {
+      const { error } = await supabase.from('product_batches').delete().eq('id', id);
+      ensure(error);
+      return id;
     },
   },
 

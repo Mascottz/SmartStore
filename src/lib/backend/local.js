@@ -4,6 +4,7 @@
 import { sanitize, clamp } from '../validate';
 import { isSuperAdminEmail } from '../superAdmin';
 import { checkTeamChange } from '../teamLimits';
+import { allocateFefo } from '../pharmacy';
 
 const DB_KEY = 'smartstore-db';
 const SESSION_KEY = 'smartstore-session';
@@ -81,6 +82,7 @@ function load() {
     members: [],
     categories: [],
     products: [],
+    batches: [],
     sales: [],
     expenses: [],
     creditPayments: [],
@@ -101,6 +103,40 @@ function save(db) {
     throw e;
   }
 }
+
+// ---- Pharmacy batch helpers ------------------------------------------------
+// Local mirror of the product_batches_sync_stock trigger in
+// 010_pharmacy_mode.sql: after any batch change, the product's stock is the
+// sum of its active batches and its expiry mirrors the earliest active
+// batch expiry, so every part of the app that reads products.stock /
+// products.expiry_date keeps working with batch-tracked medicines.
+function syncProductStock(db, productId) {
+  const product = db.products.find((p) => p.id === productId);
+  if (!product) return;
+  const active = (db.batches || []).filter(
+    (b) => b.productId === productId && (b.status || 'active') === 'active'
+  );
+  product.stock = active.reduce((sum, b) => sum + (Number(b.qty) || 0), 0);
+  // Displayed expiry = soonest expiry among batches that still hold stock;
+  // a depleted batch must not keep warning about itself forever.
+  const dates = active
+    .filter((b) => (Number(b.qty) || 0) > 0)
+    .map((b) => (b.expiryDate ? String(b.expiryDate).slice(0, 10) : null))
+    .filter(Boolean)
+    .sort();
+  product.expiryDate = dates[0] || null;
+}
+
+const mapBatchIn = (data) => ({
+  batchNo: clamp(sanitize(data.batchNo || ''), 60),
+  expiryDate: data.expiryDate || null,
+  qty: Math.max(0, Math.floor(Number(data.qty) || 0)),
+  costPrice: Math.max(0, Number(data.costPrice) || 0),
+  supplier: clamp(sanitize(data.supplier || ''), 120),
+  status: ['active', 'quarantined', 'recalled'].includes(data.status)
+    ? data.status
+    : 'active',
+});
 
 const authListeners = new Set();
 function emitAuth(user) {
@@ -154,9 +190,13 @@ export const localAdapter = {
         id: uid(),
         email: normalized,
         password,
-        // The designated administrator never waits in the local approval queue.
+        // The designated administrator never waits in the local approval queue,
+        // and neither do the seeded demo accounts (Demo Supermart and the
+        // Healthway Pharmacy demo).
         approvalStatus:
-          isSuperAdminEmail(normalized) || normalized === 'demo@smartstoreng.com'
+          isSuperAdminEmail(normalized) ||
+          normalized === 'demo@smartstoreng.com' ||
+          normalized === 'pharmacy.demo@smartstoreng.com'
             ? 'approved'
             : 'pending',
         createdAt: new Date().toISOString(),
@@ -365,9 +405,32 @@ export const localAdapter = {
         salePrice: Math.max(0, Number(data.salePrice) || 0),
         stock: Math.max(0, Math.floor(Number(data.stock) || 0)),
         expiryDate: data.expiryDate || null,
+        genericName: clamp(sanitize(data.genericName || ''), 200),
+        strength: clamp(sanitize(data.strength || ''), 60),
+        dosageForm: clamp(sanitize(data.dosageForm || ''), 60),
+        packSize: clamp(sanitize(data.packSize || ''), 60),
+        isRx: Boolean(data.isRx),
         createdAt: new Date().toISOString(),
       };
       db.products.push(product);
+
+      // Pharmacy products open life with their first batch, so stock and
+      // expiry are batch-tracked from the very first unit.
+      const opening = data.openingBatch;
+      if (opening && Math.floor(Number(opening.qty) || 0) > 0) {
+        const batch = {
+          id: uid(),
+          storeId,
+          productId: product.id,
+          receivedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          ...mapBatchIn({ ...opening, status: 'active' }),
+        };
+        db.batches = db.batches || [];
+        db.batches.push(batch);
+        syncProductStock(db, product.id);
+      }
+
       save(db);
       return product;
     },
@@ -383,6 +446,17 @@ export const localAdapter = {
       if (clean.costPrice !== undefined) clean.costPrice = Math.max(0, Number(clean.costPrice) || 0);
       if (clean.salePrice !== undefined) clean.salePrice = Math.max(0, Number(clean.salePrice) || 0);
       if (clean.stock !== undefined) clean.stock = Math.max(0, Math.floor(Number(clean.stock) || 0));
+      if (clean.genericName !== undefined) clean.genericName = clamp(sanitize(clean.genericName || ''), 200);
+      if (clean.strength !== undefined) clean.strength = clamp(sanitize(clean.strength || ''), 60);
+      if (clean.dosageForm !== undefined) clean.dosageForm = clamp(sanitize(clean.dosageForm || ''), 60);
+      if (clean.packSize !== undefined) clean.packSize = clamp(sanitize(clean.packSize || ''), 60);
+      if (clean.isRx !== undefined) clean.isRx = Boolean(clean.isRx);
+
+      // Batch-tracked products own their stock through batches; a direct
+      // stock write would be overwritten by the next batch change anyway.
+      const hasBatches = (db.batches || []).some((b) => b.productId === id);
+      if (hasBatches && clean.stock !== undefined) delete clean.stock;
+      if (hasBatches && clean.expiryDate !== undefined) delete clean.expiryDate;
 
       db.products[idx] = { ...db.products[idx], ...clean };
       save(db);
@@ -391,7 +465,69 @@ export const localAdapter = {
     async remove(id) {
       const db = load();
       db.products = db.products.filter((p) => p.id !== id);
+      db.batches = (db.batches || []).filter((b) => b.productId !== id);
       save(db);
+    },
+  },
+
+  // Pharmacy stock lives in batches: batch number, expiry, quantity, cost
+  // and supplier per delivery. Batches are what sales allocate FEFO from
+  // and what recalls and expiry reports point at.
+  batches: {
+    async list(storeId) {
+      return (load().batches || [])
+        .filter((b) => b.storeId === storeId)
+        .sort(
+          (a, b) =>
+            String(a.expiryDate || '9999-12-31').localeCompare(
+              String(b.expiryDate || '9999-12-31')
+            ) || new Date(a.receivedAt) - new Date(b.receivedAt)
+        );
+    },
+    async add(storeId, data) {
+      const db = load();
+      const product = db.products.find(
+        (p) => p.id === data.productId && p.storeId === storeId
+      );
+      if (!product) throw new Error('Product not found');
+
+      const batch = {
+        id: uid(),
+        storeId,
+        productId: product.id,
+        receivedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        ...mapBatchIn(data),
+      };
+      if (batch.qty <= 0) throw new Error('Received quantity must be at least 1.');
+
+      db.batches = db.batches || [];
+      db.batches.push(batch);
+      syncProductStock(db, product.id);
+      save(db);
+      return batch;
+    },
+    async update(id, patch) {
+      const db = load();
+      const idx = (db.batches || []).findIndex((b) => b.id === id);
+      if (idx === -1) throw new Error('Batch not found');
+
+      db.batches[idx] = {
+        ...db.batches[idx],
+        ...mapBatchIn({ ...db.batches[idx], ...patch }),
+      };
+      syncProductStock(db, db.batches[idx].productId);
+      save(db);
+      return db.batches[idx];
+    },
+    async remove(id) {
+      const db = load();
+      const batch = (db.batches || []).find((b) => b.id === id);
+      if (!batch) throw new Error('Batch not found');
+      db.batches = db.batches.filter((b) => b.id !== id);
+      syncProductStock(db, batch.productId);
+      save(db);
+      return batch;
     },
   },
 
@@ -421,17 +557,45 @@ export const localAdapter = {
 
       if (trackStock) {
         // First pass: verify all stock is sufficient
+        const batchAllocations = new Map();
         for (const item of items) {
           const product = db.products.find((p) => p.id === item.productId);
           if (!product) throw new Error(`Product not found: ${item.name}`);
-          if ((product.stock ?? 0) - item.qty < 0) {
+          const productBatches = (db.batches || []).filter(
+            (b) => b.productId === item.productId
+          );
+          if (productBatches.length > 0) {
+            // Batch-tracked medicine: in-date, active batches only.
+            const { allocations, remaining } = allocateFefo(productBatches, item.qty);
+            if (remaining > 0) {
+              throw new Error(
+                `Insufficient in-date stock for ${item.name} (short by ${remaining} units; expired or quarantined batches do not count)`
+              );
+            }
+            batchAllocations.set(item.productId, allocations);
+          } else if ((product.stock ?? 0) - item.qty < 0) {
             throw new Error(`Insufficient stock for ${item.name}`);
           }
         }
         // Second pass: decrement
         for (const item of items) {
           const product = db.products.find((p) => p.id === item.productId);
-          product.stock = (product.stock ?? 0) - item.qty;
+          const allocations = batchAllocations.get(item.productId);
+          if (allocations) {
+            for (const alloc of allocations) {
+              const batch = db.batches.find((b) => b.id === alloc.batchId);
+              batch.qty = (Number(batch.qty) || 0) - alloc.qty;
+            }
+            syncProductStock(db, item.productId);
+          } else {
+            product.stock = (product.stock ?? 0) - item.qty;
+          }
+        }
+        // The allocation travels on the line item so receipts, recalls and
+        // voids can trace exact batches (mirrors the create_sale RPC).
+        for (const item of items) {
+          const allocations = batchAllocations.get(item.productId);
+          if (allocations) item.batches = allocations;
         }
       }
 
@@ -479,6 +643,17 @@ export const localAdapter = {
           qty: Math.max(1, Math.floor(Number(i.qty) || 1)),
           price: Math.max(0, Number(i.price) || 0),
           lineTotal: Math.max(0, Number(i.lineTotal) || 0),
+          ...(i.isRx ? { isRx: true } : {}),
+          ...(Array.isArray(i.batches)
+            ? {
+                batches: i.batches.map((a) => ({
+                  batchId: a.batchId,
+                  batchNo: clamp(sanitize(a.batchNo || ''), 60),
+                  expiryDate: a.expiryDate || null,
+                  qty: Math.max(0, Math.floor(Number(a.qty) || 0)),
+                })),
+              }
+            : {}),
         })),
         total,
         createdAt: new Date().toISOString(),
@@ -497,8 +672,30 @@ export const localAdapter = {
       sale.status = 'voided';
       if (trackStock) {
         for (const item of sale.items) {
-          const product = db.products.find((p) => p.id === item.productId);
-          if (product) product.stock = (product.stock ?? 0) + item.qty;
+          // Batch-tracked lines go back to the exact batches they left. If
+          // the originating batch was deleted since the sale, those units
+          // fall back to plain product stock so nothing is silently lost.
+          if (Array.isArray(item.batches) && item.batches.length > 0) {
+            let orphanQty = 0;
+            for (const alloc of item.batches) {
+              const batch = (db.batches || []).find((b) => b.id === alloc.batchId);
+              if (batch) {
+                batch.qty = (Number(batch.qty) || 0) + (Number(alloc.qty) || 0);
+              } else {
+                orphanQty += Number(alloc.qty) || 0;
+              }
+            }
+            syncProductStock(db, item.productId);
+            if (orphanQty > 0) {
+              const product = db.products.find((p) => p.id === item.productId);
+              if (product) {
+                product.stock = (Number(product.stock) || 0) + orphanQty;
+              }
+            }
+          } else {
+            const product = db.products.find((p) => p.id === item.productId);
+            if (product) product.stock = (product.stock ?? 0) + item.qty;
+          }
         }
       }
       db.voidLogs.push({
@@ -779,6 +976,7 @@ export const localAdapter = {
       db.members = db.members.filter((member) => member.storeId !== storeId);
       db.categories = db.categories.filter((item) => item.storeId !== storeId);
       db.products = db.products.filter((item) => item.storeId !== storeId);
+      db.batches = (db.batches || []).filter((item) => item.storeId !== storeId);
       db.sales = db.sales.filter((item) => item.storeId !== storeId);
       db.expenses = db.expenses.filter((item) => item.storeId !== storeId);
       db.creditPayments = (db.creditPayments || []).filter((item) => item.storeId !== storeId);

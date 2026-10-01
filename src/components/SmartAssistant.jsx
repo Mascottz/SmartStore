@@ -81,6 +81,12 @@ function AssistantPanel() {
     () => (storeId ? api.creditPayments.list(storeId) : []),
     [storeId]
   );
+  // Pharmacy Mode: batch aggregates power the expiry answers.
+  const isPharmacy = Boolean(niche.pharmacy);
+  const { data: batches } = useStoreData(
+    () => (storeId && isPharmacy ? api.batches.list(storeId) : []),
+    [storeId, isPharmacy]
+  );
 
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState('');
@@ -101,8 +107,9 @@ function AssistantPanel() {
         products,
         expenses,
         creditPayments,
+        batches,
       }),
-    [storeName, niche, role, location.pathname, sales, products, expenses, creditPayments]
+    [storeName, niche, role, location.pathname, sales, products, expenses, creditPayments, batches]
   );
 
   // Replace the optimistic greeting once the store context is known.

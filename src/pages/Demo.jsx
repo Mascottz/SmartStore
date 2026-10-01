@@ -13,12 +13,13 @@ import {
   BookUser,
   Loader2,
   Package,
+  Pill,
   PlayCircle,
   Receipt,
   ShoppingCart,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { loginOrCreateDemo } from '../lib/demo';
+import { loginOrCreateDemo, loginOrCreatePharmacyDemo } from '../lib/demo';
 import { bootDemoSandbox, isDemoBackend } from '../lib/backend';
 import { useAuth } from '../context/AuthContext';
 import logo from '/logo-smartstore.png';
@@ -33,25 +34,31 @@ const HIGHLIGHTS = [
 export default function Demo() {
   const navigate = useNavigate();
   const { refreshMembership } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(null); // null | 'supermarket' | 'pharmacy'
 
-  const enterDemo = async () => {
-    setLoading(true);
+  const enterDemo = async (kind = 'supermarket') => {
+    setLoading(kind);
+    const seed =
+      kind === 'pharmacy' ? loginOrCreatePharmacyDemo : loginOrCreateDemo;
     try {
       if (isDemoBackend) {
-        await loginOrCreateDemo();
+        await seed();
         await refreshMembership();
-        toast.success('Welcome to the demo store');
+        toast.success(
+          kind === 'pharmacy' ? 'Welcome to the pharmacy demo' : 'Welcome to the demo store'
+        );
         navigate('/dashboard', { replace: true });
       } else {
-        await loginOrCreateDemo({ localOnly: true });
-        toast.success('Welcome to the demo store');
+        await seed({ localOnly: true });
+        toast.success(
+          kind === 'pharmacy' ? 'Welcome to the pharmacy demo' : 'Welcome to the demo store'
+        );
         bootDemoSandbox('/dashboard');
       }
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Could not start the demo. Please try again.');
-      setLoading(false);
+      setLoading(null);
     }
   };
 
@@ -84,22 +91,38 @@ export default function Demo() {
             Try the full app with a <span className="text-emerald-600">demo store.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-zinc-600">
-            We have set up Demo Supermart with products, past sales, expenses and a live Credit Book.
-            Jump in and explore every feature in seconds.
+            We have set up Demo Supermart with products, past sales, expenses and a live Credit
+            Book — or Healthway Pharmacy, stocked batch-by-batch with expiry tracking and
+            prescription checks. Jump in and explore every feature in seconds.
           </p>
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <button
-              onClick={enterDemo}
-              disabled={loading}
+              onClick={() => enterDemo('supermarket')}
+              disabled={Boolean(loading)}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-7 py-3.5 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 disabled:opacity-60 sm:w-auto"
             >
-              {loading ? (
+              {loading === 'supermarket' ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Setting up your demo...
                 </>
               ) : (
                 <>
                   <PlayCircle className="h-4 w-4" aria-hidden="true" /> Enter the demo store
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => enterDemo('pharmacy')}
+              disabled={Boolean(loading)}
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-emerald-600/40 bg-emerald-50 px-7 py-3.5 font-semibold text-emerald-800 transition-colors hover:border-emerald-500 hover:bg-emerald-100 disabled:opacity-60 sm:w-auto"
+            >
+              {loading === 'pharmacy' ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Setting up the pharmacy...
+                </>
+              ) : (
+                <>
+                  <Pill className="h-4 w-4" aria-hidden="true" /> Try the Pharmacy Mode demo
                 </>
               )}
             </button>

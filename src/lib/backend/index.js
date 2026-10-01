@@ -86,8 +86,13 @@ export const api = {
   auth: backend.auth,
   stores: withNotify(backend.stores, 'stores', ['create', 'update', 'joinWithCode']),
   categories: withNotify(backend.categories, 'categories', ['add', 'remove']),
-  products: withNotify(backend.products, 'products', ['create', 'update', 'remove']),
-  sales: withNotify(backend.sales, 'sales', ['create', 'void']),
+  // Pharmacy products are created with (and removed with) their batches, so
+  // product writes also refresh batch listeners.
+  products: withNotify(backend.products, 'products', ['create', 'update', 'remove'], ['batches']),
+  // Batch writes move the product rollup (stock + earliest expiry), so they
+  // refresh product listeners too.
+  batches: withNotify(backend.batches, 'batches', ['add', 'update', 'remove'], ['products']),
+  sales: withNotify(backend.sales, 'sales', ['create', 'void'], ['products', 'batches']),
   // Repayments also change the sale's amountPaid, so notify both topics.
   creditPayments: withNotify(backend.creditPayments, 'creditPayments', ['add', 'remove'], ['sales']),
   expenses: withNotify(backend.expenses, 'expenses', ['create', 'remove']),

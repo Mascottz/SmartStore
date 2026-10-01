@@ -23,6 +23,7 @@ import { api } from '../lib/backend';
 import { fmtMoney } from '../lib/format';
 import { printReceipt } from '../lib/printReceipt';
 import { sanitize } from '../lib/validate';
+import { allocateFefo, sellableQty } from '../lib/pharmacy';
 import {
   PAYMENT_METHODS,
   isCreditMethod,
@@ -47,6 +48,10 @@ const categoryOf = (p) => (p?.category || '').trim() || 'General';
 export default function POS() {
   const { storeId, user, role, niche, store, storeName, firstSaleCompleted } = useAuth();
 
+  // Pharmacy Mode: the register dispenses from batches (FEFO — soonest
+  // expiry first) and checks prescriptions for Rx items at the till.
+  const isPharmacy = Boolean(niche.pharmacy);
+
   const { data: products, loading } = useStoreData(
     () => (storeId ? api.products.list(storeId) : []),
     [storeId]
@@ -54,6 +59,48 @@ export default function POS() {
   const { data: categories } = useStoreData(
     () => (storeId ? api.categories.list(storeId) : []),
     [storeId]
+  );
+  const { data: batches } = useStoreData(
+    () => (storeId && isPharmacy ? api.batches.list(storeId) : []),
+    [storeId, isPharmacy]
+  );
+
+  // productId → batches, for FEFO previews and sellable caps.
+  const batchesByProduct = useMemo(() => {
+    const map = new Map();
+    if (isPharmacy) {
+      (batches || []).forEach((b) => {
+        const list = map.get(b.productId) || [];
+        list.push(b);
+        map.set(b.productId, list);
+      });
+    }
+    return map;
+  }, [batches, isPharmacy]);
+
+  /**
+   * How many units of each product can actually be dispensed right now.
+   * For batch-tracked medicines that is in-date, active stock — a shelf of
+   * expired or quarantined batches is "out of stock" no matter what the
+   * rollup says.
+   */
+  const sellableByProduct = useMemo(() => {
+    const map = new Map();
+    if (!isPharmacy) return map;
+    products.forEach((p) => {
+      const list = batchesByProduct.get(p.id) || [];
+      // Mirror of the sale-time rule: batch-tracked medicines cap at
+      // in-date stock; a product with no batch rows yet sells against its
+      // plain stock number, exactly like the backends do.
+      map.set(p.id, list.length > 0 ? sellableQty(list) : Number(p.stock) || 0);
+    });
+    return map;
+  }, [isPharmacy, products, batchesByProduct]);
+
+  const sellableFor = useCallback(
+    (product) =>
+      isPharmacy ? sellableByProduct.get(product.id) ?? 0 : Number(product.stock) || 0,
+    [isPharmacy, sellableByProduct]
   );
 
   const [cart, setCart] = useState([]);
@@ -71,6 +118,7 @@ export default function POS() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [lastSale, setLastSale] = useState(null);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
+  const [showRxConfirm, setShowRxConfirm] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   // Below desktop width the sale lives in a viewport-fixed drawer instead of
   // underneath the product grid. This keeps checkout one tap away even when a
@@ -171,9 +219,14 @@ export default function POS() {
       setCart((prev) => {
         const existing = prev.find((item) => item.id === product.id);
         if (existing) {
-          // Check stock limit for tracked niches
-          if (niche.trackStock && existing.qty >= (product.stock ?? Infinity)) {
-            toast.error(`Only ${product.stock} in stock`);
+          // Check stock limit for tracked niches. For medicines the cap is
+          // in-date stock: expired and quarantined batches never count.
+          if (niche.trackStock && existing.qty >= sellableFor(product)) {
+            toast.error(
+              isPharmacy
+                ? `Only ${sellableFor(product)} in-date unit${sellableFor(product) === 1 ? '' : 's'} of ${product.name}`
+                : `Only ${product.stock} in stock`
+            );
             return prev;
           }
           return prev.map((item) =>
@@ -184,7 +237,7 @@ export default function POS() {
       });
       toast.success(`${product.name} added`, { duration: 1200 });
     },
-    [niche.trackStock]
+    [niche.trackStock, sellableFor, isPharmacy]
   );
 
   // Unknown barcodes (camera or USB) open the quick-add modal.
@@ -290,10 +343,15 @@ export default function POS() {
 
   const updateQuantity = (id, newQty) => {
     if (newQty < 1) return;
-    // Enforce stock limit
+    // Enforce stock limit (in-date stock for medicines)
     const item = cart.find((i) => i.id === id);
-    if (niche.trackStock && item && newQty > (item.stock ?? Infinity)) {
-      return toast.error(`Only ${item.stock} in stock`);
+    const cap = item ? sellableFor(item) : Infinity;
+    if (niche.trackStock && item && newQty > cap) {
+      return toast.error(
+        isPharmacy
+          ? `Only ${cap} in-date unit${cap === 1 ? '' : 's'} of ${item.name}`
+          : `Only ${item.stock} in stock`
+      );
     }
     setCart((prev) =>
       prev.map((item) => (item.id === id ? { ...item, qty: newQty } : item))
@@ -322,7 +380,21 @@ export default function POS() {
       )
     : 0;
 
-  const completeSale = async () => {
+  // Prescription-only items get a dispensing check before the sale goes
+  // through. SmartStore records that the check happened; the professional
+  // judgment itself stays with the pharmacist.
+  const rxItems = useMemo(() => cart.filter((i) => Boolean(i.isRx)), [cart]);
+
+  const completeSale = () => {
+    if (cart.length === 0) return toast.error('Cart is empty');
+    if (isPharmacy && rxItems.length > 0) {
+      setShowRxConfirm(true);
+      return;
+    }
+    return doCompleteSale();
+  };
+
+  const doCompleteSale = async () => {
     if (cart.length === 0) return toast.error('Cart is empty');
     if (!storeId) return toast.error('Store not ready yet. Try again in a second.');
 
@@ -352,6 +424,9 @@ export default function POS() {
         qty: item.qty,
         price: item.salePrice,
         lineTotal: item.salePrice * item.qty,
+        // Travels with the line so receipts can mark prescription items;
+        // the backend RPC passes jsonb items through untouched.
+        ...(item.isRx ? { isRx: true } : {}),
       }));
 
       const sale = await api.sales.create(storeId, {
@@ -371,7 +446,9 @@ export default function POS() {
         paymentMethod,
         amountPaid: creditSelected ? credit.amountPaid : totalAmount,
         customerName: credit.customerName,
-        items,
+        // The backend's copy carries the FEFO batch allocation per line,
+        // which the receipt prints for traceability.
+        items: Array.isArray(sale.items) && sale.items.length ? sale.items : items,
         total: totalAmount,
       });
       setCart([]);
@@ -605,24 +682,45 @@ export default function POS() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
             {visibleProducts.map((p) => {
-              const outOfStock = niche.trackStock && (p.stock || 0) <= 0;
+              const sellable = isPharmacy
+                ? sellableByProduct.get(p.id) ?? 0
+                : Number(p.stock) || 0;
+              const outOfStock = niche.trackStock && sellable <= 0;
+              const allExpired =
+                isPharmacy && sellable <= 0 && (Number(p.stock) || 0) > 0;
               return (
                 <button
                   key={p.id}
                   disabled={outOfStock}
                   onClick={() => addToCart(p)}
-                  aria-label={`${p.name}, ${fmtMoney(p.salePrice)}${outOfStock ? ', out of stock' : ''}`}
+                  aria-label={`${p.name}, ${fmtMoney(p.salePrice)}${outOfStock ? (allExpired ? ', all batches expired' : ', out of stock') : ''}`}
                   className={`text-left p-4 rounded-2xl border transition-all ${
                     outOfStock
                       ? 'opacity-40 cursor-not-allowed border-zinc-200 dark:border-zinc-800'
                       : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-emerald-500 active:scale-[0.98]'
                   }`}
                 >
-                  <p className="font-medium text-sm truncate">{p.name}</p>
+                  <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                    <span className="truncate">{p.name}</span>
+                    {p.isRx && (
+                      <span
+                        className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 shrink-0"
+                        title="Prescription-only"
+                      >
+                        Rx
+                      </span>
+                    )}
+                  </p>
                   <p className="text-emerald-500 font-bold mt-1">{fmtMoney(p.salePrice)}</p>
                   {niche.trackStock && (
                     <p className="text-[11px] text-zinc-500 mt-1">
-                      {outOfStock ? 'Out of stock' : `${p.stock} in stock`}
+                      {outOfStock
+                        ? allExpired
+                          ? 'All batches expired'
+                          : 'Out of stock'
+                        : isPharmacy
+                          ? `${sellable} in-date`
+                          : `${p.stock} in stock`}
                     </p>
                   )}
                 </button>
@@ -754,8 +852,24 @@ export default function POS() {
               {cart.map((item) => (
                 <div key={item.id} className="flex items-center gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.name}</p>
+                    <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                      <span className="truncate">{item.name}</span>
+                      {Boolean(item.isRx) && (
+                        <span
+                          className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 shrink-0"
+                          title="Prescription-only"
+                        >
+                          Rx
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-zinc-500">{fmtMoney(item.salePrice)} each</p>
+                    {isPharmacy && (
+                      <FefoPreview
+                        item={item}
+                        batches={batchesByProduct.get(item.id) || []}
+                      />
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <button
@@ -765,7 +879,12 @@ export default function POS() {
                     >
                       <Minus className="w-3 h-3" />
                     </button>
-                    <span className="w-8 text-center text-sm font-semibold">{item.qty}</span>
+                    <span
+                      className="w-8 text-center text-sm font-semibold"
+                      aria-label={`${item.name} quantity`}
+                    >
+                      {item.qty}
+                    </span>
                     <button
                       onClick={() => updateQuantity(item.id, item.qty + 1)}
                       className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:text-emerald-500"
@@ -918,6 +1037,27 @@ export default function POS() {
         onConfirm={voidTransaction}
         onCancel={() => setShowVoidConfirm(false)}
       />
+
+      {/* Prescription check for Rx lines. SmartStore only records that the
+          check happened — the judgment is the pharmacist's. */}
+      <ConfirmDialog
+        open={showRxConfirm}
+        title="Prescription checked?"
+        message={
+          rxItems.length > 0
+            ? `This sale includes prescription-only ${rxItems.length === 1 ? 'medicine' : 'medicines'}: ${rxItems
+                .map((i) => i.name)
+                .join(', ')}. Confirm a valid prescription was presented and checked before dispensing.`
+            : ''
+        }
+        confirmLabel="Prescription checked — dispense"
+        variant="warning"
+        onConfirm={() => {
+          setShowRxConfirm(false);
+          doCompleteSale();
+        }}
+        onCancel={() => setShowRxConfirm(false)}
+      />
     </div>
   );
 }
@@ -926,6 +1066,29 @@ export default function POS() {
  * One scrollable category pill in the POS filter row. The count lives in its
  * own span so the label never stretches the pill when a category name is long.
  */
+
+/**
+ * FEFO preview for one cart line: which batches this quantity will be
+ * dispensed from, soonest expiry first. The allocation shown here is the
+ * same one the backend records on the sale (and prints on the receipt).
+ */
+function FefoPreview({ item, batches }) {
+  if (!batches || batches.length === 0) return null;
+  const { allocations } = allocateFefo(batches, item.qty);
+  if (allocations.length === 0) return null;
+  return (
+    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 flex flex-wrap gap-x-2">
+      {allocations.map((a, i) => (
+        <span key={a.batchId || i} className="whitespace-nowrap">
+          {a.batchNo || 'Batch'} × {a.qty}
+          {a.expiryDate
+            ? ` (exp ${new Date(`${String(a.expiryDate).slice(0, 10)}T00:00:00`).toLocaleDateString('en-NG', { month: 'short', year: 'numeric' })})`
+            : ''}
+        </span>
+      ))}
+    </p>
+  );
+}
 function CategoryPill({ label, count, active, onClick }) {
   return (
     <button

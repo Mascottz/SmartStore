@@ -48,6 +48,7 @@ export function buildAssistantContext({
   products = [],
   expenses = [],
   creditPayments = [],
+  batches = [],
 }) {
   const now = new Date();
   const today = new Date(now);
@@ -97,6 +98,37 @@ export function buildAssistantContext({
     .filter((expense) => inWindow(expense.date || expense.createdAt, monthStart))
     .reduce((total, expense) => total + Number(expense.amount || 0), 0);
 
+  // Pharmacy Mode: batch aggregates only — no patient or prescription data
+  // ever enters the assistant context. Expired and near-expiry stock is the
+  // operational question StoreSense answers best.
+  const pharmacy = niche?.pharmacy
+    ? (() => {
+        const buckets = { expired: { units: 0, value: 0 }, d30: { units: 0, value: 0 }, d60: { units: 0, value: 0 }, d90: { units: 0, value: 0 } };
+        batches.forEach((batch) => {
+          if ((batch.status || 'active') !== 'active') return;
+          const expiry = batch.expiryDate ? new Date(`${String(batch.expiryDate).slice(0, 10)}T00:00:00`) : null;
+          if (!expiry || Number.isNaN(expiry.getTime())) return;
+          const qty = Number(batch.qty) || 0;
+          if (qty <= 0) return;
+          const days = Math.round((expiry - today) / (24 * 60 * 60 * 1000));
+          if (days > 90) return;
+          const bucket = days < 0 ? 'expired' : days <= 30 ? 'd30' : days <= 60 ? 'd60' : 'd90';
+          buckets[bucket].units += qty;
+          buckets[bucket].value += qty * (Number(batch.costPrice) || 0);
+        });
+        const atRiskValue =
+          buckets.expired.value + buckets.d30.value + buckets.d60.value + buckets.d90.value;
+        return {
+          tracksBatches: true,
+          expiredUnits: buckets.expired.units,
+          expiringIn30: buckets.d30.units,
+          expiringIn60: buckets.d60.units,
+          expiringIn90: buckets.d90.units,
+          valueAtRisk: Math.round(atRiskValue),
+        };
+      })()
+    : { tracksBatches: false };
+
   return {
     storeName: storeName || 'your store',
     businessType: niche?.label || 'business',
@@ -122,6 +154,7 @@ export function buildAssistantContext({
       lowStockCount: stock.filter((product) => product.quantity < 50).length,
       lowStock: stock.slice(0, 8),
     },
+    pharmacy,
     topSellers: Object.values(topProducts)
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5),
@@ -138,7 +171,7 @@ export function buildAssistantContext({
 
 function localReply(question, context) {
   const q = normalise(question);
-  const { today, last7Days, thisMonth, catalogue, topSellers, creditBook } = context;
+  const { today, last7Days, thisMonth, catalogue, topSellers, creditBook, pharmacy } = context;
   const lowStock = catalogue.lowStock || [];
 
   if (!q) {
@@ -192,6 +225,36 @@ function localReply(question, context) {
     return {
       answer: 'Open Reports for revenue, cost of goods, profit, payment mix and top sellers. Expense analytics has its own report, and premium views still follow your plan.',
       action: { label: 'Open reports', route: '/reports' },
+    };
+  }
+
+  // Pharmacy expiry questions: answered from batch aggregates. StoreSense
+  // helps run the shelves; it never advises on what a patient should take.
+  if (/\b(expiry|expiring|expired|expire|expires|batch\w*|going bad|spoiling)\b/.test(q)) {
+    if (!pharmacy?.tracksBatches) {
+      return {
+        answer:
+          'This business type does not track batches and expiry dates in SmartStore, so I cannot answer expiry questions for it.',
+        action: { label: 'Open inventory', route: '/inventory' },
+      };
+    }
+    const p = pharmacy;
+    const valueFmt = money(p.valueAtRisk);
+    if (!p.expiredUnits && !p.expiringIn30 && !p.expiringIn60 && !p.expiringIn90) {
+      return {
+        answer:
+          'No active batch expires in the next 90 days. The Expiry watch on your Dashboard and Inventory page keeps monitoring every batch.',
+        action: { label: 'Open inventory', route: '/inventory' },
+      };
+    }
+    const bits = [];
+    if (p.expiredUnits) bits.push(`${plural(p.expiredUnits, 'unit')} already expired`);
+    if (p.expiringIn30) bits.push(`${plural(p.expiringIn30, 'unit')} expiring within 30 days`);
+    if (p.expiringIn60) bits.push(`${plural(p.expiringIn60, 'unit')} within 60 days`);
+    if (p.expiringIn90) bits.push(`${plural(p.expiringIn90, 'unit')} within 90 days`);
+    return {
+      answer: `Expiry watch: ${bits.join(', ')}. About ${valueFmt} of stock at cost is at risk. Quarantine anything expired from its batch drawer so it can never be dispensed, and plan markdowns or returns for what is close.`,
+      action: { label: 'Review expiry watch', route: '/inventory' },
     };
   }
 

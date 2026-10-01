@@ -12,6 +12,26 @@ backend is configured.
 ## Features
 
 - 🏪 **Multi-niche onboarding**: Supermarket, Boutique, Pharmacy, Restaurant, Salon/Services, Other
+- 💊 **Pharmacy Mode** (stores onboarded as a Pharmacy): medicines are tracked **batch by
+  batch** — each delivery carries its own batch number, expiry date, quantity, cost and
+  supplier — and sales dispense **FEFO** (first-expiry-first-out), so the soonest-expiring
+  batch always sells first. The batch allocation is written into every sale line and
+  printed on the receipt for traceability and recalls
+  - **Inventory** grows a per-product batch drawer (receive stock, edit, quarantine,
+    restore, remove) and an **expiry watch** strip bucketing active stock into
+    expired / ≤30 / ≤60 / ≤90 days with the money at risk
+  - **POS** shows in-date stock on tiles (a shelf of expired or quarantined batches
+    cannot be sold, even when the rollup is non-zero), previews the FEFO batches each
+    cart line will be dispensed from, and gates prescription-only (**Rx**) medicines
+    behind a "prescription checked?" confirmation — SmartStore records the check, the
+    professional judgment stays with the pharmacist
+  - **Dashboard** adds the expiry watch, and the StoreSense assistant answers expiry
+    questions from batch aggregates ("what's expiring soon?") — never clinical ones
+  - **Medicine fields**: generic name, strength, dosage form, pack size and the Rx flag
+  - Voided sales return stock to the exact batches it came from
+  - Fully backwards compatible: `products.stock` stays the sum of active batches and
+    `products.expiry_date` mirrors the earliest active batch expiry, so every existing
+    screen, report and export keeps working; non-pharmacy stores are untouched
 - 🛒 **POS Register**: product grid with category filter tabs and paged results, inline
   help tooltips, cart, camera barcode scanning, payment methods, receipt printing. The
   cart panel is capped to the viewport so a long sale scrolls internally while the total
@@ -61,7 +81,9 @@ backend is configured.
 - 🎬 **Public demo & marketing site**: a landing page with a Point of Sale showcase, an
   Owner Modes section (benefits & restrictions of free vs Owner Mode) and a one-click
   `/demo` page that seeds a fully populated store (as a yearly Owner Mode subscriber),
-  no sign-up needed
+  no sign-up needed — including a dedicated **Pharmacy Mode demo** (Healthway Pharmacy)
+  stocked with realistic multi-batch medicines, an expired batch, a quarantined one,
+  Rx dispensing history and the expiry watch live
 - 🚀 **Launch routing**: a fresh open in a browser tab always shows the landing page
   (signed-in visitors get an "Open App" call to action); an installed-PWA launch skips
   the marketing page and opens on `/login` first, never `/onboarding`, or straight to
@@ -97,7 +119,8 @@ npm run build
 
 With no env vars set, the app runs entirely on localStorage. For a pre-seeded
 store, click **“Try the demo store”** on the login screen, or open the public
-**`/demo`** page and choose **“Enter the demo store”**.
+**`/demo`** page and choose **“Enter the demo store”** — or **“Try the Pharmacy
+Mode demo”** for a fully stocked, batch-tracked pharmacy.
 
 ## Going live with Supabase
 

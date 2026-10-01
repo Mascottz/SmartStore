@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStoreData } from '../hooks/useStoreData';
 import { api } from '../lib/backend';
 import { fmtMoney, startOfToday, monthKey, monthLabelFromKey } from '../lib/format';
+import { EXPIRY_BUCKETS, daysUntil } from '../lib/pharmacy';
 import OwnerFeatureGate from '../components/OwnerFeatureGate';
 import HelpTip from '../components/HelpTip';
 
@@ -43,6 +44,36 @@ export default function Dashboard() {
     () => (storeId ? api.expenses.list(storeId) : []),
     [storeId]
   );
+
+  // Pharmacy Mode: the dashboard's first job every morning is what is about
+  // to expire (or already has).
+  const isPharmacy = Boolean(niche.pharmacy);
+  const { data: batches } = useStoreData(
+    () => (storeId && isPharmacy ? api.batches.list(storeId) : []),
+    [storeId, isPharmacy]
+  );
+
+  const expiryWatch = useMemo(() => {
+    if (!isPharmacy) return null;
+    const byBucket = {
+      expired: { units: 0, value: 0 },
+      d30: { units: 0, value: 0 },
+      d60: { units: 0, value: 0 },
+      d90: { units: 0, value: 0 },
+    };
+    const today = new Date();
+    (batches || []).forEach((b) => {
+      if ((b.status || 'active') !== 'active') return;
+      const days = daysUntil(b.expiryDate, today);
+      if (days == null) return;
+      const qty = Number(b.qty) || 0;
+      if (qty <= 0) return;
+      const bucket = days < 0 ? 'expired' : days <= 30 ? 'd30' : days <= 60 ? 'd60' : 'd90';
+      byBucket[bucket].units += qty;
+      byBucket[bucket].value += qty * (Number(b.costPrice) || 0);
+    });
+    return byBucket;
+  }, [batches, isPharmacy]);
 
   const completedSales = useMemo(
     () => sales.filter((s) => s.status === 'completed'),
@@ -191,6 +222,68 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      {/* Pharmacy expiry watch: the first question of a pharmacist's
+          morning — what is expired or about to be. */}
+      {expiryWatch && (
+        <section
+          aria-label="Expiry watch"
+          className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 mb-6"
+        >
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="font-semibold text-sm flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              Expiry watch
+              <HelpTip
+                label="Help: Expiry watch"
+                text="Active stock bucketed by how soon each batch expires, with the cost value at risk. Manage batches from Inventory's batch action."
+              />
+            </h3>
+            <button
+              onClick={() => navigate('/inventory')}
+              className="text-xs text-emerald-500 hover:underline"
+            >
+              Manage batches
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {EXPIRY_BUCKETS.map((bucket) => {
+              const data = expiryWatch[bucket.key];
+              const isRed = bucket.tone === 'red';
+              const empty = data.units === 0;
+              return (
+                <div
+                  key={bucket.key}
+                  className={`rounded-xl border p-3 ${
+                    empty
+                      ? 'border-zinc-200 dark:border-zinc-800 opacity-60'
+                      : isRed
+                        ? 'border-red-500/30 bg-red-500/5'
+                        : 'border-amber-500/30 bg-amber-500/5'
+                  }`}
+                >
+                  <p
+                    className={`text-[11px] font-semibold uppercase tracking-wide ${
+                      empty
+                        ? 'text-zinc-400'
+                        : isRed
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-amber-600 dark:text-amber-400'
+                    }`}
+                  >
+                    {bucket.label}
+                  </p>
+                  <p className="text-lg font-bold mt-0.5">
+                    {data.units.toLocaleString('en-NG')}
+                    <span className="text-xs font-normal text-zinc-500"> units</span>
+                  </p>
+                  <p className="text-[11px] text-zinc-500">{fmtMoney(data.value)} at cost</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue chart */}
