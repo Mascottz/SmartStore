@@ -24,7 +24,7 @@ const PAGES = {
       ],
       [
         'Sharing & disclosure',
-        'We share data only with the service providers required to run the product: primarily Supabase (database and authentication), Paystack (payment processing when you choose to pay), and Google Gemini when you choose to use the optional StoreSense assistant. The assistant sends limited store context such as aggregate figures and product labels so it can answer your question; it does not send passwords, account emails, customer names, or raw receipt history. We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
+        'We share data only with the service providers required to run the product: primarily Supabase (database and authentication), Paystack (payment processing when you choose to pay), and Google Gemini when you choose to use the optional StoreSense assistant. The assistant sends a role-filtered operational snapshot so it can answer store-specific questions, including aggregate figures and catalogue, category, batch and supplier labels with relevant stock and pricing attributes. It does not send passwords, account or staff emails, customer or patient names, contact details, notes, or raw receipt history. We may disclose data if required by law or to protect the rights and safety of users and the platform. We never sell your data.',
       ],
       [
         'Where your data lives',
